@@ -6,19 +6,30 @@ Command-line interface for React/TypeScript Study Companion
 import argparse
 import sys
 from pathlib import Path
-import glob
-from document_processor import DocumentProcessor
+from document_processor import DocumentProcessor, OllamaConnectionError
 
 
-def ingest_command(args):
+def _get_processor(args) -> DocumentProcessor:
+    """
+    Create a DocumentProcessor, handling connection errors cleanly.
+    
+    Raises SystemExit with a helpful message if Ollama isn't running.
+    """
+    try:
+        return DocumentProcessor(persist_dir=args.db_path)
+    except OllamaConnectionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def ingest_command(args) -> int:
     """Handle document ingestion"""
-    processor = DocumentProcessor(persist_dir=args.db_path)
+    processor = _get_processor(args)
     
     if args.path:
-        # Single file
         path = Path(args.path)
         if not path.exists():
-            print(f"Error: {args.path} does not exist")
+            print(f"Error: {args.path} does not exist", file=sys.stderr)
             return 1
         
         if path.suffix.lower() == '.pdf':
@@ -26,60 +37,78 @@ def ingest_command(args):
         elif path.suffix.lower() in ['.md', '.markdown']:
             processor.ingest_markdown(str(path), force=args.force)
         else:
-            print(f"Unsupported file type: {path.suffix}")
+            print(f"Unsupported file type: {path.suffix}", file=sys.stderr)
             return 1
     
     elif args.dir:
-        # Directory of files
         dir_path = Path(args.dir)
         if not dir_path.exists():
-            print(f"Error: {args.dir} does not exist")
+            print(f"Error: {args.dir} does not exist", file=sys.stderr)
             return 1
         
         pdf_files = list(dir_path.glob('**/*.pdf'))
-        md_files = list(dir_path.glob('**/*.md'))
+        md_files = list(dir_path.glob('**/*.md')) + list(dir_path.glob('**/*.markdown'))
+        
+        total = len(pdf_files) + len(md_files)
+        if total == 0:
+            print(f"No PDF or markdown files found in {args.dir}", file=sys.stderr)
+            return 1
         
         print(f"Found {len(pdf_files)} PDFs and {len(md_files)} markdown files")
         
         for pdf in pdf_files:
-            processor.ingest_pdf(str(pdf), force=args.force)
+            try:
+                processor.ingest_pdf(str(pdf), force=args.force)
+            except Exception as e:
+                print(f"Error processing {pdf.name}: {e}", file=sys.stderr)
         
         for md in md_files:
-            processor.ingest_markdown(str(md), force=args.force)
+            try:
+                processor.ingest_markdown(str(md), force=args.force)
+            except Exception as e:
+                print(f"Error processing {md.name}: {e}", file=sys.stderr)
     
     else:
-        print("Error: Must specify --path or --dir")
+        print("Error: Must specify --path or --dir", file=sys.stderr)
         return 1
     
     return 0
 
 
-def ask_command(args):
+def ask_command(args) -> int:
     """Handle question answering"""
-    processor = DocumentProcessor(persist_dir=args.db_path)
+    processor = _get_processor(args)
     
     if not args.question:
-        print("Error: Must provide --question")
+        print("Error: Must provide --question", file=sys.stderr)
         return 1
     
     print(f"\nQuestion: {args.question}\n")
     print("Searching documentation...\n")
     
-    answer = processor.ask(
-        args.question, 
-        mode=args.mode,
-        n_results=args.results
-    )
+    try:
+        answer = processor.ask(
+            args.question,
+            mode=args.mode,
+            n_results=args.results
+        )
+        print(answer)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
     
-    print(answer)
     return 0
 
 
-def list_command(args):
+def list_command(args) -> int:
     """List indexed documents"""
-    processor = DocumentProcessor(persist_dir=args.db_path)
+    processor = _get_processor(args)
     
-    stats = processor.get_stats()
+    try:
+        stats = processor.get_stats()
+    except Exception as e:
+        print(f"Error retrieving stats: {e}", file=sys.stderr)
+        return 1
     
     print(f"\n{'='*60}")
     print(f"Knowledge Base Statistics")
@@ -97,9 +126,9 @@ def list_command(args):
     return 0
 
 
-def interactive_command(args):
+def interactive_command(args) -> int:
     """Start interactive Q&A session"""
-    processor = DocumentProcessor(persist_dir=args.db_path)
+    processor = _get_processor(args)
     
     print("\n" + "="*60)
     print("React/TypeScript Study Companion - Interactive Mode")
@@ -129,9 +158,9 @@ def interactive_command(args):
                 continue
             
             if question.lower().startswith('mode '):
-                new_mode = question.split()[1]
-                if new_mode in ['quick', 'deep', 'general', 'fast']:
-                    mode = new_mode
+                parts = question.split(maxsplit=1)
+                if len(parts) == 2 and parts[1] in ['quick', 'deep', 'general', 'fast']:
+                    mode = parts[1]
                     print(f"Switched to {mode} mode")
                 else:
                     print("Invalid mode. Choose: quick, deep, general, fast")
@@ -144,8 +173,11 @@ def interactive_command(args):
         except KeyboardInterrupt:
             print("\n\nGoodbye!")
             break
+        except EOFError:
+            print("\nGoodbye!")
+            break
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", file=sys.stderr)
     
     return 0
 
@@ -188,12 +220,13 @@ Examples:
     ingest_parser = subparsers.add_parser('ingest', help='Ingest documents into the knowledge base')
     ingest_parser.add_argument('--path', help='Path to single file (PDF or markdown)')
     ingest_parser.add_argument('--dir', help='Directory containing documents to ingest')
-    ingest_parser.add_argument('--force', action='store_true', help='Force re-indexing of already processed files')
+    ingest_parser.add_argument('--force', action='store_true',
+                               help='Force re-indexing of already processed files')
     
     # Ask command
     ask_parser = subparsers.add_parser('ask', help='Ask a question')
     ask_parser.add_argument('--question', '-q', required=True, help='Question to ask')
-    ask_parser.add_argument('--mode', '-m', default='quick', 
+    ask_parser.add_argument('--mode', '-m', default='quick',
                            choices=['quick', 'deep', 'general', 'fast'],
                            help='Model mode (default: quick)')
     ask_parser.add_argument('--results', '-n', type=int, default=4,
@@ -203,7 +236,8 @@ Examples:
     subparsers.add_parser('list', help='List indexed documents')
     
     # Interactive command
-    interactive_parser = subparsers.add_parser('interactive', help='Start interactive Q&A session')
+    interactive_parser = subparsers.add_parser('interactive',
+                                               help='Start interactive Q&A session')
     interactive_parser.add_argument('--mode', '-m', default='quick',
                                    choices=['quick', 'deep', 'general', 'fast'],
                                    help='Initial model mode (default: quick)')
@@ -216,15 +250,16 @@ Examples:
         parser.print_help()
         return 1
     
-    # Route to appropriate command
-    if args.command == 'ingest':
-        return ingest_command(args)
-    elif args.command == 'ask':
-        return ask_command(args)
-    elif args.command == 'list':
-        return list_command(args)
-    elif args.command == 'interactive':
-        return interactive_command(args)
+    commands = {
+        'ingest': ingest_command,
+        'ask': ask_command,
+        'list': list_command,
+        'interactive': interactive_command,
+    }
+    
+    handler = commands.get(args.command)
+    if handler:
+        return handler(args)
     
     return 0
 

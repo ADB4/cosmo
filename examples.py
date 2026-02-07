@@ -3,7 +3,7 @@
 Example usage of the Document Processor API
 """
 
-from document_processor import DocumentProcessor
+from document_processor import DocumentProcessor, OllamaConnectionError
 import sys
 
 
@@ -13,7 +13,6 @@ def example_basic_usage():
     print("Example 1: Basic Usage")
     print("=" * 60)
     
-    # Initialize processor
     processor = DocumentProcessor()
     
     # Ingest a document (only happens once, cached after that)
@@ -37,15 +36,15 @@ def example_batch_ingestion():
     
     processor = DocumentProcessor()
     
-    import glob
+    from pathlib import Path
     
     # Ingest all PDFs
-    pdf_files = glob.glob("docs/**/*.pdf", recursive=True)
+    pdf_files = list(Path("docs").glob("**/*.pdf"))
     print(f"\nFound {len(pdf_files)} PDF files")
     
     for pdf in pdf_files[:2]:  # Just first 2 for demo
         print(f"Processing: {pdf}")
-        processor.ingest_pdf(pdf)
+        processor.ingest_pdf(str(pdf))
 
 
 def example_different_modes():
@@ -120,11 +119,9 @@ def example_filtered_search():
     
     processor = DocumentProcessor()
     
-    # Get stats to see available sources
     stats = processor.get_stats()
     
     if stats['sources']:
-        # Pick first source
         source = list(stats['sources'].keys())[0]
         print(f"\nSearching only in: {source}")
         
@@ -161,8 +158,11 @@ def main():
         print("2. Try interactive mode: python cli.py interactive")
         print("3. Or use the API directly in your own scripts")
         
+    except OllamaConnectionError as e:
+        print(f"\nConnection error: {e}", file=sys.stderr)
+        return 1
     except Exception as e:
-        print(f"\nError running examples: {e}")
+        print(f"\nError running examples: {e}", file=sys.stderr)
         print("\nMake sure you have:")
         print("1. Ollama running with models installed")
         print("2. Documents ingested into the knowledge base")

@@ -5,29 +5,39 @@ Handles ingestion of large PDFs and markdown files into a RAG system
 
 import ollama
 import chromadb
-from chromadb.config import Settings
 from pypdf import PdfReader
 import hashlib
 from pathlib import Path
 from typing import Iterator, Optional, Dict, List
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class OllamaConnectionError(Exception):
+    """Raised when Ollama is not reachable"""
+    pass
 
 
 class DocumentProcessor:
     """Main class for processing and querying technical documentation"""
     
-    def __init__(self, persist_dir="./chroma_db"):
+    # Batch size for embedding generation
+    EMBEDDING_BATCH_SIZE = 50
+    
+    def __init__(self, persist_dir: str = "./chroma_db"):
         """
         Initialize the document processor with persistent storage
         
         Args:
             persist_dir: Directory to store the ChromaDB database
         """
-        # Persistent ChromaDB
-        self.client = chromadb.Client(Settings(
-            persist_directory=persist_dir,
-            anonymized_telemetry=False
-        ))
+        # Verify Ollama is running before proceeding
+        self._check_ollama_connection()
+        
+        # Use PersistentClient for data that survives between sessions
+        self.client = chromadb.PersistentClient(path=persist_dir)
         
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
@@ -45,9 +55,25 @@ class DocumentProcessor:
         
         self.embed_model = 'nomic-embed-text'
     
+    def _check_ollama_connection(self) -> None:
+        """Verify Ollama is running and reachable"""
+        try:
+            ollama.list()
+        except Exception as e:
+            raise OllamaConnectionError(
+                "Cannot connect to Ollama. Make sure it's running:\n"
+                "  ollama serve\n"
+                f"Original error: {e}"
+            )
+    
     def extract_pdf_pages(self, pdf_path: str) -> Iterator[tuple[int, str]]:
         """
-        Stream pages from PDF without loading entire file into memory
+        Extract text from PDF page by page.
+        
+        Note: PdfReader loads the full PDF structure on construction.
+        Page-by-page iteration avoids holding all extracted text in memory
+        simultaneously, but the PDF itself is fully parsed upfront.
+        For typical technical PDFs (<100MB) this is fine on 32GB machines.
         
         Args:
             pdf_path: Path to PDF file
@@ -58,10 +84,10 @@ class DocumentProcessor:
         reader = PdfReader(pdf_path)
         for i, page in enumerate(reader.pages):
             text = page.extract_text()
-            if text.strip():  # Skip empty pages
+            if text and text.strip():
                 yield i, text
     
-    def smart_chunk(self, text: str, max_size=800, overlap=150) -> List[str]:
+    def smart_chunk(self, text: str, max_size: int = 800, overlap: int = 150) -> List[str]:
         """
         Chunk text intelligently respecting document structure
         
@@ -79,9 +105,9 @@ class DocumentProcessor:
         Returns:
             List of text chunks
         """
-        chunks = []
+        chunks: List[str] = []
         
-        # Try to split on paragraphs first
+        # Split on paragraphs first
         paragraphs = re.split(r'\n\s*\n', text)
         
         current_chunk = ""
@@ -92,37 +118,43 @@ class DocumentProcessor:
                 if current_chunk:
                     chunks.append(current_chunk.strip())
                 
-                # If paragraph itself is too long, split it
+                # If paragraph itself is too long, split by words
                 if len(para) > max_size:
                     words = para.split()
                     temp_chunk = ""
                     for word in words:
-                        if len(temp_chunk) + len(word) < max_size:
+                        if len(temp_chunk) + len(word) + 1 < max_size:
                             temp_chunk += word + " "
                         else:
-                            chunks.append(temp_chunk.strip())
+                            if temp_chunk:
+                                chunks.append(temp_chunk.strip())
                             temp_chunk = word + " "
                     current_chunk = temp_chunk
                 else:
                     current_chunk = para + "\n\n"
         
-        if current_chunk:
+        if current_chunk.strip():
             chunks.append(current_chunk.strip())
         
-        # Add overlap between chunks
-        overlapped = []
+        # Add character-based overlap between chunks
+        overlapped: List[str] = []
         for i, chunk in enumerate(chunks):
             if i > 0:
-                # Take last ~30 words from previous chunk
-                prev_words = chunks[i-1].split()[-overlap//5:]
-                chunk = " ".join(prev_words) + " " + chunk
+                prev_text = chunks[i - 1]
+                # Take last `overlap` characters from previous chunk
+                overlap_text = prev_text[-overlap:]
+                # Snap to a word boundary to avoid cutting mid-word
+                space_idx = overlap_text.find(' ')
+                if space_idx != -1:
+                    overlap_text = overlap_text[space_idx + 1:]
+                chunk = overlap_text + " " + chunk
             overlapped.append(chunk)
         
         return overlapped if overlapped else chunks
     
     def get_file_hash(self, filepath: str) -> str:
         """
-        Hash file to track if already processed
+        Hash file contents in chunks to avoid loading large files into memory
         
         Args:
             filepath: Path to file
@@ -130,8 +162,11 @@ class DocumentProcessor:
         Returns:
             MD5 hash of file contents
         """
+        h = hashlib.md5()
         with open(filepath, 'rb') as f:
-            return hashlib.md5(f.read()).hexdigest()
+            for block in iter(lambda: f.read(8192), b''):
+                h.update(block)
+        return h.hexdigest()
     
     def is_already_indexed(self, file_hash: str) -> bool:
         """
@@ -149,12 +184,62 @@ class DocumentProcessor:
                 limit=1
             )
             return len(results['ids']) > 0
-        except:
+        except Exception as e:
+            logger.warning(f"Error checking index status: {e}")
             return False
+    
+    def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for a batch of texts.
+        
+        Tries the batch API first (ollama.embed), falls back to 
+        one-at-a-time if not available.
+        
+        Args:
+            texts: List of text strings to embed
+            
+        Returns:
+            List of embedding vectors
+        """
+        # Try batch embedding first (ollama >= 0.2.0 with embed endpoint)
+        try:
+            response = ollama.embed(
+                model=self.embed_model,
+                input=texts
+            )
+            return response['embeddings']
+        except (AttributeError, TypeError, KeyError):
+            # Fall back to one-at-a-time for older ollama versions
+            pass
+        
+        embeddings = []
+        for text in texts:
+            response = ollama.embeddings(
+                model=self.embed_model,
+                prompt=text
+            )
+            embeddings.append(response['embedding'])
+        return embeddings
+    
+    def _delete_existing_chunks(self, file_hash: str) -> None:
+        """
+        Remove all chunks for a given file hash from the collection.
+        Used during force re-indexing.
+        
+        Args:
+            file_hash: Hash of the file to remove
+        """
+        try:
+            self.collection.delete(where={"file_hash": file_hash})
+        except Exception as e:
+            logger.warning(f"Error deleting existing chunks: {e}")
     
     def ingest_pdf(self, pdf_path: str, force: bool = False) -> int:
         """
-        Process large PDF page by page, streaming to avoid memory issues
+        Process PDF page by page and index into vector store.
+        
+        Note: PdfReader parses the full PDF upfront. Page-by-page text
+        extraction avoids holding all text in memory simultaneously.
         
         Args:
             pdf_path: Path to PDF file
@@ -169,44 +254,66 @@ class DocumentProcessor:
             print(f"{Path(pdf_path).name} already indexed (use --force to re-index)")
             return 0
         
+        # Clean up old chunks if force re-indexing
+        if force:
+            self._delete_existing_chunks(file_hash)
+        
         print(f"Processing: {Path(pdf_path).name}")
         filename = Path(pdf_path).name
         
-        chunk_count = 0
+        # Collect all chunks with metadata first, then batch embed
+        all_chunks: List[str] = []
+        all_ids: List[str] = []
+        all_metadatas: List[Dict] = []
+        
         for page_num, page_text in self.extract_pdf_pages(pdf_path):
             chunks = self.smart_chunk(page_text)
             
             for chunk_idx, chunk in enumerate(chunks):
-                # Generate embedding on-the-fly with Ollama
-                try:
-                    embedding = ollama.embeddings(
-                        model=self.embed_model,
-                        prompt=chunk
-                    )['embedding']
-                except Exception as e:
-                    print(f"  Error generating embedding: {e}")
-                    continue
-                
                 doc_id = f"{file_hash}_{page_num}_{chunk_idx}"
-                
-                self.collection.add(
-                    ids=[doc_id],
-                    embeddings=[embedding],
-                    documents=[chunk],
-                    metadatas=[{
-                        "source": filename,
-                        "page": page_num + 1,
-                        "chunk": chunk_idx,
-                        "file_hash": file_hash,
-                        "doc_type": "pdf"
-                    }]
-                )
-                chunk_count += 1
+                all_chunks.append(chunk)
+                all_ids.append(doc_id)
+                all_metadatas.append({
+                    "source": filename,
+                    "page": page_num + 1,
+                    "chunk": chunk_idx,
+                    "file_hash": file_hash,
+                    "doc_type": "pdf"
+                })
             
-            if page_num % 10 == 0:
-                print(f"  Processed {page_num + 1} pages...")
+            if page_num > 0 and page_num % 10 == 0:
+                print(f"  Extracted text from {page_num + 1} pages...")
         
-        print(f"Indexed {chunk_count} chunks from {Path(pdf_path).name}")
+        if not all_chunks:
+            print(f"  No text extracted from {filename}")
+            return 0
+        
+        # Generate embeddings in batches
+        chunk_count = 0
+        for batch_start in range(0, len(all_chunks), self.EMBEDDING_BATCH_SIZE):
+            batch_end = min(batch_start + self.EMBEDDING_BATCH_SIZE, len(all_chunks))
+            batch_texts = all_chunks[batch_start:batch_end]
+            batch_ids = all_ids[batch_start:batch_end]
+            batch_meta = all_metadatas[batch_start:batch_end]
+            
+            try:
+                batch_embeddings = self._generate_embeddings_batch(batch_texts)
+            except Exception as e:
+                print(f"  Error generating embeddings for batch {batch_start}-{batch_end}: {e}")
+                continue
+            
+            self.collection.add(
+                ids=batch_ids,
+                embeddings=batch_embeddings,
+                documents=batch_texts,
+                metadatas=batch_meta
+            )
+            chunk_count += len(batch_ids)
+            
+            if batch_end < len(all_chunks):
+                print(f"  Embedded {batch_end}/{len(all_chunks)} chunks...")
+        
+        print(f"Indexed {chunk_count} chunks from {filename}")
         return chunk_count
     
     def ingest_markdown(self, md_path: str, force: bool = False) -> int:
@@ -226,61 +333,87 @@ class DocumentProcessor:
             print(f"{Path(md_path).name} already indexed (use --force to re-index)")
             return 0
         
+        # Clean up old chunks if force re-indexing
+        if force:
+            self._delete_existing_chunks(file_hash)
+        
         print(f"Processing: {Path(md_path).name}")
         filename = Path(md_path).name
         
         with open(md_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Split on headers first to maintain document structure
+        # Split on headers to maintain document structure
+        # The regex captures headers as separate elements in the list
         sections = re.split(r'\n(#{1,6}\s+.+)\n', content)
         
-        chunk_count = 0
+        # Build complete sections: each header + its body
+        built_sections: List[str] = []
         current_section = ""
         
-        for i, section in enumerate(sections):
-            if section.startswith('#'):
-                # This is a header
-                current_section = section + "\n"
+        for i, part in enumerate(sections):
+            if part.startswith('#'):
+                # Flush the previous section before starting a new one
+                if current_section.strip():
+                    built_sections.append(current_section.strip())
+                current_section = part + "\n"
             else:
-                current_section += section
-                
-                # Process section if it's large enough or we're at the end
-                if len(current_section) > 500 or i == len(sections) - 1:
-                    if current_section.strip():
-                        chunks = self.smart_chunk(current_section)
-                        
-                        for chunk_idx, chunk in enumerate(chunks):
-                            try:
-                                embedding = ollama.embeddings(
-                                    model=self.embed_model,
-                                    prompt=chunk
-                                )['embedding']
-                            except Exception as e:
-                                print(f"  Error generating embedding: {e}")
-                                continue
-                            
-                            doc_id = f"{file_hash}_{chunk_count}"
-                            
-                            self.collection.add(
-                                ids=[doc_id],
-                                embeddings=[embedding],
-                                documents=[chunk],
-                                metadatas=[{
-                                    "source": filename,
-                                    "section": chunk_count,
-                                    "file_hash": file_hash,
-                                    "doc_type": "markdown"
-                                }]
-                            )
-                            chunk_count += 1
-                    
-                    current_section = ""
+                current_section += part
         
-        print(f"Indexed {chunk_count} chunks from {Path(md_path).name}")
-        return chunk_count
+        # Don't forget the last section
+        if current_section.strip():
+            built_sections.append(current_section.strip())
+        
+        # Chunk each section and collect for batch embedding
+        all_chunks: List[str] = []
+        all_ids: List[str] = []
+        all_metadatas: List[Dict] = []
+        chunk_count = 0
+        
+        for section in built_sections:
+            chunks = self.smart_chunk(section)
+            for chunk_idx, chunk in enumerate(chunks):
+                doc_id = f"{file_hash}_{chunk_count}"
+                all_chunks.append(chunk)
+                all_ids.append(doc_id)
+                all_metadatas.append({
+                    "source": filename,
+                    "section": chunk_count,
+                    "file_hash": file_hash,
+                    "doc_type": "markdown"
+                })
+                chunk_count += 1
+        
+        if not all_chunks:
+            print(f"  No content extracted from {filename}")
+            return 0
+        
+        # Generate embeddings in batches
+        indexed = 0
+        for batch_start in range(0, len(all_chunks), self.EMBEDDING_BATCH_SIZE):
+            batch_end = min(batch_start + self.EMBEDDING_BATCH_SIZE, len(all_chunks))
+            batch_texts = all_chunks[batch_start:batch_end]
+            batch_ids = all_ids[batch_start:batch_end]
+            batch_meta = all_metadatas[batch_start:batch_end]
+            
+            try:
+                batch_embeddings = self._generate_embeddings_batch(batch_texts)
+            except Exception as e:
+                print(f"  Error generating embeddings for batch {batch_start}-{batch_end}: {e}")
+                continue
+            
+            self.collection.add(
+                ids=batch_ids,
+                embeddings=batch_embeddings,
+                documents=batch_texts,
+                metadatas=batch_meta
+            )
+            indexed += len(batch_ids)
+        
+        print(f"Indexed {indexed} chunks from {filename}")
+        return indexed
     
-    def query(self, question: str, n_results: int = 5, 
+    def query(self, question: str, n_results: int = 5,
               filter_source: Optional[str] = None) -> Dict:
         """
         Query the vector database for relevant chunks
@@ -297,7 +430,6 @@ class DocumentProcessor:
         if filter_source:
             where_clause = {"source": filter_source}
         
-        # Get query embedding
         query_embedding = ollama.embeddings(
             model=self.embed_model,
             prompt=question
@@ -331,7 +463,7 @@ class DocumentProcessor:
         # Build context with citations
         context_parts = []
         for i, (doc, metadata) in enumerate(zip(
-            results['documents'][0], 
+            results['documents'][0],
             results['metadatas'][0]
         )):
             source = metadata.get('source', 'unknown')
@@ -340,8 +472,7 @@ class DocumentProcessor:
         
         context = "\n\n".join(context_parts)
         
-        # Build prompt
-        prompt = f"""You are a React/TypeScript study companion. Answer the question using ONLY the provided documentation excerpts. Cite sources using [1], [2], etc.
+        prompt = f"""You are a React/TypeScript study companion. Answer the question based primarily on the provided documentation excerpts. Cite sources using [1], [2], etc. If the documentation doesn't fully address the question, say so.
 
 Documentation:
 {context}
@@ -352,17 +483,23 @@ Answer with citations:"""
         
         model = self.models.get(mode, self.models['quick'])
         
+        # Scale context window based on number of results
+        num_ctx = 4096 if n_results <= 4 else 8192
+        
         try:
             response = ollama.chat(
                 model=model,
                 messages=[{'role': 'user', 'content': prompt}],
                 options={
-                    'num_ctx': 4096,
+                    'num_ctx': num_ctx,
                     'num_thread': 8,
                 }
             )
         except Exception as e:
-            return f"Error generating response: {e}\n\nMake sure '{model}' is installed: ollama pull {model}"
+            return (
+                f"Error generating response: {e}\n\n"
+                f"Make sure '{model}' is installed: ollama pull {model}"
+            )
         
         # Append source list
         sources = "\n\nSources:\n"
@@ -375,14 +512,27 @@ Answer with citations:"""
     
     def get_stats(self) -> Dict:
         """
-        Get statistics about indexed documents
+        Get statistics about indexed documents.
+        
+        Uses count() for the total and only pulls metadata
+        for the source breakdown.
         
         Returns:
             Dictionary with stats
         """
-        results = self.collection.get()
+        total = self.collection.count()
         
-        sources = {}
+        if total == 0:
+            return {
+                'total_chunks': 0,
+                'total_documents': 0,
+                'sources': {}
+            }
+        
+        # Pull only metadata (no embeddings or documents)
+        results = self.collection.get(include=["metadatas"])
+        
+        sources: Dict[str, Dict] = {}
         for metadata in results['metadatas']:
             source = metadata.get('source', 'unknown')
             doc_type = metadata.get('doc_type', 'unknown')
@@ -392,7 +542,7 @@ Answer with citations:"""
             sources[source]['chunks'] += 1
         
         return {
-            'total_chunks': len(results['ids']),
+            'total_chunks': total,
             'total_documents': len(sources),
             'sources': sources
         }

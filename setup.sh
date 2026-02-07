@@ -17,17 +17,37 @@ if ! command -v ollama &> /dev/null; then
 fi
 echo "Ollama is installed"
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
-    echo "ERROR: Ollama is not running. Start it with:"
-    echo "   ollama serve"
-    exit 1
+# Check if Ollama is running (with timeout)
+if ! curl -s --max-time 5 http://localhost:11434/api/tags &> /dev/null; then
+    echo ""
+    echo "WARNING: Ollama is not running."
+    echo "Starting Ollama in the background..."
+    ollama serve &>/dev/null &
+    sleep 2
+    if ! curl -s --max-time 5 http://localhost:11434/api/tags &> /dev/null; then
+        echo "ERROR: Could not start Ollama. Start it manually:"
+        echo "   ollama serve"
+        exit 1
+    fi
 fi
 echo "Ollama is running"
 
 # Check Python version
+if ! command -v python3 &> /dev/null; then
+    echo "ERROR: Python 3 not found. Install it with:"
+    echo "   brew install python3"
+    exit 1
+fi
+
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
 echo "Python version: $PYTHON_VERSION"
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 9 ]); then
+    echo "ERROR: Python 3.9+ required. Found $PYTHON_VERSION"
+    exit 1
+fi
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
@@ -50,6 +70,16 @@ pip install --quiet --upgrade pip
 pip install --quiet -r requirements.txt
 echo "Dependencies installed"
 
+# Verify Python imports work
+echo ""
+echo "Verifying Python packages..."
+if ! python -c "import ollama; import chromadb; import pypdf" 2>/dev/null; then
+    echo "ERROR: Package import failed. Try:"
+    echo "   pip install -r requirements.txt"
+    exit 1
+fi
+echo "All packages verified"
+
 # Check if models are installed
 echo ""
 echo "Checking Ollama models..."
@@ -61,15 +91,15 @@ for model in "${MODELS_NEEDED[@]}"; do
     if ! ollama list | grep -q "$model"; then
         MISSING_MODELS+=("$model")
     else
-        echo "$model is installed"
+        echo "  $model is installed"
     fi
 done
 
 if [ ${#MISSING_MODELS[@]} -gt 0 ]; then
     echo ""
-    echo "WARNING: Missing models detected. Install them with:"
+    echo "Missing required models:"
     for model in "${MISSING_MODELS[@]}"; do
-        echo "   ollama pull $model"
+        echo "   - $model"
     done
     echo ""
     read -p "Install missing models now? (y/n) " -n 1 -r
@@ -87,7 +117,8 @@ fi
 # Create docs directory if it doesn't exist
 if [ ! -d "docs" ]; then
     mkdir docs
-    echo "Created docs/ directory"
+    echo ""
+    echo "Created docs/ directory - add your study materials here"
 fi
 
 echo ""
@@ -107,6 +138,6 @@ echo "  python cli.py ask -q \"your question\"   # Ask a question"
 echo "  python cli.py interactive              # Interactive mode"
 echo "  python cli.py list                     # Show indexed docs"
 echo ""
-echo "Remember to activate the virtual environment:"
+echo "Remember to activate the virtual environment each session:"
 echo "  source venv/bin/activate"
 echo ""
