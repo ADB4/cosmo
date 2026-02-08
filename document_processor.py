@@ -8,7 +8,7 @@ import chromadb
 from pypdf import PdfReader
 import hashlib
 from pathlib import Path
-from typing import Iterator, Optional, Dict, List
+from typing import Iterator, Generator, Optional, Dict, List
 import re
 import logging
 
@@ -443,24 +443,17 @@ class DocumentProcessor:
         
         return results
     
-    def ask(self, question: str, mode: str = 'quick', n_results: int = 4) -> str:
+    def _build_rag_prompt(self, question: str, results: Dict) -> tuple[str, str]:
         """
-        RAG query with cited sources
+        Build the RAG prompt and source citation block from query results.
         
         Args:
-            question: Question to ask
-            mode: Model mode - 'quick', 'deep', 'general', or 'fast'
-            n_results: Number of context chunks to retrieve
+            question: The user's question
+            results: ChromaDB query results
             
         Returns:
-            Answer with citations
+            Tuple of (prompt string, sources citation block)
         """
-        results = self.query(question, n_results=n_results)
-        
-        if not results['documents'][0]:
-            return "No relevant documents found in the knowledge base."
-        
-        # Build context with citations
         context_parts = []
         for i, (doc, metadata) in enumerate(zip(
             results['documents'][0],
@@ -481,9 +474,35 @@ Question: {question}
 
 Answer with citations:"""
         
-        model = self.models.get(mode, self.models['quick'])
+        sources = "\n\nSources:\n"
+        for i, metadata in enumerate(results['metadatas'][0]):
+            source = metadata.get('source', 'unknown')
+            page = metadata.get('page', metadata.get('section', '?'))
+            sources += f"[{i+1}] {source}, page {page}\n"
         
-        # Scale context window based on number of results
+        return prompt, sources
+    
+    def ask(self, question: str, mode: str = 'quick', n_results: int = 4) -> str:
+        """
+        RAG query with cited sources (non-streaming, returns complete answer).
+        
+        Use this for programmatic/API access. For CLI use, prefer ask_stream.
+        
+        Args:
+            question: Question to ask
+            mode: Model mode - 'quick', 'deep', 'general', or 'fast'
+            n_results: Number of context chunks to retrieve
+            
+        Returns:
+            Answer with citations
+        """
+        results = self.query(question, n_results=n_results)
+        
+        if not results['documents'][0]:
+            return "No relevant documents found in the knowledge base."
+        
+        prompt, sources = self._build_rag_prompt(question, results)
+        model = self.models.get(mode, self.models['quick'])
         num_ctx = 4096 if n_results <= 4 else 8192
         
         try:
@@ -501,14 +520,68 @@ Answer with citations:"""
                 f"Make sure '{model}' is installed: ollama pull {model}"
             )
         
-        # Append source list
-        sources = "\n\nSources:\n"
-        for i, metadata in enumerate(results['metadatas'][0]):
-            source = metadata.get('source', 'unknown')
-            page = metadata.get('page', metadata.get('section', '?'))
-            sources += f"[{i+1}] {source}, page {page}\n"
-        
         return response['message']['content'] + sources
+    
+    def ask_stream(self, question: str, mode: str = 'quick',
+                   n_results: int = 4) -> Generator[str, None, str]:
+        """
+        RAG query with streaming token output.
+        
+        Yields tokens as they arrive from Ollama, so the CLI can print
+        them immediately. The sources block is yielded at the end.
+        Returns the complete answer text (accessible via generator .value
+        after StopIteration, though typically not needed for CLI use).
+        
+        Args:
+            question: Question to ask
+            mode: Model mode - 'quick', 'deep', 'general', or 'fast'
+            n_results: Number of context chunks to retrieve
+            
+        Yields:
+            Individual token strings as they arrive
+            
+        Returns:
+            Complete answer with sources (via StopIteration value)
+        """
+        results = self.query(question, n_results=n_results)
+        
+        if not results['documents'][0]:
+            yield "No relevant documents found in the knowledge base."
+            return "No relevant documents found in the knowledge base."
+        
+        prompt, sources = self._build_rag_prompt(question, results)
+        model = self.models.get(mode, self.models['quick'])
+        num_ctx = 4096 if n_results <= 4 else 8192
+        
+        full_response = ""
+        
+        try:
+            stream = ollama.chat(
+                model=model,
+                messages=[{'role': 'user', 'content': prompt}],
+                stream=True,
+                options={
+                    'num_ctx': num_ctx,
+                    'num_thread': 8,
+                }
+            )
+            
+            for chunk in stream:
+                token = chunk['message']['content']
+                full_response += token
+                yield token
+            
+        except Exception as e:
+            error_msg = (
+                f"Error generating response: {e}\n\n"
+                f"Make sure '{model}' is installed: ollama pull {model}"
+            )
+            yield error_msg
+            return error_msg
+        
+        # Yield the sources block at the end
+        yield sources
+        return full_response + sources
     
     def get_stats(self) -> Dict:
         """

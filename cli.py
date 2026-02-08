@@ -87,12 +87,14 @@ def ask_command(args) -> int:
     print("Searching documentation...\n")
     
     try:
-        answer = processor.ask(
+        for token in processor.ask_stream(
             args.question,
             mode=args.mode,
             n_results=args.results
-        )
-        print(answer)
+        ):
+            sys.stdout.write(token)
+            sys.stdout.flush()
+        print()  # Final newline
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -167,8 +169,10 @@ def interactive_command(args) -> int:
                 continue
             
             print("\nSearching...\n")
-            answer = processor.ask(question, mode=mode, n_results=args.results)
-            print(answer)
+            for token in processor.ask_stream(question, mode=mode, n_results=args.results):
+                sys.stdout.write(token)
+                sys.stdout.flush()
+            print()  # Final newline
             
         except KeyboardInterrupt:
             print("\n\nGoodbye!")
