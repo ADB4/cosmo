@@ -6,7 +6,7 @@ Command-line interface for React/TypeScript Study Companion
 import argparse
 import sys
 from pathlib import Path
-from document_processor import DocumentProcessor, OllamaConnectionError
+from document_processor import DocumentProcessor, ChatHistory, OllamaConnectionError
 
 
 def _get_processor(args) -> DocumentProcessor:
@@ -131,6 +131,7 @@ def list_command(args) -> int:
 def interactive_command(args) -> int:
     """Start interactive Q&A session"""
     processor = _get_processor(args)
+    history = ChatHistory(max_turns=args.history)
     
     print("\n" + "="*60)
     print("React/TypeScript Study Companion - Interactive Mode")
@@ -138,8 +139,10 @@ def interactive_command(args) -> int:
     print("Commands:")
     print("  Ask a question directly")
     print("  'mode <quick|deep|general|fast>' - Switch model")
+    print("  'clear' - Clear conversation history")
     print("  'stats' - Show knowledge base stats")
     print("  'quit' or 'exit' - Exit")
+    print(f"Conversation history: last {args.history} exchanges")
     print("="*60 + "\n")
     
     mode = args.mode
@@ -159,6 +162,11 @@ def interactive_command(args) -> int:
                 list_command(args)
                 continue
             
+            if question.lower() == 'clear':
+                history.clear()
+                print("Conversation history cleared.")
+                continue
+            
             if question.lower().startswith('mode '):
                 parts = question.split(maxsplit=1)
                 if len(parts) == 2 and parts[1] in ['quick', 'deep', 'general', 'fast']:
@@ -169,7 +177,9 @@ def interactive_command(args) -> int:
                 continue
             
             print("\nSearching...\n")
-            for token in processor.ask_stream(question, mode=mode, n_results=args.results):
+            for token in processor.ask_stream(
+                question, mode=mode, n_results=args.results, history=history
+            ):
                 sys.stdout.write(token)
                 sys.stdout.flush()
             print()  # Final newline
@@ -247,6 +257,8 @@ Examples:
                                    help='Initial model mode (default: quick)')
     interactive_parser.add_argument('--results', '-n', type=int, default=4,
                                    help='Number of context chunks to retrieve (default: 4)')
+    interactive_parser.add_argument('--history', type=int, default=5,
+                                   help='Number of past exchanges to keep for context (default: 5, 0 to disable)')
     
     args = parser.parse_args()
     

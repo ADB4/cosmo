@@ -8,7 +8,8 @@ import chromadb
 from pypdf import PdfReader
 import hashlib
 from pathlib import Path
-from typing import Iterator, Generator, Optional, Dict, List
+from typing import Iterator, Generator, Optional, Dict, List, Tuple
+from collections import deque
 import re
 import logging
 
@@ -18,6 +19,56 @@ logger = logging.getLogger(__name__)
 class OllamaConnectionError(Exception):
     """Raised when Ollama is not reachable"""
     pass
+
+
+class ChatHistory:
+    """
+    Rolling window of conversation exchanges for multi-turn context.
+    
+    Stores the last N question/answer pairs. Each pair is stored as
+    a tuple of (question, answer) strings. The history is formatted
+    into the prompt so the LLM can reference prior exchanges.
+    
+    Args:
+        max_turns: Maximum number of Q&A pairs to retain
+    """
+    
+    def __init__(self, max_turns: int = 5):
+        self.max_turns = max_turns
+        self._history: deque[Tuple[str, str]] = deque(maxlen=max_turns)
+    
+    def add(self, question: str, answer: str) -> None:
+        """Record a question/answer exchange"""
+        self._history.append((question, answer))
+    
+    def clear(self) -> None:
+        """Clear all history"""
+        self._history.clear()
+    
+    def format_for_prompt(self) -> str:
+        """
+        Format history as a readable block for inclusion in the prompt.
+        
+        Returns:
+            Formatted string of prior exchanges, or empty string if no history
+        """
+        if not self._history:
+            return ""
+        
+        parts = []
+        for q, a in self._history:
+            # Truncate long answers to keep the prompt manageable
+            truncated_a = a[:600] + "..." if len(a) > 600 else a
+            parts.append(f"User: {q}\nAssistant: {truncated_a}")
+        
+        return "Previous conversation:\n" + "\n\n".join(parts)
+    
+    @property
+    def turn_count(self) -> int:
+        return len(self._history)
+    
+    def __len__(self) -> int:
+        return len(self._history)
 
 
 class DocumentProcessor:
@@ -443,13 +494,15 @@ class DocumentProcessor:
         
         return results
     
-    def _build_rag_prompt(self, question: str, results: Dict) -> tuple[str, str]:
+    def _build_rag_prompt(self, question: str, results: Dict,
+                         history: Optional[ChatHistory] = None) -> tuple[str, str]:
         """
         Build the RAG prompt and source citation block from query results.
         
         Args:
             question: The user's question
             results: ChromaDB query results
+            history: Optional conversation history for multi-turn context
             
         Returns:
             Tuple of (prompt string, sources citation block)
@@ -465,8 +518,16 @@ class DocumentProcessor:
         
         context = "\n\n".join(context_parts)
         
-        prompt = f"""You are a React/TypeScript study companion. Answer the question based primarily on the provided documentation excerpts. Cite sources using [1], [2], etc. If the documentation doesn't fully address the question, say so.
+        # Build history block if available
+        history_block = ""
+        if history and len(history) > 0:
+            history_block = f"""
 
+{history.format_for_prompt()}
+
+"""
+        
+        prompt = f"""You are a React/TypeScript study companion. Answer the question based primarily on the provided documentation excerpts. Cite sources using [1], [2], etc. If the documentation doesn't fully address the question, say so.{history_block}
 Documentation:
 {context}
 
@@ -482,7 +543,8 @@ Answer with citations:"""
         
         return prompt, sources
     
-    def ask(self, question: str, mode: str = 'quick', n_results: int = 4) -> str:
+    def ask(self, question: str, mode: str = 'quick', n_results: int = 4,
+            history: Optional[ChatHistory] = None) -> str:
         """
         RAG query with cited sources (non-streaming, returns complete answer).
         
@@ -492,6 +554,7 @@ Answer with citations:"""
             question: Question to ask
             mode: Model mode - 'quick', 'deep', 'general', or 'fast'
             n_results: Number of context chunks to retrieve
+            history: Optional conversation history for follow-up questions
             
         Returns:
             Answer with citations
@@ -501,9 +564,13 @@ Answer with citations:"""
         if not results['documents'][0]:
             return "No relevant documents found in the knowledge base."
         
-        prompt, sources = self._build_rag_prompt(question, results)
+        prompt, sources = self._build_rag_prompt(question, results, history)
         model = self.models.get(mode, self.models['quick'])
+        
+        # Scale context window: base need + extra for history
         num_ctx = 4096 if n_results <= 4 else 8192
+        if history and len(history) > 0:
+            num_ctx = 8192
         
         try:
             response = ollama.chat(
@@ -520,22 +587,30 @@ Answer with citations:"""
                 f"Make sure '{model}' is installed: ollama pull {model}"
             )
         
-        return response['message']['content'] + sources
+        answer = response['message']['content']
+        
+        # Record this exchange in history if provided
+        if history is not None:
+            history.add(question, answer)
+        
+        return answer + sources
     
     def ask_stream(self, question: str, mode: str = 'quick',
-                   n_results: int = 4) -> Generator[str, None, str]:
+                   n_results: int = 4,
+                   history: Optional[ChatHistory] = None) -> Generator[str, None, str]:
         """
         RAG query with streaming token output.
         
         Yields tokens as they arrive from Ollama, so the CLI can print
         them immediately. The sources block is yielded at the end.
-        Returns the complete answer text (accessible via generator .value
-        after StopIteration, though typically not needed for CLI use).
+        If a ChatHistory is provided, the exchange is recorded after
+        the full response is generated.
         
         Args:
             question: Question to ask
             mode: Model mode - 'quick', 'deep', 'general', or 'fast'
             n_results: Number of context chunks to retrieve
+            history: Optional conversation history for follow-up questions
             
         Yields:
             Individual token strings as they arrive
@@ -549,9 +624,13 @@ Answer with citations:"""
             yield "No relevant documents found in the knowledge base."
             return "No relevant documents found in the knowledge base."
         
-        prompt, sources = self._build_rag_prompt(question, results)
+        prompt, sources = self._build_rag_prompt(question, results, history)
         model = self.models.get(mode, self.models['quick'])
+        
+        # Scale context window: base need + extra for history
         num_ctx = 4096 if n_results <= 4 else 8192
+        if history and len(history) > 0:
+            num_ctx = 8192
         
         full_response = ""
         
@@ -578,6 +657,10 @@ Answer with citations:"""
             )
             yield error_msg
             return error_msg
+        
+        # Record this exchange in history if provided
+        if history is not None:
+            history.add(question, full_response)
         
         # Yield the sources block at the end
         yield sources
