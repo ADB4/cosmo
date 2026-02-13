@@ -128,6 +128,62 @@ def list_command(args) -> int:
     return 0
 
 
+def quiz_command(args) -> int:
+    """Take a quiz and grade it against the answer key"""
+    from quiz_processor import run_quiz
+
+    # Determine if we need a processor (for RAG)
+    processor = None
+    use_rag = not args.no_rag
+
+    if use_rag:
+        processor = _get_processor(args)
+        # Check if there are any indexed docs
+        stats = processor.get_stats()
+        if stats['total_chunks'] == 0:
+            print("Warning: No documents indexed. Running without RAG context.")
+            print("  (Ingest docs first with: python cli.py ingest --dir docs/)")
+            print("  (Or use --no-rag to skip RAG entirely)\n")
+            use_rag = False
+            processor = None
+    else:
+        # Still need to verify Ollama is running
+        try:
+            processor = _get_processor(args)
+        except SystemExit:
+            raise
+
+    # Resolve output path
+    input_path = Path(args.input)
+    if args.output:
+        output_path = args.output
+    else:
+        # Default: same name with -results suffix in a results/ directory
+        output_path = f"results/{input_path.stem}-results.md"
+
+    try:
+        result_path = run_quiz(
+            quiz_path=str(input_path),
+            output_path=output_path,
+            processor=processor,
+            mode=args.mode,
+            use_rag=use_rag,
+            n_results=args.results
+        )
+        print(f"\nDone. Results at: {result_path}")
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error during quiz: {e}", file=sys.stderr)
+        return 1
+
+
 def interactive_command(args) -> int:
     """Start interactive Q&A session"""
     processor = _get_processor(args)
@@ -214,6 +270,12 @@ Examples:
   # Ask with deep mode (slower, better quality)
   %(prog)s ask --question "Explain discriminated unions" --mode deep
   
+  # Take a quiz and grade it
+  %(prog)s quiz --input quizzes/w1.md --output results/w1-results.md
+  
+  # Take a quiz without RAG context
+  %(prog)s quiz --input quizzes/w1.md --no-rag
+  
   # Interactive session
   %(prog)s interactive
   
@@ -246,6 +308,20 @@ Examples:
     ask_parser.add_argument('--results', '-n', type=int, default=4,
                            help='Number of context chunks to retrieve (default: 4)')
     
+    # Quiz command
+    quiz_parser = subparsers.add_parser('quiz', help='Take a quiz and grade against answer key')
+    quiz_parser.add_argument('--input', '-i', required=True,
+                            help='Path to quiz markdown file')
+    quiz_parser.add_argument('--output', '-o', default=None,
+                            help='Path to write results (default: results/<input-name>-results.md)')
+    quiz_parser.add_argument('--mode', '-m', default='quick',
+                           choices=['quick', 'deep', 'general', 'fast'],
+                           help='Model mode (default: quick)')
+    quiz_parser.add_argument('--no-rag', action='store_true',
+                            help='Skip RAG context, use only LLM knowledge')
+    quiz_parser.add_argument('--results', '-n', type=int, default=4,
+                           help='Number of RAG context chunks per query (default: 4)')
+    
     # List command
     subparsers.add_parser('list', help='List indexed documents')
     
@@ -271,6 +347,7 @@ Examples:
         'ask': ask_command,
         'list': list_command,
         'interactive': interactive_command,
+        'quiz': quiz_command,
     }
     
     handler = commands.get(args.command)
