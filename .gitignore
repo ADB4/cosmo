@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+docs/
+input/
+results/
+# Node / Yarn
+client/node_modules/
+client/dist/
+client/.vite/
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+
+# ChromaDB + uploads (local data, not source)
+chroma_db/
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
