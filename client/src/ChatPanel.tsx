@@ -12,20 +12,34 @@ function uid(): string {
   return `msg_${Date.now()}_${nextId++}`;
 }
 
+function timestamp(): string {
+  return new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function ChatPanel({ mode }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: uid(),
+      role: "system" as "user",
+      content: "Connected to Ollama. Ready to answer questions about your documentation.",
+      timestamp: Date.now(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -72,7 +86,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: m.content + `\n\n[Error: ${err}]` }
+              ? { ...m, content: m.content + `\n\n[error: ${err}]` }
               : m,
           ),
         );
@@ -95,40 +109,29 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
   const handleClear = async () => {
     if (streaming) handleStop();
-    setMessages([]);
+    setMessages([
+      {
+        id: uid(),
+        role: "system" as "user",
+        content: "Chat cleared. Ready for new questions.",
+        timestamp: Date.now(),
+      },
+    ]);
     await clearHistory();
   };
 
-  const isEmpty = messages.length === 0;
+  // The first message is always the system greeting
+  const hasConversation = messages.length > 1;
 
   return (
     <div className="chat-panel">
-      {/* Message area */}
       <div className="chat-messages">
-        {isEmpty && (
-          <div className="chat-empty">
-            <div className="chat-empty-orb" />
-            <h2>cosmo</h2>
-            <p>
-              Ask anything about your indexed React, TypeScript, and MUI
-              documentation.
-            </p>
-            <div className="chat-empty-hints">
-              <button onClick={() => setInput("What are TypeScript generics?")}>
-                What are TypeScript generics?
-              </button>
-              <button onClick={() => setInput("Explain discriminated unions with examples")}>
-                Explain discriminated unions
-              </button>
-              <button onClick={() => setInput("How do I type React component props?")}>
-                Typing React props
-              </button>
-            </div>
-          </div>
-        )}
-
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            time={timestamp()}
+          />
         ))}
 
         {streaming && (
@@ -142,57 +145,45 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar */}
-      <div className="chat-input-bar">
-        {messages.length > 0 && (
-          <button className="clear-btn" onClick={handleClear} title="Clear chat">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4h9.34z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        )}
-
-        <div className="chat-input-wrap">
-          <textarea
-            ref={inputRef}
-            className="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask a question... (Enter to send, Shift+Enter for newline)"
-            rows={1}
-            disabled={streaming}
-          />
+      <div className="chat-input-area">
+        <textarea
+          ref={inputRef}
+          className="chat-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question about the documentation..."
+          rows={1}
+          disabled={streaming}
+        />
+        <div className="input-footer">
+          <span className="input-hint">
+            Press Enter to send, Shift+Enter for new line
+          </span>
+          <div className="input-actions">
+            {streaming ? (
+              <button className="send-btn send-btn--stop" onClick={handleStop}>
+                <span className="send-btn-icon">&#9632;</span>
+                Stop
+              </button>
+            ) : (
+              <button
+                className="send-btn"
+                onClick={handleSend}
+                disabled={!input.trim()}
+              >
+                <span className="send-btn-icon">&#9654;</span>
+                Send
+              </button>
+            )}
+            {hasConversation && (
+              <button className="topbar-btn" onClick={handleClear}>
+                Clear
+              </button>
+            )}
+            <button className="help-btn" title="Keyboard shortcuts">?</button>
+          </div>
         </div>
-
-        {streaming ? (
-          <button className="send-btn send-btn--stop" onClick={handleStop}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <rect x="3" y="3" width="10" height="10" rx="1.5" />
-            </svg>
-          </button>
-        ) : (
-          <button
-            className="send-btn"
-            onClick={handleSend}
-            disabled={!input.trim()}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M14.5 1.5l-6 13-2.5-5.5L.5 6.5l14-5z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M14.5 1.5L6 9"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        )}
       </div>
     </div>
   );

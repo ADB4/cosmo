@@ -2,25 +2,19 @@ import type { ChatMessage } from "./types";
 
 interface Props {
   message: ChatMessage;
+  time: string;
 }
 
 /**
- * Very lightweight markdown-ish renderer:
- * - Fenced code blocks (```lang ... ```) → <pre><code>
- * - Inline backticks → <code>
- * - [N] citations highlighted
- * - Newlines preserved
- *
- * Intentionally not pulling in a full markdown lib — keeps the bundle tiny.
+ * Lightweight code-block and citation renderer.
+ * No markdown lib — just fenced blocks, inline code, and [N] markers.
  */
 function renderContent(raw: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  // Split on fenced code blocks
   const parts = raw.split(/(```[\s\S]*?```)/g);
 
   parts.forEach((part, pi) => {
     if (part.startsWith("```")) {
-      // Extract language hint and body
       const firstNewline = part.indexOf("\n");
       const lang = part.slice(3, firstNewline).trim();
       const body = part.slice(firstNewline + 1, part.length - 3);
@@ -30,7 +24,6 @@ function renderContent(raw: string): React.ReactNode[] {
         </pre>,
       );
     } else {
-      // Process inline elements
       const inlineParts = part.split(/(`[^`]+`)/g);
       inlineParts.forEach((seg, si) => {
         if (seg.startsWith("`") && seg.endsWith("`")) {
@@ -40,7 +33,6 @@ function renderContent(raw: string): React.ReactNode[] {
             </code>,
           );
         } else {
-          // Highlight citation markers like [1], [2]
           const withCitations = seg.split(/(\[\d+\])/g);
           withCitations.forEach((cs, ci) => {
             if (/^\[\d+\]$/.test(cs)) {
@@ -61,34 +53,43 @@ function renderContent(raw: string): React.ReactNode[] {
   return nodes;
 }
 
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function MessageBubble({ message }: Props) {
-  const isUser = message.role === "user";
+  // Determine the visual role — we overload "user" role for system messages
+  // by checking the content for our known system messages
+  const isSystem =
+    message.content.startsWith("Connected to Ollama") ||
+    message.content.startsWith("Chat cleared");
+  const isUser = !isSystem && message.role === "user";
+  const isAssistant = message.role === "assistant";
+
+  const roleClass = isSystem
+    ? "message--system"
+    : isUser
+      ? "message--user"
+      : "message--assistant";
+
+  const prefix = isSystem ? "# system" : isUser ? ">" : "cosmo";
 
   return (
-    <div className={`message message--${message.role}`}>
-      <div className="message-avatar">
-        {isUser ? (
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M2.5 16c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        ) : (
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <circle cx="9" cy="9" r="2" fill="currentColor" />
-            <circle cx="9" cy="9" r="5" stroke="currentColor" strokeWidth="1" opacity="0.5" />
-            <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="0.6" opacity="0.3" />
-          </svg>
+    <div className={`message ${roleClass}`}>
+      <div className="msg-header">
+        <span className="msg-prefix">{prefix}</span>
+        <span className="msg-timestamp">{formatTime(message.timestamp)}</span>
+        {isAssistant && message.mode && (
+          <span className="msg-mode-tag">{message.mode}</span>
         )}
       </div>
-      <div className="message-body">
-        {isUser ? (
-          <p>{message.content}</p>
-        ) : (
-          <div className="assistant-text">{renderContent(message.content)}</div>
-        )}
-        {message.mode && !isUser && (
-          <span className="message-mode">{message.mode}</span>
-        )}
+      <div className="msg-content">
+        {isAssistant ? renderContent(message.content) : message.content}
       </div>
     </div>
   );

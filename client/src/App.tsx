@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import ChatPanel from "./ChatPanel";
-import Sidebar from "./Sidebar";
+import Apollo from "./Apollo";
 import { fetchHealth } from "./api";
 import type { ModelMode, HealthResponse } from "./types";
+import { MODE_INFO } from "./types";
+
+type Tab = "chat" | "apollo";
 
 export default function App() {
+  const [tab, setTab] = useState<Tab>("chat");
   const [mode, setMode] = useState<ModelMode>("quick");
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const checkHealth = useCallback(async () => {
     try {
-      const h = await fetchHealth();
-      setHealth(h);
+      setHealth(await fetchHealth());
     } catch {
       setHealth({ status: "error", message: "Cannot reach backend" });
     }
@@ -22,42 +24,59 @@ export default function App() {
     checkHealth();
   }, [checkHealth]);
 
+  const statusLabel =
+    health?.status === "ok"
+      ? "Ready"
+      : health?.status === "error"
+        ? "Offline"
+        : "...";
+
   return (
     <div className="app">
-      {/* Mobile header */}
-      <header className="mobile-header">
+      <div className="topbar">
+        <span className="topbar-icon">{">_"}</span>
+
         <button
-          className="hamburger"
-          onClick={() => setSidebarOpen((o) => !o)}
-          aria-label="Toggle sidebar"
+          className={`topbar-tab ${tab === "chat" ? "topbar-tab--active" : ""}`}
+          onClick={() => setTab("chat")}
         >
-          <span />
-          <span />
-          <span />
+          Chat
         </button>
-        <div className="mobile-brand">
-          <span className="brand-dot" />
-          cosmo
-        </div>
-      </header>
+        <button
+          className={`topbar-tab ${tab === "apollo" ? "topbar-tab--active" : ""}`}
+          onClick={() => setTab("apollo")}
+        >
+          Apollo
+        </button>
 
-      <Sidebar
-        mode={mode}
-        onModeChange={setMode}
-        health={health}
-        onRefreshHealth={checkHealth}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+        <span className="topbar-status">
+          <span
+            className={`status-dot status-dot--${health?.status ?? "unknown"}`}
+          />
+          {statusLabel}
+        </span>
 
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
+        <span className="topbar-spacer" />
 
-      <main className="main">
-        <ChatPanel mode={mode} />
-      </main>
+        {tab === "chat" && (
+          <div className="model-select-wrap">
+            <select
+              className="model-select"
+              value={mode}
+              onChange={(e) => setMode(e.target.value as ModelMode)}
+            >
+              {(Object.keys(MODE_INFO) as ModelMode[]).map((m) => (
+                <option key={m} value={m}>
+                  {MODE_INFO[m].label}
+                </option>
+              ))}
+            </select>
+            <span className="model-select-arrow">&#9662;</span>
+          </div>
+        )}
+      </div>
+
+      {tab === "chat" ? <ChatPanel mode={mode} /> : <Apollo />}
     </div>
   );
 }
