@@ -5,9 +5,7 @@ __pycache__/
 venv/
 .venv/
 
-docs/
-input/
-results/
+artifacts/
 # Node / Yarn
 client/node_modules/
 client/dist/
