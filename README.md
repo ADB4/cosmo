@@ -1,106 +1,160 @@
-# Cosmo Web — Study Companion GUI
+# Cosmo — Study Companion
 
-A web interface for querying your React/TypeScript/MUI documentation using local LLMs via Ollama. This wraps the existing `DocumentProcessor` RAG engine with a Flask API backend and a React/TypeScript/Vite frontend.
+A local-first RAG system for querying your React/TypeScript/MUI documentation using Ollama. Includes a CLI for terminal study sessions, a web GUI with streaming chat, and Apollo -- a quiz/study mode with AI-graded short answers.
 
 ## Architecture
 
 ```
-cosmo-web/
-├── server.py                # Flask API (SSE streaming, file upload, stats)
-├── document_processor.py    # Core RAG engine (unchanged from CLI version)
-├── requirements.txt         # Python deps (flask, flask-cors, ollama, chromadb, pypdf)
-├── start-dev.sh             # Launches both servers with one command
-├── client/                  # React + TypeScript + Vite frontend
+cosmo/
+├── backend/                  # Python — Flask API + RAG engine
+│   ├── config.py             # Centralized configuration
+│   ├── document_processor.py # Core RAG: ingest, embed, query, stream
+│   ├── quiz_processor.py     # Quiz parsing and grading (CLI)
+│   ├── server.py             # Flask API (SSE streaming, upload, quizzes)
+│   └── cli.py                # Command-line interface
+├── frontend/                 # React 19 + TypeScript + Vite
 │   ├── src/
-│   │   ├── main.tsx         # Entry point
-│   │   ├── App.tsx          # Root layout
-│   │   ├── ChatPanel.tsx    # Chat messages + input + SSE streaming
-│   │   ├── MessageBubble.tsx # Individual message rendering (code blocks, citations)
-│   │   ├── Sidebar.tsx      # Mode selector, upload, stats
-│   │   ├── api.ts           # API client (fetch + SSE)
-│   │   ├── types.ts         # Shared TypeScript types
-│   │   └── index.css        # All styles (vanilla CSS, no framework)
-│   ├── vite.config.ts       # Vite config with proxy to Flask
-│   ├── tsconfig.json        # Strict TypeScript config
-│   └── package.json         # yarn / React 19 / Vite 6
-└── uploads/                 # Server-side upload directory (auto-created)
+│   │   ├── App.tsx           # Root layout (tab bar, model selector)
+│   │   ├── pages/
+│   │   │   ├── chat/         # Chat page (ChatPanel, MessageBubble)
+│   │   │   └── apollo/       # Quiz page (Apollo, StudyMode, QuizMode)
+│   │   ├── components/       # Shared components (renderMarkdown)
+│   │   ├── lib/              # Shared logic (api, types, normalizeQuiz)
+│   │   └── styles/           # Vanilla CSS
+│   ├── vite.config.ts        # Dev server + API proxy
+│   ├── tsconfig.json         # Strict mode
+│   └── package.json          # React 19, Vite 6, yarn
+├── scripts/
+│   └── start-dev.sh          # One-command startup for both servers
+├── requirements.txt          # Python dependencies
+└── docs/                     # Your study materials (PDFs, markdown)
 ```
 
 ## Prerequisites
 
-Same as the CLI version:
-- **Ollama** running with models pulled (`nomic-embed-text` + at least one chat model)
+- **Ollama** running locally with models pulled
 - **Python 3.9+**
 - **Node.js 18+** and **yarn**
 
 ## Quick Start
 
 ```bash
-cd cosmo-web
+# 1. Clone and enter the project
+git clone https://github.com/ADB4/cosmo.git
+cd cosmo
 
-# One-command startup:
-./start-dev.sh
+# 2. One-command startup (creates venv, installs deps, starts both servers):
+chmod +x scripts/start-dev.sh
+./scripts/start-dev.sh
 
-# Or manually:
-
-# Terminal 1 — Backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python server.py
-
-# Terminal 2 — Frontend
-cd client
-yarn install
-yarn dev
+# 3. Open http://localhost:5173
 ```
 
-Then open **http://localhost:5173** in your browser.
+### Manual Setup
 
-## Features
+```bash
+# Backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-- **Streaming responses** — tokens appear in real-time via Server-Sent Events
-- **Model switching** — Quick / Deep / General / Fast modes from the sidebar
-- **File upload** — drag PDFs or markdown files into the sidebar to ingest
-- **Knowledge base stats** — see what's indexed at a glance
-- **Conversation history** — the backend maintains rolling context (last 10 exchanges)
-- **Code block rendering** — fenced code blocks with language hints
-- **Citation highlighting** — `[1]`, `[2]` markers are visually distinct
-- **Mobile responsive** — hamburger menu for sidebar on small screens
-- **Keyboard shortcuts** — Enter to send, Shift+Enter for newlines
+# Frontend
+cd frontend
+yarn install
+cd ..
+
+# Pull required Ollama models
+ollama pull nomic-embed-text    # Required — embedding model
+ollama pull qwen2.5-coder:7b   # Recommended — fast code model
+
+# Start servers (separate terminals)
+python -m backend.server        # http://localhost:5174
+cd frontend && yarn dev         # http://localhost:5173
+```
+
+## CLI Usage
+
+All CLI commands run from the project root with the venv activated:
+
+```bash
+# Ingest documents
+python -m backend.cli ingest --dir docs/
+python -m backend.cli ingest --path docs/handbook.pdf --force
+
+# Ask a question
+python -m backend.cli ask -q "How do I type a useState hook?" --mode deep
+
+# Interactive study session
+python -m backend.cli interactive
+
+# Take a quiz
+python -m backend.cli quiz --input quizzes/w1.md --output results/w1-results.md
+
+# List indexed documents
+python -m backend.cli list
+```
+
+### Interactive Mode Commands
+
+While in interactive mode, type your question directly, or use these commands: `mode quick|deep|general|fast` to switch models, `clear` to reset history, `stats` to check the knowledge base, `quit` to exit.
+
+## Web GUI
+
+The web interface provides two tabs:
+
+**Chat** — streaming RAG answers with citation markers, model switching, and conversation history.
+
+**Apollo** — quiz and study mode. Upload quiz JSON files, then choose between flashcard study mode or timed quiz mode with configurable question counts and AI-graded short answers.
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/health` | GET | Backend + Ollama status |
-| `/api/stats` | GET | Knowledge base statistics |
-| `/api/chat` | POST | Streaming chat (SSE) |
-| `/api/ingest` | POST | Upload + ingest a file |
-| `/api/ingest/directory` | POST | Ingest files from a local path |
-| `/api/history/clear` | POST | Clear conversation history |
+The Flask backend exposes these routes (all prefixed with `/api`):
 
-## Tech Decisions
+- `GET /health` — backend + Ollama status
+- `GET /stats` — knowledge base statistics
+- `POST /chat` — streaming chat via SSE
+- `POST /ingest` — upload and ingest a file
+- `POST /ingest/directory` — ingest from a local path
+- `POST /history/clear` — clear conversation history
+- `GET /quizzes` — list loaded quizzes
+- `GET /quizzes/:id` — get full quiz data
+- `POST /quizzes/ingest` — upload a quiz JSON
+- `POST /quizzes/evaluate` — AI-grade a short answer
 
-- **Vanilla CSS** — no Tailwind, no CSS-in-JS. Single file, CSS custom properties for theming.
-- **No markdown library** — lightweight inline renderer handles code blocks, inline code, and citations. Keeps the bundle small (~65KB gzipped).
-- **Flask + SSE** — simple streaming without WebSocket complexity. The Vite dev server proxies `/api` to Flask.
-- **React 19** — latest stable, no `React.FC`, function components throughout.
-- **TypeScript strict mode** — as the syllabus prescribes.
+## Model Modes
+
+| Mode | Model | Use case |
+|------|-------|----------|
+| quick | qwen2.5-coder:7b | Default, fast and accurate for code |
+| deep | qwen2.5-coder:14b | Complex explanations, slower |
+| general | llama3.1:8b | Non-code questions |
+| fast | mistral:7b | Fastest responses |
 
 ## Sharing the ChromaDB
 
-The web GUI and CLI share the same ChromaDB. By default both use `./chroma_db`. If your CLI project is elsewhere, either:
-
-1. Symlink: `ln -s /path/to/your/chroma_db ./chroma_db`
-2. Set the env var: `COSMO_DB_PATH=/path/to/your/chroma_db python server.py`
-3. Copy the `chroma_db/` folder into this directory
-
-## Production Build
+The web GUI and CLI share the same ChromaDB at `./chroma_db`. Override with `COSMO_DB_PATH`:
 
 ```bash
-cd client
-yarn build
-# Output in client/dist/ — serve with any static file server
-# Point /api routes to the Flask backend
+COSMO_DB_PATH=/other/path python -m backend.server
 ```
+
+## Configuration
+
+All backend settings live in `backend/config.py` and can be overridden via environment variables: `COSMO_DB_PATH`, `COSMO_PORT`, `COSMO_UPLOAD_DIR`, `COSMO_QUIZ_DIR`, `COSMO_CHUNK_SIZE`, `COSMO_CHUNK_OVERLAP`.
+
+## Troubleshooting
+
+**"Connection refused"** — start Ollama with `ollama serve` in a separate terminal.
+
+**"Model not found"** — run `ollama pull <model-name>`.
+
+**"No module named..."** — activate the venv: `source .venv/bin/activate`.
+
+**Slow first ingestion** — normal. Large PDFs take 5-10 minutes. Subsequent runs are cached.
+
+## Tech Stack
+
+- **Backend:** Python, Flask, ChromaDB, Ollama, pypdf
+- **Frontend:** React 19, TypeScript (strict), Vite 6, vanilla CSS
+- **Styling:** CSS custom properties, monospace terminal aesthetic
+- **No external markdown library** — lightweight inline renderer for code blocks, inline code, citations
