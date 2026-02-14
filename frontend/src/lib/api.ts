@@ -49,7 +49,11 @@ export async function fetchQuizzes(): Promise<QuizSummary[]> {
   const res = await fetch(`${BASE}/quizzes`);
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
-  return data.quizzes;
+  return data.quizzes.sort((a, b) => {
+    const weekA = parseInt(a.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
+    const weekB = parseInt(b.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
+    return weekA - weekB;
+  });
 }
 
 export async function fetchQuiz(quizId: string): Promise<Quiz> {

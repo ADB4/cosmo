@@ -36,25 +36,31 @@ def ingest_command(args) -> int:
     processor = _get_processor(args)
 
     if args.path:
-        from pathlib import Path
+            from pathlib import Path
 
-        p = Path(args.path)
-        if not p.exists():
-            print(f"Error: File not found: {args.path}", file=sys.stderr)
-            return 1
-        ext = p.suffix.lower()
-        try:
-            if ext == ".pdf":
-                processor.ingest_pdf(str(p), force=args.force)
-            elif ext in (".md", ".markdown"):
-                processor.ingest_markdown(str(p), force=args.force)
-            else:
-                print(f"Error: Unsupported file type: {ext}", file=sys.stderr)
+            p = Path(args.path)
+            if not p.exists():
+                print(f"Error: Not found: {args.path}", file=sys.stderr)
                 return 1
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 1
 
+            # If --path points to a directory, treat it like --dir
+            if p.is_dir():
+                args.dir = args.path
+                args.path = None
+                return ingest_command(args)
+
+            ext = p.suffix.lower()
+            try:
+                if ext == ".pdf":
+                    processor.ingest_pdf(str(p), force=args.force)
+                elif ext in (".md", ".markdown"):
+                    processor.ingest_markdown(str(p), force=args.force)
+                else:
+                    print(f"Error: Unsupported file type: {ext}", file=sys.stderr)
+                    return 1
+            except Exception as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return 1
     elif args.dir:
         from pathlib import Path
 

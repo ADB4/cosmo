@@ -9,12 +9,13 @@ import hashlib
 import logging
 import re
 from collections import deque
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Generator, Iterator, List, Optional, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 
 import chromadb
 import ollama
-from pypdf import PdfReader
+import pymupdf4llm
 
 from backend.config import (
     CHAT_MODELS,
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Exceptions
 # ---------------------------------------------------------------------------
 
+
 class OllamaConnectionError(Exception):
     """Raised when Ollama is not reachable."""
 
@@ -39,6 +41,7 @@ class OllamaConnectionError(Exception):
 # ---------------------------------------------------------------------------
 # Chat history
 # ---------------------------------------------------------------------------
+
 
 class ChatHistory:
     """Rolling window of conversation exchanges for multi-turn context."""
@@ -71,11 +74,228 @@ class ChatHistory:
 
 
 # ---------------------------------------------------------------------------
+# Markdown section parsing
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MarkdownSection:
+    """A logical section extracted from a markdown file."""
+
+    heading: str          # e.g. "## Props and State"
+    heading_text: str     # e.g. "Props and State"
+    heading_level: int    # e.g. 2
+    body: str             # The text content under this heading
+    breadcrumb: List[str] # e.g. ["React Basics", "Components", "Props and State"]
+
+    @property
+    def breadcrumb_path(self) -> str:
+        """Slash-separated breadcrumb for metadata storage."""
+        return " > ".join(self.breadcrumb)
+
+
+@dataclass
+class ChunkWithMetadata:
+    """A text chunk with all the metadata needed for ChromaDB storage."""
+
+    text: str
+    metadata: Dict[str, str]
+
+
+def parse_markdown_sections(content: str) -> List[MarkdownSection]:
+    """
+    Parse markdown into sections split by headings, preserving hierarchy.
+
+    Handles:
+    - ATX headings (# through ######)
+    - Content before the first heading (assigned level 0, heading "Introduction")
+    - Nested heading breadcrumbs (an h3 under an h2 under an h1 gets all three)
+    - Headings inside fenced code blocks are skipped
+    """
+    lines = content.split("\n")
+    heading_pattern = re.compile(r"^(#{1,6})\s+(.+)$")
+
+    # First pass: identify all heading positions
+    heading_positions: List[Tuple[int, int, str]] = []  # (line_idx, level, text)
+    in_code_block = False
+
+    for i, line in enumerate(lines):
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+
+        match = heading_pattern.match(line)
+        if match:
+            level = len(match.group(1))
+            text = match.group(2).strip()
+            heading_positions.append((i, level, text))
+
+    # Second pass: extract sections with body text
+    sections: List[MarkdownSection] = []
+
+    # Handle content before first heading
+    first_heading_line = heading_positions[0][0] if heading_positions else len(lines)
+    preamble = "\n".join(lines[:first_heading_line]).strip()
+    if preamble:
+        sections.append(MarkdownSection(
+            heading="",
+            heading_text="Introduction",
+            heading_level=0,
+            body=preamble,
+            breadcrumb=["Introduction"],
+        ))
+
+    # Build breadcrumb stack: tracks the most recent heading at each level
+    breadcrumb_stack: Dict[int, str] = {}
+
+    for idx, (line_num, level, text) in enumerate(heading_positions):
+        # Determine where this section's body ends
+        if idx + 1 < len(heading_positions):
+            next_line = heading_positions[idx + 1][0]
+        else:
+            next_line = len(lines)
+
+        body = "\n".join(lines[line_num + 1 : next_line]).strip()
+
+        # Update breadcrumb: set this level, clear anything deeper
+        breadcrumb_stack[level] = text
+        for deeper_level in list(breadcrumb_stack.keys()):
+            if deeper_level > level:
+                del breadcrumb_stack[deeper_level]
+
+        # Build ordered breadcrumb from the stack
+        breadcrumb = [
+            breadcrumb_stack[lvl]
+            for lvl in sorted(breadcrumb_stack.keys())
+        ]
+
+        sections.append(MarkdownSection(
+            heading="#" * level + " " + text,
+            heading_text=text,
+            heading_level=level,
+            body=body,
+            breadcrumb=breadcrumb,
+        ))
+
+    return sections
+
+
+def chunk_section(
+    section: MarkdownSection,
+    max_size: int = CHUNK_SIZE,
+    overlap: int = CHUNK_OVERLAP,
+) -> List[str]:
+    """
+    Chunk a single section's body text, respecting paragraph boundaries.
+    Overlap is applied only within the section (never across headings).
+
+    The heading line is prepended to the FIRST chunk so the embedding
+    captures what section the content belongs to.
+    """
+    body = section.body
+    if not body.strip():
+        return []
+
+    paragraphs = body.split("\n\n")
+    raw_chunks: List[str] = []
+    current = ""
+
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+
+        if len(current) + len(para) + 2 <= max_size:
+            current += ("" if not current else "\n\n") + para
+        else:
+            if current:
+                raw_chunks.append(current)
+            # Handle paragraphs longer than max_size
+            if len(para) > max_size:
+                words = para.split()
+                temp = ""
+                for word in words:
+                    if len(temp) + len(word) + 1 <= max_size:
+                        temp += ("" if not temp else " ") + word
+                    else:
+                        if temp:
+                            raw_chunks.append(temp)
+                        temp = word
+                current = temp
+            else:
+                current = para
+
+    if current:
+        raw_chunks.append(current)
+
+    if not raw_chunks:
+        return []
+
+    # Apply overlap: prepend tail of previous chunk to current chunk
+    overlapped: List[str] = []
+    for i, chunk in enumerate(raw_chunks):
+        if i == 0:
+            # Prepend the heading to the first chunk for embedding context
+            prefix = section.heading + "\n\n" if section.heading else ""
+            overlapped.append(prefix + chunk)
+        else:
+            prev_text = raw_chunks[i - 1]
+            # Take the last `overlap` characters, snapped to a word boundary
+            tail = prev_text[-overlap:]
+            first_space = tail.find(" ")
+            if first_space != -1:
+                tail = tail[first_space + 1 :]
+            overlapped.append(f"[...] {tail}\n\n{chunk}")
+
+    return overlapped
+
+
+def chunk_markdown_file(
+    content: str,
+    filename: str,
+    file_hash: str,
+    max_size: int = CHUNK_SIZE,
+    overlap: int = CHUNK_OVERLAP,
+) -> List[ChunkWithMetadata]:
+    """
+    Full pipeline: parse markdown into sections, chunk each section,
+    and attach rich metadata to every chunk.
+    """
+    sections = parse_markdown_sections(content)
+    results: List[ChunkWithMetadata] = []
+
+    for section_idx, section in enumerate(sections):
+        chunks = chunk_section(section, max_size=max_size, overlap=overlap)
+
+        for chunk_in_section_idx, chunk_text in enumerate(chunks):
+            results.append(ChunkWithMetadata(
+                text=chunk_text,
+                metadata={
+                    "source": filename,
+                    "file_hash": file_hash,
+                    "doc_type": "markdown",
+                    "heading": section.heading_text,
+                    "heading_level": str(section.heading_level),
+                    "breadcrumb": section.breadcrumb_path,
+                    "chunk_index_in_section": str(chunk_in_section_idx),
+                    "section_index": str(section_idx),
+                },
+            ))
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Document processor
 # ---------------------------------------------------------------------------
 
+
 class DocumentProcessor:
     """Process, index, and query technical documentation via RAG."""
+
+    EMBEDDING_BATCH_SIZE = EMBEDDING_BATCH_SIZE
 
     def __init__(self, persist_dir: str | None = None):
         self._check_ollama_connection()
@@ -95,69 +315,23 @@ class DocumentProcessor:
             ollama.list()
         except Exception as e:
             raise OllamaConnectionError(
-                "Cannot connect to Ollama. Make sure it's running:\n"
+                "Cannot connect to Ollama. "
+                "Make sure it's running:\n"
                 f"  ollama serve\nOriginal error: {e}"
             )
 
-    # -- PDF extraction -----------------------------------------------------
-
-    def extract_pdf_pages(self, pdf_path: str) -> Iterator[Tuple[int, str]]:
-        reader = PdfReader(pdf_path)
-        for i, page in enumerate(reader.pages):
-            text = page.extract_text() or ""
-            if text.strip():
-                yield i + 1, text
-
-    # -- chunking -----------------------------------------------------------
+    # -- PDF to markdown conversion -----------------------------------------
 
     @staticmethod
-    def smart_chunk(
-        text: str,
-        max_size: int = CHUNK_SIZE,
-        overlap: int = CHUNK_OVERLAP,
-    ) -> List[str]:
-        paragraphs = text.split("\n\n")
-        chunks: List[str] = []
-        current_chunk = ""
+    def pdf_to_markdown(pdf_path: str) -> str:
+        """
+        Convert a PDF to markdown using pymupdf4llm.
 
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
-                continue
-            if len(current_chunk) + len(para) + 2 < max_size:
-                current_chunk += para + "\n\n"
-            else:
-                if current_chunk.strip():
-                    chunks.append(current_chunk.strip())
-                if len(para) > max_size:
-                    words = para.split()
-                    temp_chunk = ""
-                    for word in words:
-                        if len(temp_chunk) + len(word) + 1 < max_size:
-                            temp_chunk += word + " "
-                        else:
-                            if temp_chunk:
-                                chunks.append(temp_chunk.strip())
-                            temp_chunk = word + " "
-                    current_chunk = temp_chunk
-                else:
-                    current_chunk = para + "\n\n"
-
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
-
-        overlapped: List[str] = []
-        for i, chunk in enumerate(chunks):
-            if i > 0:
-                prev_text = chunks[i - 1]
-                overlap_text = prev_text[-overlap:]
-                space_idx = overlap_text.find(" ")
-                if space_idx != -1:
-                    overlap_text = overlap_text[space_idx + 1:]
-                chunk = overlap_text + " " + chunk
-            overlapped.append(chunk)
-
-        return overlapped if overlapped else chunks
+        Preserves headings, code blocks, tables, and lists far better than
+        naive text extraction. The resulting markdown is then suitable for
+        the heading-hierarchy chunker.
+        """
+        return pymupdf4llm.to_markdown(pdf_path)
 
     # -- hashing / dedup ----------------------------------------------------
 
@@ -186,6 +360,11 @@ class DocumentProcessor:
     # -- embedding ----------------------------------------------------------
 
     def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for a batch of texts.
+        Tries the batch API first (ollama.embed), falls back to
+        one-at-a-time if not available.
+        """
         try:
             response = ollama.embed(model=self.embed_model, input=texts)
             return response["embeddings"]
@@ -200,50 +379,76 @@ class DocumentProcessor:
     # -- ingestion ----------------------------------------------------------
 
     def ingest_pdf(self, pdf_path: str, force: bool = False) -> int:
+        """
+        Convert PDF to markdown via pymupdf4llm, then process with the
+        heading-hierarchy-aware markdown chunker.
+
+        This gives PDFs the same rich metadata (headings, breadcrumbs,
+        section-aware overlap) that native markdown files get.
+        """
         file_hash = self.get_file_hash(pdf_path)
+
         if not force and self.is_already_indexed(file_hash):
             print(f"{Path(pdf_path).name} already indexed (use --force to re-index)")
             return 0
+
         if force:
             self._delete_existing_chunks(file_hash)
 
         print(f"Processing: {Path(pdf_path).name}")
         filename = Path(pdf_path).name
 
-        all_chunks: List[str] = []
-        all_ids: List[str] = []
-        all_metadatas: List[Dict] = []
-        chunk_count = 0
+        # Convert PDF to markdown -- this is where pymupdf4llm does the
+        # heavy lifting: extracting headings, code blocks, tables, lists
+        print(f"  Converting PDF to markdown...")
+        try:
+            md_content = self.pdf_to_markdown(pdf_path)
+        except Exception as e:
+            print(f"  Error converting PDF to markdown: {e}")
+            return 0
 
-        for page_num, text in self.extract_pdf_pages(pdf_path):
-            chunks = self.smart_chunk(text)
-            for chunk in chunks:
-                doc_id = f"{file_hash}_{chunk_count}"
-                all_chunks.append(chunk)
-                all_ids.append(doc_id)
-                all_metadatas.append({
-                    "source": filename,
-                    "page": page_num,
-                    "file_hash": file_hash,
-                    "doc_type": "pdf",
-                })
-                chunk_count += 1
-
-        if not all_chunks:
+        if not md_content.strip():
             print(f"  No content extracted from {filename}")
             return 0
 
+        # Use the same heading-hierarchy chunker as native markdown files.
+        # Source metadata still shows the original .pdf filename so you
+        # know where the content came from.
+        chunks_with_meta = chunk_markdown_file(
+            content=md_content,
+            filename=filename,
+            file_hash=file_hash,
+            max_size=CHUNK_SIZE,
+            overlap=CHUNK_OVERLAP,
+        )
+
+        # Override doc_type so stats/filtering can distinguish PDFs
+        for c in chunks_with_meta:
+            c.metadata["doc_type"] = "pdf"
+
+        if not chunks_with_meta:
+            print(f"  No chunks produced from {filename}")
+            return 0
+
+        # Prepare batch arrays
+        all_chunks = [c.text for c in chunks_with_meta]
+        all_ids = [f"{file_hash}_{i}" for i in range(len(chunks_with_meta))]
+        all_metadatas = [c.metadata for c in chunks_with_meta]
+
+        # Generate embeddings in batches and store
         indexed = 0
-        for batch_start in range(0, len(all_chunks), EMBEDDING_BATCH_SIZE):
-            batch_end = min(batch_start + EMBEDDING_BATCH_SIZE, len(all_chunks))
+        for batch_start in range(0, len(all_chunks), self.EMBEDDING_BATCH_SIZE):
+            batch_end = min(batch_start + self.EMBEDDING_BATCH_SIZE, len(all_chunks))
             batch_texts = all_chunks[batch_start:batch_end]
             batch_ids = all_ids[batch_start:batch_end]
             batch_meta = all_metadatas[batch_start:batch_end]
+
             try:
                 batch_embeddings = self._generate_embeddings_batch(batch_texts)
             except Exception as e:
                 print(f"  Error generating embeddings for batch {batch_start}-{batch_end}: {e}")
                 continue
+
             self.collection.add(
                 ids=batch_ids,
                 embeddings=batch_embeddings,
@@ -251,6 +456,7 @@ class DocumentProcessor:
                 metadatas=batch_meta,
             )
             indexed += len(batch_ids)
+
             if batch_end < len(all_chunks):
                 print(f"  Embedded {batch_end}/{len(all_chunks)} chunks...")
 
@@ -258,10 +464,19 @@ class DocumentProcessor:
         return indexed
 
     def ingest_markdown(self, md_path: str, force: bool = False) -> int:
+        """
+        Process markdown with heading-hierarchy-aware chunking.
+
+        Splits on heading hierarchy, preserves heading text/level/breadcrumb
+        path in metadata, and applies section-aware overlap that never bleeds
+        across heading boundaries.
+        """
         file_hash = self.get_file_hash(md_path)
+
         if not force and self.is_already_indexed(file_hash):
             print(f"{Path(md_path).name} already indexed (use --force to re-index)")
             return 0
+
         if force:
             self._delete_existing_chunks(file_hash)
 
@@ -271,52 +486,37 @@ class DocumentProcessor:
         with open(md_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        sections = re.split(r"\n(#{1,6}\s+.+)\n", content)
-        built_sections: List[str] = []
-        current_section = ""
-        for part in sections:
-            if part.startswith("#"):
-                if current_section.strip():
-                    built_sections.append(current_section.strip())
-                current_section = part + "\n"
-            else:
-                current_section += part
-        if current_section.strip():
-            built_sections.append(current_section.strip())
+        chunks_with_meta = chunk_markdown_file(
+            content=content,
+            filename=filename,
+            file_hash=file_hash,
+            max_size=CHUNK_SIZE,
+            overlap=CHUNK_OVERLAP,
+        )
 
-        all_chunks: List[str] = []
-        all_ids: List[str] = []
-        all_metadatas: List[Dict] = []
-        chunk_count = 0
-        for section in built_sections:
-            chunks = self.smart_chunk(section)
-            for chunk in chunks:
-                doc_id = f"{file_hash}_{chunk_count}"
-                all_chunks.append(chunk)
-                all_ids.append(doc_id)
-                all_metadatas.append({
-                    "source": filename,
-                    "section": chunk_count,
-                    "file_hash": file_hash,
-                    "doc_type": "markdown",
-                })
-                chunk_count += 1
-
-        if not all_chunks:
+        if not chunks_with_meta:
             print(f"  No content extracted from {filename}")
             return 0
 
+        # Prepare batch arrays
+        all_chunks = [c.text for c in chunks_with_meta]
+        all_ids = [f"{file_hash}_{i}" for i in range(len(chunks_with_meta))]
+        all_metadatas = [c.metadata for c in chunks_with_meta]
+
+        # Generate embeddings in batches and store
         indexed = 0
-        for batch_start in range(0, len(all_chunks), EMBEDDING_BATCH_SIZE):
-            batch_end = min(batch_start + EMBEDDING_BATCH_SIZE, len(all_chunks))
+        for batch_start in range(0, len(all_chunks), self.EMBEDDING_BATCH_SIZE):
+            batch_end = min(batch_start + self.EMBEDDING_BATCH_SIZE, len(all_chunks))
             batch_texts = all_chunks[batch_start:batch_end]
             batch_ids = all_ids[batch_start:batch_end]
             batch_meta = all_metadatas[batch_start:batch_end]
+
             try:
                 batch_embeddings = self._generate_embeddings_batch(batch_texts)
             except Exception as e:
                 print(f"  Error generating embeddings for batch {batch_start}-{batch_end}: {e}")
                 continue
+
             self.collection.add(
                 ids=batch_ids,
                 embeddings=batch_embeddings,
@@ -325,10 +525,13 @@ class DocumentProcessor:
             )
             indexed += len(batch_ids)
 
+            if batch_end < len(all_chunks):
+                print(f"  Embedded {batch_end}/{len(all_chunks)} chunks...")
+
         print(f"Indexed {indexed} chunks from {filename}")
         return indexed
 
-    # -- query --------------------------------------------------------------
+    # -- querying -----------------------------------------------------------
 
     def query(
         self,
@@ -336,120 +539,171 @@ class DocumentProcessor:
         n_results: int = 5,
         filter_source: Optional[str] = None,
     ) -> Dict:
+        """Query the vector database for relevant chunks."""
         where_clause = None
         if filter_source:
             where_clause = {"source": filter_source}
+
         query_embedding = ollama.embeddings(
             model=self.embed_model, prompt=question
         )["embedding"]
-        return self.collection.query(
+
+        results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=n_results,
             where=where_clause,
         )
-
-    # -- prompt building ----------------------------------------------------
+        return results
 
     def _build_rag_prompt(
         self,
         question: str,
         results: Dict,
         history: Optional[ChatHistory] = None,
+        grounded: bool = True,
     ) -> Tuple[str, str]:
+        """
+        Build the RAG prompt and source citation block from query results.
+        Uses breadcrumb metadata for richer citations when available.
+
+        Args:
+            grounded: If True (default), the LLM is told to answer based
+                primarily on the documentation and to say so if the docs
+                don't cover the question. If False, the LLM is told to
+                use the docs as a primary source but supplement with its
+                own knowledge when the docs are insufficient. Use
+                grounded=False for quiz/test scenarios where you want the
+                best possible answer regardless of retrieval gaps.
+        """
         context_parts = []
+        sources_parts = []
+
         for i, (doc, metadata) in enumerate(
             zip(results["documents"][0], results["metadatas"][0])
         ):
             source = metadata.get("source", "unknown")
-            page = metadata.get("page", metadata.get("section", "?"))
-            context_parts.append(f"[{i + 1}] From {source}, page {page}:\n{doc}")
+
+            # Use breadcrumb for markdown, page number for PDFs
+            breadcrumb = metadata.get("breadcrumb", "")
+            heading = metadata.get("heading", "")
+            page = metadata.get("page", "")
+
+            if breadcrumb:
+                label = f"{source} > {breadcrumb}"
+            elif heading:
+                label = f"{source} > {heading}"
+            elif page:
+                label = f"{source}, page {page}"
+            else:
+                label = source
+
+            context_parts.append(f"[{i + 1}] From {label}:\n{doc}")
+            sources_parts.append(f"[{i + 1}] {label}")
 
         context = "\n\n".join(context_parts)
+        sources_block = "\n\n---\nSources:\n" + "\n".join(sources_parts)
 
         history_block = ""
         if history and len(history) > 0:
-            history_block = f"\n\n{history.format_for_prompt()}\n\n"
+            history_block = history.format_for_prompt() + "\n\n"
+
+        if grounded:
+            system_instruction = (
+                "You are a React/TypeScript study companion. Answer the question "
+                "based primarily on the provided documentation excerpts. Cite "
+                "sources using [1], [2], etc. If the documentation doesn't fully "
+                "address the question, say so."
+            )
+        else:
+            system_instruction = (
+                "You are a React/TypeScript study companion. Use the provided "
+                "documentation excerpts as your primary source and cite them "
+                "using [1], [2], etc. where relevant. If the excerpts don't "
+                "fully cover the question, supplement with your own knowledge "
+                "to give the most accurate and complete answer possible. Do "
+                "not refuse to answer just because the documentation is "
+                "incomplete."
+            )
 
         prompt = (
-            "You are a React/TypeScript study companion. Answer the question "
-            "based primarily on the provided documentation excerpts. Cite "
-            "sources using [1], [2], etc. If the documentation doesn't fully "
-            f"address the question, say so.{history_block}\n"
-            f"Documentation:\n{context}\n\n"
-            f"Question: {question}\n\n"
-            "Answer with citations:"
+            f"{system_instruction}\n\n"
+            f"{history_block}"
+            f"Documentation excerpts:\n{context}\n\n"
+            f"Question: {question}"
         )
 
-        sources = "\n\nSources:\n"
-        for i, metadata in enumerate(results["metadatas"][0]):
-            source = metadata.get("source", "unknown")
-            page = metadata.get("page", metadata.get("section", "?"))
-            sources += f"[{i + 1}] {source}, page {page}\n"
+        return prompt, sources_block
 
-        return prompt, sources
-
-    # -- answer -------------------------------------------------------------
-
-    def ask(
+    def ask_question(
         self,
         question: str,
         mode: str = "quick",
-        n_results: int = 4,
+        n_results: int = 5,
         history: Optional[ChatHistory] = None,
-    ) -> str:
+        grounded: bool = True,
+    ) -> Generator[str, None, str]:
+        """
+        Answer a question using RAG with streaming.
+        Yields tokens as they arrive from Ollama.
+        The sources block is yielded at the end.
+
+        Args:
+            grounded: If True (default), answers strictly from docs.
+                If False, supplements with LLM knowledge when docs
+                are insufficient. Use grounded=False for quizzes.
+        """
         results = self.query(question, n_results=n_results)
+
         if not results["documents"][0]:
-            return "No relevant documents found in the knowledge base."
+            if grounded:
+                yield "No relevant documents found in the knowledge base."
+                return "No relevant documents found in the knowledge base."
+            else:
+                # In ungrounded mode, still try to answer from LLM knowledge
+                results = {"documents": [[]], "metadatas": [[]]}
 
-        prompt, sources = self._build_rag_prompt(question, results, history)
-        model = self.models.get(mode, self.models["quick"])
-
-        response = ollama.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            options={"num_ctx": 8192, "num_thread": 8},
+        prompt, sources = self._build_rag_prompt(
+            question, results, history, grounded=grounded
         )
-        answer = response["message"]["content"]
-
-        if history is not None:
-            history.add(question, answer)
-
-        return answer + sources
-
-    def ask_stream(
-        self,
-        question: str,
-        mode: str = "quick",
-        n_results: int = 4,
-        history: Optional[ChatHistory] = None,
-    ) -> Generator[str, None, None]:
-        results = self.query(question, n_results=n_results)
-        if not results["documents"][0]:
-            yield "No relevant documents found in the knowledge base."
-            return
-
-        prompt, sources = self._build_rag_prompt(question, results, history)
         model = self.models.get(mode, self.models["quick"])
+
+        num_ctx = 4096 if n_results <= 4 else 8192
+        if history and len(history) > 0:
+            num_ctx = 8192
 
         full_answer = ""
-        for chunk in ollama.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-            options={"num_ctx": 8192, "num_thread": 8},
-        ):
-            token = chunk["message"]["content"]
-            full_answer += token
-            yield token
 
-        yield sources
+        try:
+            stream = ollama.chat(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                options={"num_ctx": num_ctx, "num_thread": 8},
+            )
+
+            for chunk in stream:
+                token = chunk["message"]["content"]
+                full_answer += token
+                yield token
+
+        except Exception as e:
+            error_msg = (
+                f"Error generating response: {e}\n\n"
+                f"Make sure '{model}' is installed: ollama pull {model}"
+            )
+            yield error_msg
+            return error_msg
 
         if history is not None:
             history.add(question, full_answer)
 
+        yield sources
+        return full_answer + sources
+
     # -- stats --------------------------------------------------------------
 
     def get_stats(self) -> Dict:
+        """Get statistics about indexed documents."""
         count = self.collection.count()
         if count == 0:
             return {"total_chunks": 0, "total_documents": 0, "sources": {}}

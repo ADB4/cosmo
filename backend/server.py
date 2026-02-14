@@ -102,7 +102,7 @@ def chat():
     def generate():
         try:
             proc = get_processor()
-            for token in proc.ask_stream(
+            for token in proc.ask_question(
                 question, mode=mode, n_results=n_results, history=_history
             ):
                 yield f"data: {json.dumps({'token': token})}\n\n"
