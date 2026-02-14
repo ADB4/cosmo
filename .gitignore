@@ -8,6 +8,7 @@ env/
 client/tsconfig.tsbuildinfo
 
 artifacts/
+quizzes/
 # Node / Yarn
 client/node_modules/
 client/dist/

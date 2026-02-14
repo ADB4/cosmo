@@ -1,8 +1,10 @@
 import { useState, useMemo, useCallback } from "react";
-import type { QuizData } from "./types";
+import type { NormalizedQuestion } from "./types";
+import { renderMarkdown } from "./renderMarkdown";
 
 interface Props {
-  quiz: QuizData;
+  title: string;
+  questions: NormalizedQuestion[];
   onExit: () => void;
 }
 
@@ -15,8 +17,21 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export default function StudyMode({ quiz, onExit }: Props) {
-  const cards = useMemo(() => shuffle(quiz.questions), [quiz.questions]);
+function answerDisplay(q: NormalizedQuestion): string {
+  switch (q.sectionType) {
+    case "true_false":
+      return q.correctAnswer === "true" ? "True" : "False";
+    case "multiple_choice": {
+      const idx = Number(q.correctAnswer);
+      return q.options[idx] ?? q.correctAnswer;
+    }
+    case "short_answer":
+      return q.correctAnswer;
+  }
+}
+
+export default function StudyMode({ questions, onExit }: Props) {
+  const cards = useMemo(() => shuffle(questions), [questions]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -35,7 +50,6 @@ export default function StudyMode({ quiz, onExit }: Props) {
 
   return (
     <div className="study">
-      {/* Sub-header */}
       <div className="study-header">
         <button className="study-exit" onClick={onExit}>
           &#10005; Exit Study Mode
@@ -45,7 +59,6 @@ export default function StudyMode({ quiz, onExit }: Props) {
         </span>
       </div>
 
-      {/* Card */}
       <div className="study-area">
         <div
           className={`study-card ${flipped ? "study-card--flipped" : ""}`}
@@ -54,12 +67,17 @@ export default function StudyMode({ quiz, onExit }: Props) {
           {!flipped ? (
             <>
               <span className="study-card-label">QUESTION</span>
-              <p className="study-card-text">{card.text}</p>
-              {card.choices.length > 0 && (
+              <div className="study-card-text">{renderMarkdown(card.text)}</div>
+              {card.code && (
+                <pre className="code-block" data-lang="typescript">
+                  <code>{card.code}</code>
+                </pre>
+              )}
+              {card.options.length > 0 && (
                 <div className="study-card-choices">
-                  {card.choices.map((c, i) => (
+                  {card.options.map((c, i) => (
                     <div key={i} className="study-choice">
-                      {c}
+                      {renderMarkdown(c)}
                     </div>
                   ))}
                 </div>
@@ -69,19 +87,9 @@ export default function StudyMode({ quiz, onExit }: Props) {
           ) : (
             <>
               <span className="study-card-label">ANSWER</span>
-              <p className="study-card-text">
-                {card.qtype === "tf"
-                  ? card.answer === "T"
-                    ? "True"
-                    : "False"
-                  : card.qtype === "mc"
-                    ? card.choices[
-                        card.answer.replace(/[()]/g, "").charCodeAt(0) - 97
-                      ] ?? card.answer
-                    : card.answer}
-              </p>
+              <div className="study-card-text">{renderMarkdown(answerDisplay(card))}</div>
               {card.explanation && (
-                <p className="study-card-explanation">{card.explanation}</p>
+                <div className="study-card-explanation">{renderMarkdown(card.explanation)}</div>
               )}
               <span className="study-card-hint">Click to flip back</span>
             </>
@@ -89,7 +97,6 @@ export default function StudyMode({ quiz, onExit }: Props) {
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="study-nav">
         <button
           className="study-nav-btn"

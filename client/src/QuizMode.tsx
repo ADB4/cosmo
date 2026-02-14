@@ -1,8 +1,11 @@
 import { useState, useCallback } from "react";
-import type { QuizData, QuizQuestion } from "./types";
+import type { NormalizedQuestion } from "./types";
+import { evaluateAnswer } from "./api";
+import { renderMarkdown } from "./renderMarkdown";
 
 interface Props {
-  quiz: QuizData;
+  title: string;
+  questions: NormalizedQuestion[];
   onExit: () => void;
 }
 
@@ -11,38 +14,40 @@ interface Answer {
   value: string;
 }
 
+type Score = "correct" | "partial" | "incorrect";
+
 interface Result {
-  question: QuizQuestion;
+  question: NormalizedQuestion;
   given: string;
-  correct: boolean | null; // null = SA, needs manual review
+  correct: boolean | null;      // null = SA pending/evaluated separately
+  saScore?: Score;               // AI evaluation result
+  saFeedback?: string;           // AI feedback text
 }
 
-function normalizeAnswer(q: QuizQuestion, given: string): boolean | null {
-  if (q.qtype === "sa") return null;
-  if (q.qtype === "tf") {
-    const g = given.toUpperCase();
-    return g === q.answer.toUpperCase();
-  }
-  // mc: answer is like "(b)", given is the choice text — match by index
-  const correctIdx = q.answer.replace(/[()]/g, "").charCodeAt(0) - 97;
-  const givenIdx = q.choices.indexOf(given);
+function gradeLocal(q: NormalizedQuestion, given: string): boolean | null {
+  if (q.sectionType === "short_answer") return null;
+  if (q.sectionType === "true_false") return given === q.correctAnswer;
+  const correctIdx = Number(q.correctAnswer);
+  const givenIdx = q.options.indexOf(given);
   return givenIdx === correctIdx;
 }
 
-export default function QuizMode({ quiz, onExit }: Props) {
+export default function QuizMode({ questions, onExit }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [saInput, setSaInput] = useState("");
   const [results, setResults] = useState<Result[] | null>(null);
+  const [grading, setGrading] = useState(false);
+  const [viewIndex, setViewIndex] = useState(0);
 
-  const q = quiz.questions[index];
-  const total = quiz.questions.length;
+  const q = questions[index];
+  const total = questions.length;
   const progress = ((index + 1) / total) * 100;
 
   const submitAnswer = useCallback(() => {
     const value =
-      q.qtype === "sa" ? saInput.trim() : selected ?? "";
+      q.sectionType === "short_answer" ? saInput.trim() : selected ?? "";
     if (!value) return;
 
     const newAnswers = [...answers, { questionId: q.id, value }];
@@ -53,25 +58,126 @@ export default function QuizMode({ quiz, onExit }: Props) {
     if (index + 1 < total) {
       setIndex(index + 1);
     } else {
-      // Grade
-      const graded: Result[] = quiz.questions.map((question) => {
-        const a = newAnswers.find((ans) => ans.questionId === question.id);
+      finishQuiz(newAnswers);
+    }
+  }, [q, selected, saInput, answers, index, total, questions]);
+
+  const finishQuiz = useCallback(
+    async (finalAnswers: Answer[]) => {
+      // Build initial results — SA questions marked as null
+      const initial: Result[] = questions.map((question) => {
+        const a = finalAnswers.find((ans) => ans.questionId === question.id);
         return {
           question,
           given: a?.value ?? "",
-          correct: a ? normalizeAnswer(question, a.value) : false,
+          correct: a ? gradeLocal(question, a.value) : false,
         };
       });
-      setResults(graded);
-    }
-  }, [q, selected, saInput, answers, index, total, quiz.questions]);
 
-  // Results screen
+      setResults(initial);
+
+      // Find SA questions that need AI evaluation
+      const saResults = initial.filter(
+        (r) => r.question.sectionType === "short_answer" && r.given,
+      );
+
+      if (saResults.length === 0) return;
+
+      setGrading(true);
+
+      // Evaluate SA answers in parallel
+      const evaluations = await Promise.allSettled(
+        saResults.map((r) =>
+          evaluateAnswer(
+            r.question.text,
+            r.given,
+            r.question.correctAnswer,
+          ),
+        ),
+      );
+
+      // Merge evaluations back into results
+      setResults((prev) => {
+        if (!prev) return prev;
+        const updated = [...prev];
+        let evalIdx = 0;
+        for (let i = 0; i < updated.length; i++) {
+          if (
+            updated[i].question.sectionType === "short_answer" &&
+            updated[i].given
+          ) {
+            const eval_ = evaluations[evalIdx];
+            if (eval_.status === "fulfilled") {
+              updated[i] = {
+                ...updated[i],
+                saScore: eval_.value.score,
+                saFeedback: eval_.value.feedback,
+                correct:
+                  eval_.value.score === "correct"
+                    ? true
+                    : eval_.value.score === "incorrect"
+                      ? false
+                      : null,
+              };
+            } else {
+              updated[i] = {
+                ...updated[i],
+                saScore: "partial",
+                saFeedback: "Evaluation failed — could not reach Ollama.",
+              };
+            }
+            evalIdx++;
+          }
+        }
+        return updated;
+      });
+
+      setGrading(false);
+    },
+    [questions],
+  );
+
+  // ---- Results screen ----
   if (results) {
-    const autoGraded = results.filter((r) => r.correct !== null);
+    // T/F + MC stats
+    const autoGraded = results.filter(
+      (r) => r.question.sectionType !== "short_answer",
+    );
     const correctCount = autoGraded.filter((r) => r.correct === true).length;
     const totalAuto = autoGraded.length;
-    const pct = totalAuto > 0 ? Math.round((correctCount / totalAuto) * 100) : 0;
+
+    // SA stats
+    const saResults = results.filter(
+      (r) => r.question.sectionType === "short_answer",
+    );
+    const saCorrect = saResults.filter((r) => r.saScore === "correct").length;
+    const saPartial = saResults.filter((r) => r.saScore === "partial").length;
+    const saIncorrect = saResults.length - saCorrect - saPartial;
+    const saGradedCount = saResults.filter((r) => r.saScore != null).length;
+
+    // Overall percentage
+    const totalQuestions = totalAuto + saResults.length;
+    const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
+    const pct =
+      totalQuestions > 0
+        ? Math.round((totalCorrect / totalQuestions) * 100)
+        : 0;
+
+    const r = results[viewIndex];
+    const isSA = r.question.sectionType === "short_answer";
+
+    const getResultClass = (res: Result) => {
+      const sa = res.question.sectionType === "short_answer";
+      if (sa) {
+        if (grading && !res.saScore) return "grading";
+        if (res.saScore === "correct") return "correct";
+        if (res.saScore === "incorrect") return "wrong";
+        return "partial";
+      }
+      return res.correct === true ? "correct" : "wrong";
+    };
+
+    const currentCls = getResultClass(r);
 
     return (
       <div className="quiz">
@@ -79,68 +185,159 @@ export default function QuizMode({ quiz, onExit }: Props) {
           <button className="study-exit" onClick={onExit}>
             &#10005; Exit Quiz
           </button>
-          <span className="study-counter">Results</span>
+          <div className="quiz-results-nav">
+            <button
+              className="quiz-results-nav-btn"
+              onClick={() => setViewIndex((i) => Math.max(0, i - 1))}
+              disabled={viewIndex === 0}
+            >
+              &#8249;
+            </button>
+            <span className="quiz-results-nav-label">
+              {viewIndex + 1} / {results.length}
+            </span>
+            <button
+              className="quiz-results-nav-btn"
+              onClick={() => setViewIndex((i) => Math.min(results.length - 1, i + 1))}
+              disabled={viewIndex === results.length - 1}
+            >
+              &#8250;
+            </button>
+          </div>
         </div>
 
-        <div className="quiz-results">
-          <div className="quiz-results-score">
-            <span className="quiz-score-num">
-              {correctCount}/{totalAuto}
+        <div className="quiz-results-layout">
+          {/* Sidebar: score + question list */}
+          <div className="quiz-results-sidebar">
+            <span className="quiz-score-pct-big">
+              {grading && saResults.length > 0 ? "..." : `${pct}%`}
             </span>
-            <span className="quiz-score-pct">{pct}%</span>
+            {totalAuto > 0 && (
+              <span className="quiz-score-detail">
+                T/F + MC: {correctCount}/{totalAuto} correct
+              </span>
+            )}
+            {saResults.length > 0 && (
+              <span className="quiz-score-detail">
+                {grading
+                  ? `Grading ${saResults.length - saGradedCount} short answer${saResults.length - saGradedCount !== 1 ? "s" : ""}...`
+                  : `SA: ${saCorrect} correct, ${saPartial} partial, ${saIncorrect} incorrect`}
+              </span>
+            )}
+
+            {/* Scrollable question list */}
+            <div className="quiz-results-qlist">
+              {results.map((res, i) => {
+                const cls = getResultClass(res);
+                return (
+                  <button
+                    key={res.question.id}
+                    className={`quiz-results-qitem quiz-results-qitem--${cls} ${i === viewIndex ? "quiz-results-qitem--active" : ""}`}
+                    onClick={() => setViewIndex(i)}
+                  >
+                    <span className="quiz-results-qitem-id">{res.question.id}</span>
+                    <span className={`quiz-results-qitem-dot quiz-results-qitem-dot--${cls}`} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="quiz-results-actions">
+              <button className="study-nav-btn" onClick={onExit}>
+                Done
+              </button>
+            </div>
           </div>
 
-          <div className="quiz-results-list">
-            {results.map((r) => {
-              const icon =
-                r.correct === true
-                  ? "\u2713"
-                  : r.correct === false
-                    ? "\u2717"
-                    : "?";
-              const cls =
-                r.correct === true
-                  ? "quiz-result--correct"
-                  : r.correct === false
-                    ? "quiz-result--wrong"
-                    : "quiz-result--manual";
+          {/* Detail view */}
+          <div className="quiz-results-detail">
+            <div className={`quiz-detail-card quiz-detail-card--${currentCls}`}>
+              <div className="quiz-detail-header">
+                <span className="quiz-detail-id">{r.question.id}</span>
+                <span className={`quiz-detail-badge quiz-detail-badge--${currentCls}`}>
+                  {isSA
+                    ? grading && !r.saScore
+                      ? "grading..."
+                      : r.saScore ?? "pending"
+                    : r.correct
+                      ? "correct"
+                      : "incorrect"}
+                </span>
+              </div>
 
-              return (
-                <div key={r.question.id} className={`quiz-result-row ${cls}`}>
-                  <span className="quiz-result-icon">{icon}</span>
-                  <div className="quiz-result-body">
-                    <span className="quiz-result-id">{r.question.id}</span>
-                    <span className="quiz-result-text">
-                      {r.question.text.slice(0, 100)}
-                      {r.question.text.length > 100 ? "..." : ""}
+              <div className="quiz-detail-question">
+                {renderMarkdown(r.question.text)}
+              </div>
+
+              {r.question.code && (
+                <pre className="code-block" data-lang="typescript">
+                  <code>{r.question.code}</code>
+                </pre>
+              )}
+
+              {/* T/F and MC answers */}
+              {!isSA && (
+                <div className="quiz-detail-answers">
+                  <div className="quiz-detail-row">
+                    <span className="quiz-result-field-label">Your answer:</span>{" "}
+                    <span className={r.correct === false ? "quiz-result-val--wrong" : "quiz-result-val--correct"}>
+                      {renderMarkdown(r.given)}
                     </span>
-                    {r.correct === false && r.question.explanation && (
-                      <span className="quiz-result-expl">
-                        {r.question.explanation}
-                      </span>
-                    )}
                   </div>
-                  <span className="quiz-result-answer">
-                    {r.given.slice(0, 40)}
-                  </span>
+                  {r.correct === false && (
+                    <div className="quiz-detail-row">
+                      <span className="quiz-result-field-label">Correct:</span>{" "}
+                      <span className="quiz-result-val--correct">
+                        {renderMarkdown(
+                          r.question.sectionType === "true_false"
+                            ? r.question.correctAnswer === "true" ? "true" : "false"
+                            : r.question.options[Number(r.question.correctAnswer)] ?? r.question.correctAnswer
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {r.correct === false && r.question.explanation && (
+                    <div className="quiz-detail-explanation">
+                      {renderMarkdown(r.question.explanation)}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              )}
 
-          <button className="study-nav-btn" onClick={onExit}>
-            Done
-          </button>
+              {/* SA answers */}
+              {isSA && (
+                <div className="quiz-detail-answers">
+                  {r.saFeedback && (
+                    <div className="quiz-detail-explanation">
+                      {renderMarkdown(r.saFeedback)}
+                    </div>
+                  )}
+                  {r.given && (
+                    <div className="quiz-detail-row">
+                      <span className="quiz-result-field-label">Your answer:</span>{" "}
+                      {renderMarkdown(r.given)}
+                    </div>
+                  )}
+                  {r.question.correctAnswer && (
+                    <div className="quiz-detail-row quiz-detail-answer-key">
+                      <span className="quiz-result-field-label">Answer key:</span>{" "}
+                      {renderMarkdown(r.question.correctAnswer)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Question screen
+  // ---- Question screen ----
   const typeLabel =
-    q.qtype === "tf"
+    q.sectionType === "true_false"
       ? "TRUE FALSE"
-      : q.qtype === "mc"
+      : q.sectionType === "multiple_choice"
         ? "MULTIPLE CHOICE"
         : "SHORT ANSWER";
 
@@ -155,45 +352,49 @@ export default function QuizMode({ quiz, onExit }: Props) {
         </span>
       </div>
 
-      {/* Progress bar */}
       <div className="quiz-progress">
         <div className="quiz-progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Question */}
       <div className="quiz-area">
         <span className="quiz-type-label">{typeLabel}</span>
-        <p className="quiz-question-text">{q.text}</p>
+        <div className="quiz-question-text">{renderMarkdown(q.text)}</div>
 
-        {q.qtype === "tf" && (
+        {q.code && (
+          <pre className="code-block" data-lang="typescript">
+            <code>{q.code}</code>
+          </pre>
+        )}
+
+        {q.sectionType === "true_false" && (
           <div className="quiz-options">
-            {["True", "False"].map((opt) => (
+            {(["true", "false"] as const).map((val) => (
               <button
-                key={opt}
-                className={`quiz-option ${selected === opt ? "quiz-option--selected" : ""}`}
-                onClick={() => setSelected(opt === "True" ? "T" : "F")}
+                key={val}
+                className={`quiz-option ${selected === val ? "quiz-option--selected" : ""}`}
+                onClick={() => setSelected(val)}
               >
-                {opt}
+                {val === "true" ? "True" : "False"}
               </button>
             ))}
           </div>
         )}
 
-        {q.qtype === "mc" && (
+        {q.sectionType === "multiple_choice" && (
           <div className="quiz-options">
-            {q.choices.map((c) => (
+            {q.options.map((c) => (
               <button
                 key={c}
                 className={`quiz-option ${selected === c ? "quiz-option--selected" : ""}`}
                 onClick={() => setSelected(c)}
               >
-                {c}
+                {renderMarkdown(c)}
               </button>
             ))}
           </div>
         )}
 
-        {q.qtype === "sa" && (
+        {q.sectionType === "short_answer" && (
           <textarea
             className="quiz-sa-input"
             value={saInput}
@@ -208,7 +409,9 @@ export default function QuizMode({ quiz, onExit }: Props) {
             className="quiz-submit"
             onClick={submitAnswer}
             disabled={
-              q.qtype === "sa" ? !saInput.trim() : selected === null
+              q.sectionType === "short_answer"
+                ? !saInput.trim()
+                : selected === null
             }
           >
             {index + 1 < total ? "Next" : "Finish"}

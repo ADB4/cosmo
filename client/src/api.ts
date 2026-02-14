@@ -1,4 +1,4 @@
-import type { HealthResponse, KBStats, IngestResponse, ModelMode } from "./types";
+import type { HealthResponse, KBStats, IngestResponse, ModelMode, QuizSummary, Quiz } from "./types";
 
 const BASE = "/api";
 
@@ -51,6 +51,81 @@ export async function ingestDirectory(
 /** Clear server-side conversation history */
 export async function clearHistory(): Promise<void> {
   await fetch(`${BASE}/history/clear`, { method: "POST" });
+}
+
+/** List available quizzes */
+export async function fetchQuizzes(): Promise<QuizSummary[]> {
+  const res = await fetch(`${BASE}/quizzes`);
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.quizzes;
+}
+
+/** Get full quiz data by ID */
+export async function fetchQuiz(quizId: string): Promise<Quiz> {
+  const res = await fetch(`${BASE}/quizzes/${encodeURIComponent(quizId)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Quiz not found");
+  }
+  return res.json();
+}
+
+/** Upload a quiz JSON file */
+export async function ingestQuiz(
+  file: File,
+): Promise<{ status: string; filename: string; quiz_ids: string[]; total_questions: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/quizzes/ingest`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Upload failed");
+  }
+  return res.json();
+}
+
+/** Ingest a quiz JSON from a local server path */
+export async function ingestQuizPath(
+  path: string,
+): Promise<{ status: string; filename: string; quiz_ids: string[]; total_questions: number }> {
+  const res = await fetch(`${BASE}/quizzes/ingest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Ingest failed");
+  }
+  return res.json();
+}
+
+/** Evaluate a short-answer response via Ollama + RAG */
+export async function evaluateAnswer(
+  question: string,
+  userAnswer: string,
+  modelAnswer: string,
+  mode = "quick",
+): Promise<{ score: "correct" | "partial" | "incorrect"; feedback: string }> {
+  const res = await fetch(`${BASE}/quizzes/evaluate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      user_answer: userAnswer,
+      model_answer: modelAnswer,
+      mode,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Evaluation failed");
+  }
+  return res.json();
 }
 
 /**
