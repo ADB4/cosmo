@@ -1020,3 +1020,279 @@ def _write_benchmark_report(
             f.write("No disagreements -- all configs agreed on every question.\n\n")
 
     return str(path)
+
+
+# ---------------------------------------------------------------------------
+# Multi-quiz benchmark
+# ---------------------------------------------------------------------------
+
+@dataclass
+class QuizBenchmarkSummary:
+    """Results from benchmarking a single quiz across all configs."""
+    quiz_title: str
+    quiz_path: str
+    results: List[BenchmarkResult]
+
+
+def run_multi_benchmark(
+    quiz_paths: List[str],
+    output_path: str,
+    processor=None,
+    configs: Optional[List[BenchmarkConfig]] = None,
+    n_results: int = 4,
+    sections: Optional[Set[str]] = None,
+    limit: Optional[int] = None,
+) -> str:
+    """
+    Run benchmarks across multiple quiz files and produce a combined report.
+
+    Each quiz is benchmarked independently with per-quiz scores,
+    then an aggregate summary ranks configs across all quizzes.
+    """
+    if configs is None:
+        configs = DEFAULT_BENCHMARK_CONFIGS
+
+    total_quizzes = len(quiz_paths)
+    print(f"\n{'=' * 60}")
+    print(f"  Cosmo Multi-Quiz Benchmark")
+    print(f"{'=' * 60}")
+    print(f"  Quiz files: {total_quizzes}")
+    print(f"  Configurations: {len(configs)}")
+    print(f"{'=' * 60}\n")
+
+    all_summaries: List[QuizBenchmarkSummary] = []
+
+    for qi, qpath in enumerate(quiz_paths):
+        path = Path(qpath)
+        print(f"\n{'#' * 60}")
+        print(f"  Quiz {qi + 1}/{total_quizzes}: {path.name}")
+        print(f"{'#' * 60}")
+
+        try:
+            questions, answer_key, meta = _load_questions(qpath)
+        except (FileNotFoundError, ValueError) as e:
+            print(f"  Skipping: {e}")
+            continue
+
+        title = meta.get("title", path.stem)
+        print(f"  Title: {title}")
+        print(f"  Questions: {len(questions)}")
+
+        questions, answer_key = _apply_filters(
+            questions, answer_key, sections, limit
+        )
+
+        if not questions:
+            print(f"  Skipping: no questions after filtering")
+            continue
+
+        quiz_results: List[BenchmarkResult] = []
+
+        for ci, cfg in enumerate(configs):
+            print(f"\n  --- Run {ci + 1}/{len(configs)}: {cfg.label} ---")
+
+            run_processor = processor if cfg.use_rag else None
+
+            t0 = time.time()
+            graded = _run_questions(
+                questions, answer_key, run_processor,
+                cfg.mode, cfg.use_rag, n_results, cfg.grounded,
+            )
+            elapsed = time.time() - t0
+
+            total, correct, incorrect, ungraded, accuracy = _score_summary(graded)
+
+            quiz_results.append(BenchmarkResult(
+                label=cfg.label,
+                mode=cfg.mode,
+                use_rag=cfg.use_rag,
+                grounded=cfg.grounded,
+                total=total,
+                correct=correct,
+                incorrect=incorrect,
+                ungraded=ungraded,
+                accuracy=accuracy,
+                elapsed=elapsed,
+                graded=graded,
+            ))
+
+        _print_benchmark_table(quiz_results)
+        all_summaries.append(QuizBenchmarkSummary(
+            quiz_title=title,
+            quiz_path=qpath,
+            results=quiz_results,
+        ))
+
+    if not all_summaries:
+        print("No quizzes were successfully benchmarked.")
+        return output_path
+
+    # Write combined report
+    report_path = _write_multi_benchmark_report(all_summaries, output_path)
+
+    # Print aggregate table
+    _print_aggregate_table(all_summaries)
+
+    return report_path
+
+
+def _aggregate_by_config(
+    summaries: List[QuizBenchmarkSummary],
+) -> Dict[str, Dict]:
+    """Aggregate results across quizzes, keyed by config label."""
+    agg: Dict[str, Dict] = {}
+
+    for summary in summaries:
+        for r in summary.results:
+            if r.label not in agg:
+                agg[r.label] = {
+                    "total": 0,
+                    "correct": 0,
+                    "incorrect": 0,
+                    "ungraded": 0,
+                    "elapsed": 0.0,
+                    "quiz_accuracies": [],
+                }
+            a = agg[r.label]
+            a["total"] += r.total
+            a["correct"] += r.correct
+            a["incorrect"] += r.incorrect
+            a["ungraded"] += r.ungraded
+            a["elapsed"] += r.elapsed
+            a["quiz_accuracies"].append((summary.quiz_title, r.accuracy))
+
+    for label, a in agg.items():
+        gradable = a["total"] - a["ungraded"]
+        a["accuracy"] = a["correct"] / gradable if gradable > 0 else 0.0
+
+    return agg
+
+
+def _print_aggregate_table(summaries: List[QuizBenchmarkSummary]) -> None:
+    """Print aggregate results across all quizzes."""
+    if not summaries:
+        return
+
+    agg = _aggregate_by_config(summaries)
+    ranked = sorted(agg.items(), key=lambda kv: kv[1]["accuracy"], reverse=True)
+
+    quiz_titles = [s.quiz_title for s in summaries]
+
+    print(f"\n{'=' * 80}")
+    print(f"  AGGREGATE RESULTS ({len(summaries)} quizzes)")
+    print(f"{'=' * 80}")
+    print(f"  {'Config':<35s} {'Overall':>8s}", end="")
+    for title in quiz_titles:
+        short = title[:12]
+        print(f" {short:>12s}", end="")
+    print(f" {'Time':>8s}")
+    print(f"  {'-' * 35} {'-' * 8}", end="")
+    for _ in quiz_titles:
+        print(f" {'-' * 12}", end="")
+    print(f" {'-' * 8}")
+
+    for label, a in ranked:
+        print(
+            f"  {label:<35s} "
+            f"{a['accuracy'] * 100:5.1f}%  ",
+            end="",
+        )
+        for _, acc in a["quiz_accuracies"]:
+            print(f" {acc * 100:10.1f}%", end="")
+        print(f" {a['elapsed']:>7.0f}s")
+
+    print(f"{'=' * 80}\n")
+
+
+def _write_multi_benchmark_report(
+    summaries: List[QuizBenchmarkSummary],
+    output_path: str,
+) -> str:
+    """Write a combined benchmark report with per-quiz and aggregate sections."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    agg = _aggregate_by_config(summaries)
+    ranked_labels = sorted(agg.items(), key=lambda kv: kv[1]["accuracy"], reverse=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("# Multi-Quiz Benchmark Report\n\n")
+        f.write(f"**Quizzes:** {len(summaries)}\n\n")
+        for s in summaries:
+            f.write(f"- {s.quiz_title}\n")
+        f.write("\n---\n\n")
+
+        # Aggregate summary
+        f.write("## Aggregate Summary\n\n")
+        f.write("| Rank | Config | Overall |")
+        for s in summaries:
+            f.write(f" {s.quiz_title[:25]} |")
+        f.write(" Total Time |\n")
+        f.write("|------|--------|---------|")
+        for _ in summaries:
+            f.write("------|")
+        f.write("------|\n")
+
+        for rank, (label, a) in enumerate(ranked_labels, 1):
+            f.write(f"| {rank} | {label} | {a['accuracy'] * 100:.1f}% |")
+            for _, acc in a["quiz_accuracies"]:
+                f.write(f" {acc * 100:.1f}% |")
+            f.write(f" {a['elapsed']:.0f}s |\n")
+
+        f.write("\n---\n\n")
+
+        # Per-quiz detail sections
+        for si, summary in enumerate(summaries):
+            f.write(f"## Quiz {si + 1}: {summary.quiz_title}\n\n")
+
+            ranked_results = sorted(
+                summary.results, key=lambda r: r.accuracy, reverse=True
+            )
+
+            f.write("| Rank | Config | Accuracy | Correct | Time | Per-Q |\n")
+            f.write("|------|--------|----------|---------|------|-------|\n")
+
+            for rank, r in enumerate(ranked_results, 1):
+                gradable = r.total - r.ungraded
+                per_q = r.elapsed / r.total if r.total > 0 else 0
+                f.write(
+                    f"| {rank} | {r.label} | "
+                    f"{r.accuracy * 100:.1f}% | "
+                    f"{r.correct}/{gradable} | "
+                    f"{r.elapsed:.1f}s | "
+                    f"{per_q:.1f}s |\n"
+                )
+
+            f.write("\n")
+
+            # Per-question breakdown
+            if summary.results and summary.results[0].graded:
+                all_qids = [g.question.id for g in summary.results[0].graded]
+
+                f.write("| Question |")
+                for r in ranked_results:
+                    f.write(f" {r.label} |")
+                f.write("\n|----------|")
+                for _ in ranked_results:
+                    f.write("------|")
+                f.write("\n")
+
+                for qid in all_qids:
+                    f.write(f"| {qid} |")
+                    for r in ranked_results:
+                        g = next(
+                            (g for g in r.graded if g.question.id == qid), None
+                        )
+                        if g is None:
+                            f.write(" - |")
+                        elif g.is_correct is None:
+                            f.write(" ? |")
+                        elif g.is_correct:
+                            f.write(" + |")
+                        else:
+                            f.write(f" x ({g.llm_extracted}) |")
+                    f.write("\n")
+
+            f.write("\n---\n\n")
+
+    return str(path)

@@ -258,13 +258,8 @@ def quiz_command(args) -> int:
 
 
 def benchmark_command(args) -> int:
-    from backend.quiz_processor import run_benchmark, BenchmarkConfig
+    from backend.quiz_processor import run_benchmark, run_multi_benchmark, BenchmarkConfig
     from pathlib import Path
-
-    input_path = Path(args.input)
-    if not input_path.exists():
-        print(f"Error: File not found: {args.input}", file=sys.stderr)
-        return 1
 
     sections = _parse_sections(args.sections)
     limit = args.limit
@@ -282,19 +277,55 @@ def benchmark_command(args) -> int:
         if not configs:
             return 1
 
-    output_path = args.output or f"results/{input_path.stem}-benchmark.md"
+    # Determine single file vs directory
+    input_val = args.input or args.dir
+    if not input_val:
+        print("Error: Must specify --input or --dir", file=sys.stderr)
+        return 1
+
+    input_path = Path(input_val)
+    if not input_path.exists():
+        print(f"Error: Not found: {input_val}", file=sys.stderr)
+        return 1
 
     try:
-        result_path = run_benchmark(
-            quiz_path=str(input_path),
-            output_path=output_path,
-            processor=processor,
-            quiz_id=args.quiz_id,
-            configs=configs,
-            n_results=args.results,
-            sections=sections,
-            limit=limit,
-        )
+        if input_path.is_dir():
+            # Multi-quiz: glob for .json and .md quiz files
+            quiz_files = sorted(
+                list(input_path.glob("*.json")) + list(input_path.glob("*.md"))
+            )
+            if not quiz_files:
+                print(f"Error: No .json or .md files found in {input_path}",
+                      file=sys.stderr)
+                return 1
+
+            print(f"Found {len(quiz_files)} quiz files in {input_path}")
+            output_path = args.output or f"results/multi-benchmark.md"
+
+            result_path = run_multi_benchmark(
+                quiz_paths=[str(f) for f in quiz_files],
+                output_path=output_path,
+                processor=processor,
+                configs=configs,
+                n_results=args.results,
+                sections=sections,
+                limit=limit,
+            )
+        else:
+            # Single quiz
+            output_path = args.output or f"results/{input_path.stem}-benchmark.md"
+
+            result_path = run_benchmark(
+                quiz_path=str(input_path),
+                output_path=output_path,
+                processor=processor,
+                quiz_id=args.quiz_id,
+                configs=configs,
+                n_results=args.results,
+                sections=sections,
+                limit=limit,
+            )
+
         print(f"\nBenchmark report: {result_path}")
         return 0
     except (FileNotFoundError, ValueError) as e:
@@ -442,6 +473,10 @@ Examples:
   python -m backend.cli benchmark -i quizzes/w13.json --sections tf --limit 15
   python -m backend.cli benchmark -i quizzes/w13.json --configs "quick:rag:broad,deep:rag:broad,fast:no-rag:broad"
 
+  # Benchmark across all quiz files in a directory
+  python -m backend.cli benchmark --dir quizzes/ --sections tf,mc
+  python -m backend.cli benchmark --dir quizzes/ --configs "quick:rag:broad,deep:rag:broad" --limit 20
+
   python -m backend.cli interactive
   python -m backend.cli list
 """,
@@ -488,15 +523,19 @@ Examples:
     # benchmark
     bench_p = subparsers.add_parser("benchmark",
                                     help="Compare quiz performance across configurations")
-    bench_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
+    bench_input = bench_p.add_mutually_exclusive_group(required=True)
+    bench_input.add_argument("--input", "-i", default=None,
+                             help="Single quiz file (.md or .json)")
+    bench_input.add_argument("--dir", "-d", default=None,
+                             help="Directory of quiz files (runs all, produces combined report)")
     bench_p.add_argument("--output", "-o", default=None, help="Output report path")
     bench_p.add_argument("--quiz-id", default=None,
-                         help="Quiz ID (for JSON files with multiple quizzes)")
+                         help="Quiz ID (for single JSON files with multiple quizzes)")
     bench_p.add_argument("--results", "-n", type=int, default=4)
     bench_p.add_argument("--sections", "-s", default=None,
                          help="Comma-separated question types: tf,mc,sa")
     bench_p.add_argument("--limit", "-l", type=int, default=None,
-                         help="Max questions per run (same set used for all configs)")
+                         help="Max questions per quiz per run")
     bench_p.add_argument("--configs", default=None,
                          help="Custom configs: 'mode:rag|no-rag:grounded|broad,...' "
                               "(default: all 12 combos)")

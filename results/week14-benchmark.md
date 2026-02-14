@@ -6,49 +6,57 @@
 
 | Rank | Config | Accuracy | Correct | Time | Per-Q |
 |------|--------|----------|---------|------|-------|
-| 1 | quick / rag / grounded | 90.6% | 29/32 | 187.0s | 5.8s |
-| 2 | quick / rag / broad | 90.6% | 29/32 | 189.2s | 5.9s |
-| 3 | general / rag / grounded | 65.6% | 21/32 | 202.8s | 6.3s |
-| 4 | general / rag / broad | 65.6% | 21/32 | 198.8s | 6.2s |
+| 1 | quick / rag / grounded | 93.8% | 30/32 | 176.0s | 5.5s |
+| 2 | quick / rag / broad | 93.8% | 30/32 | 172.1s | 5.4s |
+| 3 | deep / rag / grounded | 90.6% | 29/32 | 370.3s | 11.6s |
+| 4 | deep / rag / broad | 90.6% | 29/32 | 363.4s | 11.4s |
+| 5 | quick / no-rag / broad | 87.5% | 28/32 | 124.5s | 3.9s |
+| 6 | deep / no-rag / broad | 81.2% | 26/32 | 256.9s | 8.0s |
+| 7 | fast / rag / grounded | 75.0% | 24/32 | 195.7s | 6.1s |
+| 8 | fast / rag / broad | 75.0% | 24/32 | 192.1s | 6.0s |
+| 9 | general / rag / grounded | 68.8% | 22/32 | 181.1s | 5.7s |
+| 10 | general / rag / broad | 68.8% | 22/32 | 177.1s | 5.5s |
+| 11 | fast / no-rag / broad | 59.4% | 19/32 | 136.0s | 4.3s |
+| 12 | general / no-rag / broad | 50.0% | 16/32 | 112.8s | 3.5s |
 
 ---
 
 ## Per-Question Breakdown
 
-| Question | quick / rag / grounded | quick / rag / broad | general / rag / grounded | general / rag / broad |
-|----------|------|------|------|------|
-| TF-1 | + | + | + | + |
-| TF-2 | + | + | + | + |
-| TF-3 | + | + | x (F) | x (F) |
-| TF-4 | + | + | + | + |
-| TF-5 | + | + | + | + |
-| TF-6 | + | + | + | + |
-| TF-7 | + | + | x (F) | x (F) |
-| TF-8 | + | + | x (F) | x (F) |
-| TF-9 | + | + | + | + |
-| TF-10 | + | + | x (F) | x (F) |
-| TF-11 | + | + | + | + |
-| TF-12 | + | + | x (F) | x (F) |
-| TF-13 | + | + | x (?) | x (?) |
-| TF-14 | + | + | + | + |
-| TF-15 | + | + | + | + |
-| TF-16 | x (F) | x (F) | + | + |
-| TF-17 | + | + | + | + |
-| TF-18 | + | + | x (?) | x (?) |
-| TF-19 | + | + | + | + |
-| TF-20 | x (F) | x (F) | x (F) | x (F) |
-| TF-21 | + | + | x (F) | x (F) |
-| TF-22 | + | + | + | + |
-| TF-23 | + | + | + | + |
-| TF-24 | + | + | + | + |
-| TF-25 | + | + | + | + |
-| TF-26 | + | + | + | + |
-| TF-27 | + | + | + | + |
-| TF-28 | x (T) | x (T) | + | + |
-| TF-29 | + | + | + | + |
-| TF-30 | + | + | + | + |
-| TF-31 | + | + | x (F) | x (F) |
-| TF-32 | + | + | x (F) | x (F) |
+| Question | quick / rag / grounded | quick / rag / broad | deep / rag / grounded | deep / rag / broad | quick / no-rag / broad | deep / no-rag / broad | fast / rag / grounded | fast / rag / broad | general / rag / grounded | general / rag / broad | fast / no-rag / broad | general / no-rag / broad |
+|----------|------|------|------|------|------|------|------|------|------|------|------|------|
+| MC-1 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-2 | + | + | + | + | + | + | x (a) | x (a) | + | + | x (a) | + |
+| MC-3 | + | + | + | + | + | + | + | + | x (a) | x (a) | + | x (a) |
+| MC-4 | + | + | + | + | + | + | + | + | x (a) | x (a) | + | + |
+| MC-5 | + | + | + | + | + | + | x (b) | x (b) | + | + | x (b) | + |
+| MC-6 | x (c) | x (c) | + | + | + | + | x (c) | x (c) | x (c) | x (c) | x (c) | x (d) |
+| MC-7 | + | + | x (a) | x (a) | + | x (d) | x (d) | x (d) | x (a) | x (a) | + | x (d) |
+| MC-8 | + | + | + | + | x (a) | x (b) | + | + | + | + | x (a) | x (d) |
+| MC-9 | + | + | + | + | + | + | + | + | + | + | x (a) | x (d) |
+| MC-10 | + | + | + | + | x (a) | x (a) | x (a) | x (a) | + | + | x (a) | x (d) |
+| MC-11 | + | + | + | + | + | + | + | + | + | + | + | x (a) |
+| MC-12 | + | + | + | + | + | x (b) | + | + | x (b) | x (b) | + | x (b) |
+| MC-13 | + | + | + | + | + | + | + | + | + | + | + | x (d) |
+| MC-14 | + | + | + | + | x (a) | x (a) | x (a) | x (a) | x (a) | x (a) | x (a) | x (d) |
+| MC-15 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-16 | + | + | + | + | + | + | + | + | + | + | x (a) | + |
+| MC-17 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-18 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-19 | + | + | + | + | + | + | + | + | + | + | x (a) | + |
+| MC-20 | + | + | + | + | + | + | + | + | x (b) | x (b) | + | + |
+| MC-21 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-22 | + | + | + | + | + | + | + | + | + | + | + | x (d) |
+| MC-23 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-24 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-25 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-26 | + | + | + | + | + | x (d) | + | + | + | + | x (a) | x (d) |
+| MC-27 | + | + | + | + | + | + | + | + | + | + | + | + |
+| MC-28 | + | + | + | + | x (a) | + | + | + | + | + | x (a) | + |
+| MC-29 | + | + | + | + | + | + | + | + | + | + | + | x (d) |
+| MC-30 | + | + | x (a) | x (a) | + | + | x (b) | x (b) | x (b) | x (b) | x (a) | x (d) |
+| MC-31 | + | + | x (d) | x (d) | + | + | x (a) | x (a) | x (d) | x (d) | x (a) | x (d) |
+| MC-32 | x (b) | x (b) | + | + | + | + | + | + | x (b) | x (b) | + | x (d) |
 
 ---
 
@@ -56,147 +64,318 @@
 
 Questions where at least one config got it right and another wrong:
 
-### TF-3
+### MC-2
 
-**Question:** RTL encourages testing components the way a user would interact with them: finding elements by visible text, labels, or roles, then simulating user actions.
+**Question:** What is the recommended way to access queries in RTL tests?
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+**Got it wrong:** fast / rag / grounded, fast / rag / broad, fast / no-rag / broad
+  - fast / rag / grounded: answered a
+  - fast / rag / broad: answered a
+  - fast / no-rag / broad: answered a
 
-### TF-7
+### MC-3
 
-**Question:** The `render` function requires a DOM environment (like `jsdom`) because it renders the component into an actual DOM tree.
+**Question:** Which query should you try first when looking for a button?
 
-**Correct answer:** T
+**Correct answer:** c
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+**Got it wrong:** general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - general / rag / grounded: answered a
+  - general / rag / broad: answered a
+  - general / no-rag / broad: answered a
 
-### TF-8
+### MC-4
 
-**Question:** RTL's `cleanup` function unmounts the rendered component and removes it from the DOM. In Vitest with RTL, cleanup runs automatically after each test.
+**Question:** Which query is best for finding a text input with a visible label "Email Address"?
 
-**Correct answer:** T
+**Correct answer:** c
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
-
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
-
-### TF-10
-
-**Question:** `getByRole` is the highest-priority query in RTL's recommended query hierarchy because it queries elements the way assistive technology sees them.
-
-**Correct answer:** T
-
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / no-rag / broad
 
 **Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+  - general / rag / grounded: answered a
+  - general / rag / broad: answered a
 
-### TF-12
+### MC-5
 
-**Question:** The recommended query priority order is: `getByRole` > `getByLabelText` > `getByText` > `getByTestId`.
+**Question:** `getByTestId` should be used:
 
-**Correct answer:** T
+**Correct answer:** c
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+
+**Got it wrong:** fast / rag / grounded, fast / rag / broad, fast / no-rag / broad
+  - fast / rag / grounded: answered b
+  - fast / rag / broad: answered b
+  - fast / no-rag / broad: answered b
+
+### MC-6
+
+**Question:** What does `getByRole('heading', { level: 2 })` match?
+
+**Correct answer:** b
+
+**Got it right:** quick / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad
+
+**Got it wrong:** quick / rag / grounded, quick / rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - quick / rag / grounded: answered c
+  - quick / rag / broad: answered c
+  - fast / rag / grounded: answered c
+  - fast / rag / broad: answered c
+  - fast / no-rag / broad: answered c
+  - general / rag / grounded: answered c
+  - general / rag / broad: answered c
+  - general / no-rag / broad: answered d
+
+### MC-7
+
+**Question:** What is the implicit ARIA role of a single-select `<select>` element?
+
+**Correct answer:** c
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / no-rag / broad
+
+**Got it wrong:** fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - fast / rag / grounded: answered d
+  - fast / rag / broad: answered d
+  - deep / rag / grounded: answered a
+  - deep / rag / broad: answered a
+  - deep / no-rag / broad: answered d
+  - general / rag / grounded: answered a
+  - general / rag / broad: answered a
+  - general / no-rag / broad: answered d
+
+### MC-8
+
+**Question:** What does `getBy` do when no matching element is found?
+
+**Correct answer:** c
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, general / rag / grounded, general / rag / broad
+
+**Got it wrong:** quick / no-rag / broad, fast / no-rag / broad, deep / no-rag / broad, general / no-rag / broad
+  - quick / no-rag / broad: answered a
+  - fast / no-rag / broad: answered a
+  - deep / no-rag / broad: answered b
+  - general / no-rag / broad: answered d
+
+### MC-9
+
+**Question:** What does `queryBy` do when no matching element is found?
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad
+
+**Got it wrong:** fast / no-rag / broad, general / no-rag / broad
+  - fast / no-rag / broad: answered a
+  - general / no-rag / broad: answered d
+
+### MC-10
+
+**Question:** When should you use `queryBy` instead of `getBy`?
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, deep / rag / grounded, deep / rag / broad, general / rag / grounded, general / rag / broad
+
+**Got it wrong:** quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / no-rag / broad, general / no-rag / broad
+  - quick / no-rag / broad: answered a
+  - fast / rag / grounded: answered a
+  - fast / rag / broad: answered a
+  - fast / no-rag / broad: answered a
+  - deep / no-rag / broad: answered a
+  - general / no-rag / broad: answered d
+
+### MC-11
+
+**Question:** `findBy` queries are most useful when:
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad
+
+**Got it wrong:** general / no-rag / broad
+  - general / no-rag / broad: answered a
+
+### MC-12
+
+**Question:** `findBy` returns:
+
+**Correct answer:** c
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad
+
+**Got it wrong:** deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - deep / no-rag / broad: answered b
+  - general / rag / grounded: answered b
+  - general / rag / broad: answered b
+  - general / no-rag / broad: answered b
+
+### MC-13
+
+**Question:** What does `getAllByRole('listitem')` return?
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad
+
+**Got it wrong:** general / no-rag / broad
+  - general / no-rag / broad: answered d
+
+### MC-14
+
+**Question:** What happens when `getAllBy` finds no matching elements?
+
+**Correct answer:** c
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, deep / rag / grounded, deep / rag / broad
+
+**Got it wrong:** quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - quick / no-rag / broad: answered a
+  - fast / rag / grounded: answered a
+  - fast / rag / broad: answered a
+  - fast / no-rag / broad: answered a
+  - deep / no-rag / broad: answered a
+  - general / rag / grounded: answered a
+  - general / rag / broad: answered a
+  - general / no-rag / broad: answered d
+
+### MC-16
+
+**Question:** How do you set up `user-event` in a test?
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+
+**Got it wrong:** fast / no-rag / broad
+  - fast / no-rag / broad: answered a
+
+### MC-19
+
+**Question:** `user-event` methods are:
+
+**Correct answer:** b
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+
+**Got it wrong:** fast / no-rag / broad
+  - fast / no-rag / broad: answered a
+
+### MC-20
+
+**Question:** `user.tab()` simulates:
+
+**Correct answer:** c
+
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / no-rag / broad
 
 **Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+  - general / rag / grounded: answered b
+  - general / rag / broad: answered b
 
-### TF-13
+### MC-22
 
-**Question:** `getByRole('button', { name: /submit/i })` finds a button whose accessible name matches the regex `/submit/i`.
+**Question:** What does `waitFor` do?
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered ?
-  - general / rag / broad: answered ?
+**Got it wrong:** general / no-rag / broad
+  - general / no-rag / broad: answered d
 
-### TF-16
+### MC-26
 
-**Question:** An `<input type="text">` has an implicit ARIA role of `"textbox"`.
+**Question:** `screen.debug()` prints:
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** general / rag / grounded, general / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, general / rag / grounded, general / rag / broad
 
-**Got it wrong:** quick / rag / grounded, quick / rag / broad
-  - quick / rag / grounded: answered F
-  - quick / rag / broad: answered F
+**Got it wrong:** fast / no-rag / broad, deep / no-rag / broad, general / no-rag / broad
+  - fast / no-rag / broad: answered a
+  - deep / no-rag / broad: answered d
+  - general / no-rag / broad: answered d
 
-### TF-18
+### MC-28
 
-**Question:** An `<h1>` element has an implicit ARIA role of `"heading"` with `level: 1`.
+**Question:** The `within` function:
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, fast / rag / grounded, fast / rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered ?
-  - general / rag / broad: answered ?
+**Got it wrong:** quick / no-rag / broad, fast / no-rag / broad
+  - quick / no-rag / broad: answered a
+  - fast / no-rag / broad: answered a
 
-### TF-21
+### MC-29
 
-**Question:** An `<input type="checkbox">` has an implicit ARIA role of `"checkbox"`.
+**Question:** What does the `wrapper` option in `render` do?
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad, general / rag / grounded, general / rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+**Got it wrong:** general / no-rag / broad
+  - general / no-rag / broad: answered d
 
-### TF-28
+### MC-30
 
-**Question:** `getByTitle` queries elements by their `title` attribute and is a higher-priority query than `getByRole`.
+**Question:** Which of the following is a "Common Mistake" identified by KCD?
 
-**Correct answer:** F
+**Correct answer:** c
 
-**Got it right:** general / rag / grounded, general / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, deep / no-rag / broad
 
-**Got it wrong:** quick / rag / grounded, quick / rag / broad
-  - quick / rag / grounded: answered T
-  - quick / rag / broad: answered T
+**Got it wrong:** fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - fast / rag / grounded: answered b
+  - fast / rag / broad: answered b
+  - fast / no-rag / broad: answered a
+  - deep / rag / grounded: answered a
+  - deep / rag / broad: answered a
+  - general / rag / grounded: answered b
+  - general / rag / broad: answered b
+  - general / no-rag / broad: answered d
 
-### TF-31
+### MC-31
 
-**Question:** `getBy` queries throw an error if more than one matching element is found.
+**Question:** Another common mistake identified by KCD is:
 
-**Correct answer:** T
+**Correct answer:** b
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / rag / grounded, quick / rag / broad, quick / no-rag / broad, deep / no-rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+**Got it wrong:** fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - fast / rag / grounded: answered a
+  - fast / rag / broad: answered a
+  - fast / no-rag / broad: answered a
+  - deep / rag / grounded: answered d
+  - deep / rag / broad: answered d
+  - general / rag / grounded: answered d
+  - general / rag / broad: answered d
+  - general / no-rag / broad: answered d
 
-### TF-32
+### MC-32
 
-**Question:** `queryBy` returns `null` if no matching element is found, rather than throwing.
+**Question:** KCD recommends using `findBy` instead of:
 
-**Correct answer:** T
+**Correct answer:** c
 
-**Got it right:** quick / rag / grounded, quick / rag / broad
+**Got it right:** quick / no-rag / broad, fast / rag / grounded, fast / rag / broad, fast / no-rag / broad, deep / rag / grounded, deep / rag / broad, deep / no-rag / broad
 
-**Got it wrong:** general / rag / grounded, general / rag / broad
-  - general / rag / grounded: answered F
-  - general / rag / broad: answered F
+**Got it wrong:** quick / rag / grounded, quick / rag / broad, general / rag / grounded, general / rag / broad, general / no-rag / broad
+  - quick / rag / grounded: answered b
+  - quick / rag / broad: answered b
+  - general / rag / grounded: answered b
+  - general / rag / broad: answered b
+  - general / no-rag / broad: answered d
 
