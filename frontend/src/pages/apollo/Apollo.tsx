@@ -4,6 +4,7 @@ import { fetchQuizzes, fetchQuiz, ingestQuiz } from "../../lib/api";
 import { normalizeQuiz, filterBySection, sampleQuiz } from "../../lib/normalizeQuiz";
 import StudyMode from "./StudyMode";
 import QuizMode from "./QuizMode";
+import DebugMode from "./DebugMode";
 
 const PRESETS: (QuizPreset & { id: string })[] = [
   { id: "short",  label: "Short",  tf: 12, mc: 10, sa: 4 },
@@ -84,6 +85,12 @@ export default function Apollo() {
     setQuizQuestions([]);
   }, []);
 
+  const handleDebugSaved = useCallback(async (removedIds: Set<string>) => {
+    // Remove deleted questions from local state
+    setAllQuestions((prev) => prev.filter((q) => !removedIds.has(q.id)));
+    // Refresh the quiz list sidebar counts
+    loadQuizzes();
+  }, [loadQuizzes]);
   const totalSelected = tfCount + mcCount + saCount;
 
   const applyPreset = (p: QuizPreset) => {
@@ -114,7 +121,17 @@ export default function Apollo() {
   if (view === "study" && allQuestions.length > 0) {
     return <StudyMode title={quizTitle} questions={allQuestions} onExit={handleExit} />;
   }
-
+  if (view === "debug" && allQuestions.length > 0 && selectedId) {
+      return (
+        <DebugMode
+          title={quizTitle}
+          quizId={selectedId}
+          questions={allQuestions}
+          onExit={handleExit}
+          onSaved={handleDebugSaved}
+        />
+      );
+    }
   // ---- Quiz mode ----
   if (view === "quiz" && quizQuestions.length > 0) {
     return <QuizMode title={quizTitle} questions={quizQuestions} onExit={handleExit} />;
@@ -237,6 +254,22 @@ export default function Apollo() {
                   </svg>
                   <span className="apollo-card-title">Quiz Mode</span>
                   <span className="apollo-card-desc">Test yourself and get scored</span>
+                </button>
+
+                <button className="apollo-card" onClick={() => setView("debug")}>
+                  <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                    <path d="M12 22c-4.97 0-9-2.69-9-6v-4" />
+                    <path d="M3 8c0-3.31 4.03-6 9-6s9 2.69 9 6" />
+                    <path d="M21 12v4c0 3.31-4.03 6-9 6" />
+                    <path d="M7.5 12H3" />
+                    <path d="M21 12h-4.5" />
+                    <path d="M12 2v4" />
+                    <path d="M12 18v4" />
+                    <path d="M4.93 4.93l2.83 2.83" />
+                    <path d="M16.24 16.24l2.83 2.83" />
+                  </svg>
+                  <span className="apollo-card-title">Debug Mode</span>
+                  <span className="apollo-card-desc">Review and remove questions from JSON</span>
                 </button>
               </div>
             </div>

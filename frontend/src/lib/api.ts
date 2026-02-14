@@ -111,6 +111,21 @@ export async function evaluateAnswer(
   return res.json();
 }
 
+export async function deleteQuestions(
+  quizId: string,
+  questionIds: string[],
+): Promise<{ status: string; removed: string[]; remaining: number }> {
+  const res = await fetch(`${BASE}/quizzes/${encodeURIComponent(quizId)}/questions`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question_ids: questionIds }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Delete failed");
+  }
+  return res.json();
+}
 /**
  * Send a question and receive streamed tokens via SSE.
  *

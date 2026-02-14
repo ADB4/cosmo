@@ -42,3 +42,27 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 /* Grounded/Broad toggle — add this after the .help-btn rules in index.css */
 
 .grounded-toggle{padding:3px 10px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-dim);transition:background .1s,color .1s,border-color .1s;letter-spacing:.02em}.grounded-toggle:hover{background:var(--bg-hover);color:var(--text);border-color:var(--border-focus)}.grounded-toggle--broad{color:var(--yellow);border-color:rgba(255,214,10,.3)}.grounded-toggle--broad:hover{background:rgba(255,214,10,.06);color:var(--yellow);border-color:rgba(255,214,10,.5)}
+
+/* Debug mode — remove button (red accent) */
+.debug-remove-btn{color:var(--red) !important;border-color:var(--red) !important}
+.debug-remove-btn:hover:not(:disabled){background:rgba(255,85,85,.1);color:var(--red);border-color:var(--red)}
+.debug-remove-btn:disabled{opacity:.3}
+
+/* Debug mode — question ID badge on card face */
+.debug-id{font-family:var(--font-mono,monospace);font-weight:600;color:var(--text-bright)}
+
+/* Debug mode — removal queue panel */
+.debug-queue{padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-elevated);flex-shrink:0;max-height:200px;overflow-y:auto}
+.debug-queue-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.debug-queue-title{font-size:12px;color:var(--red);font-weight:600}
+.debug-save-btn{padding:5px 14px;border:1px solid var(--green);border-radius:4px;font-size:12px;font-weight:600;color:var(--green);background:transparent;transition:background .15s,color .15s}
+.debug-save-btn:hover:not(:disabled){background:var(--green);color:var(--bg)}
+.debug-save-btn:disabled{opacity:.5;cursor:wait}
+.debug-queue-list{display:flex;flex-direction:column;gap:4px}
+.debug-queue-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border-subtle)}
+.debug-queue-item-id{font-family:var(--font-mono,monospace);color:var(--red);font-weight:600;flex-shrink:0;min-width:50px}
+.debug-queue-item-text{color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.debug-queue-undo{font-size:11px;color:var(--text-muted);text-decoration:underline;flex-shrink:0;transition:color .1s}
+.debug-queue-undo:hover{color:var(--text)}
+.debug-save-msg{font-size:12px;margin-top:8px;color:var(--green)}
+.debug-save-msg--error{color:var(--red)}

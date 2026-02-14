@@ -9,6 +9,7 @@ frontend/tsconfig.tsbuildinfo
 
 artifacts/
 quizzes/
+results/
 
 
 # Node / Yarn

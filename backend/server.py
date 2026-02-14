@@ -405,6 +405,84 @@ def evaluate_answer():
         logger.exception("Evaluation error")
         return jsonify({"error": str(e)}), 500
 
+# ==========================================================================
+# ADD THIS ENDPOINT TO backend/server.py
+# Place it after the existing /api/quizzes/evaluate endpoint
+# ==========================================================================
+
+@app.route("/api/quizzes/<quiz_id>/questions", methods=["DELETE"])
+def delete_questions(quiz_id: str):
+    """
+    Remove questions from a quiz JSON file on disk.
+
+    Expects JSON body: { "question_ids": ["TF-3", "MC-7", ...] }
+
+    Removes matching questions from their sections without renumbering.
+    Updates section counts. Writes the file back to disk.
+    """
+    data = request.get_json(silent=True) or {}
+    question_ids = data.get("question_ids", [])
+
+    if not question_ids or not isinstance(question_ids, list):
+        return jsonify({"error": "question_ids array is required"}), 400
+
+    ids_to_remove = set(question_ids)
+
+    # Find the file containing this quiz
+    target_path = None
+    target_data = None
+    target_quiz_idx = None
+
+    for fp in QUIZ_DIR.glob("*.json"):
+        try:
+            with open(fp) as f:
+                file_data = json.load(f)
+            for qi, quiz in enumerate(file_data.get("quizzes", [])):
+                if quiz.get("id") == quiz_id:
+                    target_path = fp
+                    target_data = file_data
+                    target_quiz_idx = qi
+                    break
+            if target_path:
+                break
+        except Exception:
+            continue
+
+    if target_path is None or target_data is None or target_quiz_idx is None:
+        return jsonify({"error": f"Quiz '{quiz_id}' not found"}), 404
+
+    quiz = target_data["quizzes"][target_quiz_idx]
+    removed = []
+
+    for section in quiz.get("sections", []):
+        original = section.get("questions", [])
+        filtered = [q for q in original if q.get("id") not in ids_to_remove]
+        removed_here = [q.get("id") for q in original if q.get("id") in ids_to_remove]
+        removed.extend(removed_here)
+        section["questions"] = filtered
+        section["count"] = len(filtered)
+
+    if not removed:
+        return jsonify({"error": "No matching question IDs found"}), 404
+
+    # Write back to disk
+    try:
+        with open(target_path, "w", encoding="utf-8") as f:
+            json.dump(target_data, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    except Exception as e:
+        return jsonify({"error": f"Failed to write file: {e}"}), 500
+
+    total_remaining = sum(
+        len(s.get("questions", []))
+        for s in quiz.get("sections", [])
+    )
+
+    return jsonify({
+        "status": "ok",
+        "removed": removed,
+        "remaining": total_remaining,
+    })
 
 # ===================================================================
 # Main

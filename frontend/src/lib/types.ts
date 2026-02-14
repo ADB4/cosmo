@@ -105,7 +105,7 @@ export interface NormalizedQuestion {
   tags: string[];
 }
 
-export type ApolloView = "select" | "study" | "quiz-config" | "quiz";
+export type ApolloView = "select" | "study" | "quiz-config" | "quiz" | "debug";
 
 export interface QuizPreset {
   label: string;
