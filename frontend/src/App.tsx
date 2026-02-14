@@ -5,10 +5,10 @@ import { fetchHealth } from "./lib/api";
 import type { ModelMode, HealthResponse } from "./lib/types";
 import { MODE_INFO } from "./lib/types";
 
-type Tab = "chat" | "apollo";
+type Tab = "cosmo" | "apollo";
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("chat");
+  const [tab, setTab] = useState<Tab>("cosmo");
   const [mode, setMode] = useState<ModelMode>("quick");
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
@@ -37,16 +37,16 @@ export default function App() {
         <span className="topbar-icon">{">_"}</span>
 
         <button
-          className={`topbar-tab ${tab === "chat" ? "topbar-tab--active" : ""}`}
-          onClick={() => setTab("chat")}
+          className={`topbar-tab ${tab === "cosmo" ? "topbar-tab--active" : ""}`}
+          onClick={() => setTab("cosmo")}
         >
-          Chat
+          COSMO
         </button>
         <button
           className={`topbar-tab ${tab === "apollo" ? "topbar-tab--active" : ""}`}
           onClick={() => setTab("apollo")}
         >
-          Apollo
+          APOLLO
         </button>
 
         <span className="topbar-status">
@@ -58,7 +58,7 @@ export default function App() {
 
         <span className="topbar-spacer" />
 
-        {tab === "chat" && (
+        {tab === "cosmo" && (
           <div className="model-select-wrap">
             <select
               className="model-select"
@@ -76,7 +76,7 @@ export default function App() {
         )}
       </div>
 
-      {tab === "chat" ? <ChatPanel mode={mode} /> : <Apollo />}
+      {tab === "cosmo" ? <ChatPanel mode={mode} /> : <Apollo />}
     </div>
   );
 }

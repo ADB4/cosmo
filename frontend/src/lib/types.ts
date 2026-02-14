@@ -51,6 +51,7 @@ export interface TFQuestion {
   question: string;
   answer: boolean;
   explanation: string;
+  tags?: string[];
 }
 
 export interface MCQuestion {
@@ -60,12 +61,14 @@ export interface MCQuestion {
   options: string[];
   answer: number;
   explanation: string;
+  tags?: string[];
 }
 
 export interface SAQuestion {
   id: string;
   question: string;
   model_answer: string;
+  tags?: string[];
 }
 
 export interface QuizSection {
@@ -100,6 +103,7 @@ export interface NormalizedQuestion {
   options: string[];
   correctAnswer: string;
   explanation: string;
+  tags: string[];
 }
 
 export type ApolloView = "select" | "study" | "quiz-config" | "quiz";
