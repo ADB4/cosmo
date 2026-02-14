@@ -23,6 +23,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
   ]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [grounded, setGrounded] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -61,7 +62,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
     const assistantId = assistantMsg.id;
 
-    abortRef.current = streamChat(q, mode, 4, {
+    abortRef.current = streamChat(q, mode, 4, grounded, {
       onToken: (token) => {
         setMessages((prev) =>
           prev.map((m) =>
@@ -84,7 +85,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
         setStreaming(false);
       },
     });
-  }, [input, mode, streaming]);
+  }, [input, mode, streaming, grounded]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -147,6 +148,16 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
             Press Enter to send, Shift+Enter for new line
           </span>
           <div className="input-actions">
+            <button
+              className={`grounded-toggle ${!grounded ? "grounded-toggle--broad" : ""}`}
+              onClick={() => setGrounded((g) => !g)}
+              title={grounded
+                ? "Docs only — answers strictly from indexed documentation"
+                : "Broad — supplements with LLM knowledge when docs are insufficient"
+              }
+            >
+              {grounded ? "Docs only" : "Broad"}
+            </button>
             {streaming ? (
               <button className="send-btn send-btn--stop" onClick={handleStop}>
                 <span className="send-btn-icon">&#9632;</span>

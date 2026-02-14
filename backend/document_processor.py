@@ -666,10 +666,13 @@ class DocumentProcessor:
             question, results, history, grounded=grounded
         )
         model = self.models.get(mode, self.models["quick"])
+        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS["quick"]))
 
-        num_ctx = 4096 if n_results <= 4 else 8192
-        if history and len(history) > 0:
-            num_ctx = 8192
+        # Bump context for long conversations or many results
+        if n_results > 4 and options["num_ctx"] < 8192:
+            options["num_ctx"] = 8192
+        if history and len(history) > 0 and options["num_ctx"] < 8192:
+            options["num_ctx"] = 8192
 
         full_answer = ""
 
@@ -678,7 +681,7 @@ class DocumentProcessor:
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 stream=True,
-                options={"num_ctx": num_ctx, "num_thread": 8},
+                options=options,
             )
 
             for chunk in stream:

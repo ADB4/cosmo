@@ -60,6 +60,83 @@ CHAT_MODELS = {
 VALID_MODES = tuple(CHAT_MODELS.keys())
 
 # ---------------------------------------------------------------------------
+# Ollama inference options
+#
+# Tuned for M2 Pro 32GB. Adjust num_ctx and num_batch if running on
+# a machine with less memory.
+# ---------------------------------------------------------------------------
+
+NUM_THREAD = 8  # M2 Pro has 12 cores; 8 avoids OS contention
+
+# Chat (interactive streaming) — needs headroom for conversation history
+CHAT_OPTIONS = {
+    "quick": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+    "deep": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+    },
+    "general": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+    "fast": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+}
+
+# Quiz — deterministic, per-question-type token limits
+QUIZ_OPTIONS = {
+    "quick": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+    "deep": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+        "temperature": 0,
+    },
+    "general": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+    "fast": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+}
+
+# Max tokens to generate per question type in quiz mode
+QUIZ_NUM_PREDICT = {
+    "tf": 256,
+    "mc": 256,
+    "sa": 512,
+}
+
+# Evaluation endpoint (SA grading in Apollo)
+EVAL_OPTIONS = {
+    "num_ctx": 8192,
+    "num_thread": NUM_THREAD,
+    "num_batch": 512,
+    "temperature": 0,
+    "num_predict": 256,
+}
+
+# ---------------------------------------------------------------------------
 # Chat history
 # ---------------------------------------------------------------------------
 

@@ -6,7 +6,9 @@ Usage:
     python -m backend.cli ingest --dir docs/
     python -m backend.cli ask -q "How do I type a useState hook?"
     python -m backend.cli interactive
-    python -m backend.cli quiz --input quizzes/w1.md
+    python -m backend.cli quiz --input quizzes/w13.json
+    python -m backend.cli quiz --input quizzes/w13.json --sections tf,mc --limit 10
+    python -m backend.cli benchmark --input quizzes/w13.json --sections tf --limit 15
     python -m backend.cli list
 """
 
@@ -26,6 +28,22 @@ def _get_processor(args) -> DocumentProcessor:
     except OllamaConnectionError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def _parse_sections(raw: str | None) -> set[str] | None:
+    """Parse a comma-separated section string into a set of qtype codes."""
+    if not raw:
+        return None
+    from backend.quiz_processor import SECTION_ALIASES
+    codes = set()
+    for token in raw.split(","):
+        token = token.strip().lower()
+        if token in SECTION_ALIASES:
+            codes.add(SECTION_ALIASES[token])
+        else:
+            print(f"Warning: unknown section '{token}', ignoring. "
+                  f"Valid: tf, mc, sa", file=sys.stderr)
+    return codes if codes else None
 
 
 # ===================================================================
@@ -142,9 +160,37 @@ def list_command(args) -> int:
 
 
 def quiz_command(args) -> int:
-    from backend.quiz_processor import run_quiz
+    from backend.quiz_processor import run_quiz, run_json_quiz, list_json_quizzes
     from pathlib import Path
 
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Error: File not found: {args.input}", file=sys.stderr)
+        return 1
+
+    is_json = input_path.suffix.lower() == ".json"
+    grounded = not args.broad
+    sections = _parse_sections(args.sections)
+    limit = args.limit
+
+    # --list flag: show available quizzes in a JSON file and exit
+    if args.list_quizzes:
+        if not is_json:
+            print("Error: --list only works with JSON quiz files", file=sys.stderr)
+            return 1
+        try:
+            quizzes = list_json_quizzes(str(input_path))
+            print(f"\nQuizzes in {input_path.name}:")
+            print(f"{'-' * 50}")
+            for q in quizzes:
+                print(f"  {q['id']:20s}  {q['title']}  ({q['questions']} questions)")
+            print()
+            return 0
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+    # Set up RAG processor
     processor = None
     use_rag = not args.no_rag
 
@@ -158,18 +204,49 @@ def quiz_command(args) -> int:
     else:
         _get_processor(args)  # just verify Ollama is up
 
-    input_path = Path(args.input)
     output_path = args.output or f"results/{input_path.stem}-results.md"
 
+    print(f"\n{'=' * 60}")
+    print(f"  Cosmo Quiz Runner")
+    print(f"{'=' * 60}")
+    print(f"  Input:    {input_path}")
+    print(f"  Mode:     {args.mode}")
+    print(f"  RAG:      {'yes' if use_rag else 'no'}")
+    print(f"  Grounded: {'yes (docs only)' if grounded else 'no (broad)'}")
+    if sections:
+        print(f"  Sections: {','.join(sorted(sections))}")
+    if limit:
+        print(f"  Limit:    {limit} questions")
+    if is_json and args.quiz_id:
+        print(f"  Quiz ID:  {args.quiz_id}")
+    print(f"{'=' * 60}\n")
+
     try:
-        result_path = run_quiz(
-            quiz_path=str(input_path),
-            output_path=output_path,
-            processor=processor,
-            mode=args.mode,
-            use_rag=use_rag,
-            n_results=args.results,
-        )
+        if is_json:
+            result_path = run_json_quiz(
+                quiz_path=str(input_path),
+                output_path=output_path,
+                quiz_id=args.quiz_id,
+                processor=processor,
+                mode=args.mode,
+                use_rag=use_rag,
+                n_results=args.results,
+                grounded=grounded,
+                sections=sections,
+                limit=limit,
+            )
+        else:
+            result_path = run_quiz(
+                quiz_path=str(input_path),
+                output_path=output_path,
+                processor=processor,
+                mode=args.mode,
+                use_rag=use_rag,
+                n_results=args.results,
+                grounded=grounded,
+                sections=sections,
+                limit=limit,
+            )
         print(f"\nDone. Results at: {result_path}")
         return 0
     except (FileNotFoundError, ValueError) as e:
@@ -178,6 +255,105 @@ def quiz_command(args) -> int:
     except Exception as e:
         print(f"Error during quiz: {e}", file=sys.stderr)
         return 1
+
+
+def benchmark_command(args) -> int:
+    from backend.quiz_processor import run_benchmark, BenchmarkConfig
+    from pathlib import Path
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Error: File not found: {args.input}", file=sys.stderr)
+        return 1
+
+    sections = _parse_sections(args.sections)
+    limit = args.limit
+
+    # Always need the processor for RAG configs
+    processor = _get_processor(args)
+    stats = processor.get_stats()
+    if stats["total_chunks"] == 0:
+        print("Warning: No documents indexed. RAG configs will run without context.")
+
+    # Build config list: either from --configs or use defaults
+    configs = None
+    if args.configs:
+        configs = _parse_benchmark_configs(args.configs)
+        if not configs:
+            return 1
+
+    output_path = args.output or f"results/{input_path.stem}-benchmark.md"
+
+    try:
+        result_path = run_benchmark(
+            quiz_path=str(input_path),
+            output_path=output_path,
+            processor=processor,
+            quiz_id=args.quiz_id,
+            configs=configs,
+            n_results=args.results,
+            sections=sections,
+            limit=limit,
+        )
+        print(f"\nBenchmark report: {result_path}")
+        return 0
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error during benchmark: {e}", file=sys.stderr)
+        return 1
+
+
+def _parse_benchmark_configs(raw: str) -> list | None:
+    """
+    Parse a compact config string into BenchmarkConfig objects.
+
+    Format: "mode:rag:grounded,mode:rag:grounded,..."
+    Examples:
+        "quick:rag:broad,deep:rag:broad,fast:no-rag:broad"
+        "quick:rag:grounded,quick:no-rag:broad"
+    """
+    from backend.quiz_processor import BenchmarkConfig
+    from backend.config import VALID_MODES
+
+    configs = []
+    for token in raw.split(","):
+        parts = [p.strip().lower() for p in token.split(":")]
+        if len(parts) != 3:
+            print(f"Error: invalid config '{token}'. "
+                  f"Expected format 'mode:rag|no-rag:grounded|broad'",
+                  file=sys.stderr)
+            return None
+
+        mode, rag_str, ground_str = parts
+
+        if mode not in VALID_MODES:
+            print(f"Error: invalid mode '{mode}'. "
+                  f"Valid: {', '.join(VALID_MODES)}", file=sys.stderr)
+            return None
+
+        if rag_str == "rag":
+            use_rag = True
+        elif rag_str == "no-rag":
+            use_rag = False
+        else:
+            print(f"Error: invalid rag setting '{rag_str}'. "
+                  f"Use 'rag' or 'no-rag'", file=sys.stderr)
+            return None
+
+        if ground_str == "grounded":
+            grounded = True
+        elif ground_str == "broad":
+            grounded = False
+        else:
+            print(f"Error: invalid grounded setting '{ground_str}'. "
+                  f"Use 'grounded' or 'broad'", file=sys.stderr)
+            return None
+
+        configs.append(BenchmarkConfig(mode=mode, use_rag=use_rag, grounded=grounded))
+
+    return configs
 
 
 def interactive_command(args) -> int:
@@ -255,7 +431,17 @@ Examples:
   python -m backend.cli ingest --path docs/react-handbook.pdf
   python -m backend.cli ingest --dir docs/
   python -m backend.cli ask -q "How do I type a useState hook?"
-  python -m backend.cli quiz --input quizzes/w1.md
+
+  # Quiz with section filter and question limit
+  python -m backend.cli quiz -i quizzes/w13.json --sections tf,mc --limit 10
+  python -m backend.cli quiz -i quizzes/w13.json --quiz-id week13 --broad
+  python -m backend.cli quiz -i quizzes/w13.json --sections sa
+  python -m backend.cli quiz -i quizzes/w13.json --list
+
+  # Benchmark across all model/rag/grounded combos
+  python -m backend.cli benchmark -i quizzes/w13.json --sections tf --limit 15
+  python -m backend.cli benchmark -i quizzes/w13.json --configs "quick:rag:broad,deep:rag:broad,fast:no-rag:broad"
+
   python -m backend.cli interactive
   python -m backend.cli list
 """,
@@ -282,12 +468,38 @@ Examples:
     ask_p.add_argument("--results", "-n", type=int, default=4)
 
     # quiz
-    quiz_p = subparsers.add_parser("quiz", help="Take a quiz")
-    quiz_p.add_argument("--input", "-i", required=True, help="Quiz markdown file")
-    quiz_p.add_argument("--output", "-o", default=None, help="Output path")
+    quiz_p = subparsers.add_parser("quiz", help="Take a quiz (supports .md and .json)")
+    quiz_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
+    quiz_p.add_argument("--output", "-o", default=None, help="Output results path")
     quiz_p.add_argument("--mode", "-m", default="quick", choices=["quick", "deep", "general", "fast"])
     quiz_p.add_argument("--no-rag", action="store_true", help="Skip RAG context")
+    quiz_p.add_argument("--broad", action="store_true",
+                        help="Use broad mode (LLM supplements with own knowledge)")
     quiz_p.add_argument("--results", "-n", type=int, default=4)
+    quiz_p.add_argument("--quiz-id", default=None,
+                        help="Quiz ID to run (for JSON files with multiple quizzes)")
+    quiz_p.add_argument("--list", dest="list_quizzes", action="store_true",
+                        help="List available quizzes in a JSON file and exit")
+    quiz_p.add_argument("--sections", "-s", default=None,
+                        help="Comma-separated question types to include: tf,mc,sa")
+    quiz_p.add_argument("--limit", "-l", type=int, default=None,
+                        help="Max number of questions to run (sampled from filtered set)")
+
+    # benchmark
+    bench_p = subparsers.add_parser("benchmark",
+                                    help="Compare quiz performance across configurations")
+    bench_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
+    bench_p.add_argument("--output", "-o", default=None, help="Output report path")
+    bench_p.add_argument("--quiz-id", default=None,
+                         help="Quiz ID (for JSON files with multiple quizzes)")
+    bench_p.add_argument("--results", "-n", type=int, default=4)
+    bench_p.add_argument("--sections", "-s", default=None,
+                         help="Comma-separated question types: tf,mc,sa")
+    bench_p.add_argument("--limit", "-l", type=int, default=None,
+                         help="Max questions per run (same set used for all configs)")
+    bench_p.add_argument("--configs", default=None,
+                         help="Custom configs: 'mode:rag|no-rag:grounded|broad,...' "
+                              "(default: all 12 combos)")
 
     # list
     subparsers.add_parser("list", help="List indexed documents")
@@ -310,6 +522,7 @@ Examples:
         "list": list_command,
         "interactive": interactive_command,
         "quiz": quiz_command,
+        "benchmark": benchmark_command,
     }
     return commands[args.command](args)
 

@@ -38,3 +38,7 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .study-card-tag{padding:2px 6px;border:1px solid var(--border-subtle);border-radius:2px;font-size:10px;color:var(--text-muted)}
 .study-card--empty{cursor:default;align-items:center;justify-content:center;text-align:center}
 .study-card--empty .study-card-text{color:var(--text-dim)}
+
+/* Grounded/Broad toggle — add this after the .help-btn rules in index.css */
+
+.grounded-toggle{padding:3px 10px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-dim);transition:background .1s,color .1s,border-color .1s;letter-spacing:.02em}.grounded-toggle:hover{background:var(--bg-hover);color:var(--text);border-color:var(--border-focus)}.grounded-toggle--broad{color:var(--yellow);border-color:rgba(255,214,10,.3)}.grounded-toggle--broad:hover{background:rgba(255,214,10,.06);color:var(--yellow);border-color:rgba(255,214,10,.5)}

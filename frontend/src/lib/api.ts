@@ -49,7 +49,7 @@ export async function fetchQuizzes(): Promise<QuizSummary[]> {
   const res = await fetch(`${BASE}/quizzes`);
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
-  return data.quizzes.sort((a, b) => {
+  return data.quizzes.sort((a: QuizSummary, b: QuizSummary) => {
     const weekA = parseInt(a.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
     const weekB = parseInt(b.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
     return weekA - weekB;
@@ -111,10 +111,17 @@ export async function evaluateAnswer(
   return res.json();
 }
 
+/**
+ * Send a question and receive streamed tokens via SSE.
+ *
+ * @param grounded - If true, answers strictly from docs. If false,
+ *   the LLM supplements with its own knowledge when docs are insufficient.
+ */
 export function streamChat(
   question: string,
   mode: ModelMode,
   nResults: number,
+  grounded: boolean,
   callbacks: {
     onToken: (token: string) => void;
     onDone: () => void;
@@ -128,7 +135,12 @@ export function streamChat(
       const res = await fetch(`${BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, mode, n_results: nResults }),
+        body: JSON.stringify({
+          question,
+          mode,
+          n_results: nResults,
+          grounded,
+        }),
         signal: controller.signal,
       });
 
@@ -176,7 +188,7 @@ export function streamChat(
       callbacks.onDone();
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      callbacks.onError(err instanceof Error ? err.message : String(err));
+      callbacks.onError(err instanceof Error ? err.message : "Unknown error");
     }
   })();
 

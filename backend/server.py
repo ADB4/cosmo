@@ -14,13 +14,13 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 
 from backend.config import (
-    ALLOWED_EXTENSIONS,
-    DEFAULT_HISTORY_TURNS,
-    QUIZ_DIR,
-    SERVER_HOST,
-    SERVER_PORT,
-    UPLOAD_DIR,
-    VALID_MODES,
+    CHAT_MODELS,
+    CHAT_OPTIONS,
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    DB_PATH,
+    EMBED_MODEL,
+    EMBEDDING_BATCH_SIZE,
 )
 from backend.document_processor import (
     ChatHistory,
@@ -361,11 +361,11 @@ def evaluate_answer():
 
     try:
         import ollama as _ollama
-
+        from backend.config import EVAL_OPTIONS
         response = _ollama.chat(
             model=llm_model,
             messages=[{"role": "user", "content": prompt}],
-            options={"num_ctx": 8192, "num_thread": 8},
+            options=EVAL_OPTIONS,
         )
         raw = response["message"]["content"].strip()
 
