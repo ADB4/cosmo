@@ -9,7 +9,7 @@ type Tab = "cosmo" | "apollo";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("cosmo");
-  const [mode, setMode] = useState<ModelMode>("quick");
+  const [mode, setMode] = useState<ModelMode>("qwen-7b");
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
   const checkHealth = useCallback(async () => {

@@ -19,6 +19,7 @@ import pymupdf4llm
 
 from backend.config import (
     CHAT_MODELS,
+    CHAT_OPTIONS,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     DB_PATH,
@@ -637,7 +638,7 @@ class DocumentProcessor:
     def ask_question(
         self,
         question: str,
-        mode: str = "quick",
+        mode: str = "qwen-7b",
         n_results: int = 5,
         history: Optional[ChatHistory] = None,
         grounded: bool = True,
@@ -665,8 +666,8 @@ class DocumentProcessor:
         prompt, sources = self._build_rag_prompt(
             question, results, history, grounded=grounded
         )
-        model = self.models.get(mode, self.models["quick"])
-        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS["quick"]))
+        model = self.models.get(mode, self.models["qwen-7b"])
+        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS["qwen-7b"]))
 
         # Bump context for long conversations or many results
         if n_results > 4 and options["num_ctx"] < 8192:

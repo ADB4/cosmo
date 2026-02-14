@@ -650,7 +650,7 @@ def run_quiz(
     quiz_path: str,
     output_path: str,
     processor=None,
-    mode: str = "quick",
+    mode: str = "qwen-7b",
     use_rag: bool = True,
     n_results: int = 4,
     grounded: bool = True,
@@ -686,7 +686,7 @@ def run_json_quiz(
     output_path: str,
     quiz_id: Optional[str] = None,
     processor=None,
-    mode: str = "quick",
+    mode: str = "qwen-7b",
     use_rag: bool = True,
     n_results: int = 4,
     grounded: bool = True,
@@ -735,8 +735,8 @@ def _run_questions(
     import ollama as _ollama
     from backend.config import CHAT_MODELS, QUIZ_OPTIONS, QUIZ_NUM_PREDICT
 
-    llm_model = CHAT_MODELS.get(mode, CHAT_MODELS["quick"])
-    base_options = QUIZ_OPTIONS.get(mode, QUIZ_OPTIONS["quick"])
+    llm_model = CHAT_MODELS.get(mode, CHAT_MODELS["qwen-7b"])
+    base_options = QUIZ_OPTIONS.get(mode, QUIZ_OPTIONS["qwen-7b"])
     graded: List[GradedQuestion] = []
 
     for i, q in enumerate(questions):
@@ -800,24 +800,20 @@ class BenchmarkConfig:
     def label(self) -> str:
         parts = [self.mode]
         parts.append("rag" if self.use_rag else "no-rag")
-        parts.append("grounded" if self.grounded else "broad")
         return " / ".join(parts)
 
 
-# Default benchmark matrix — tests all meaningful combos
+# Default benchmark matrix — 4 models x 2 RAG settings = 8 configs
+# Grounded/broad showed no difference across 192 questions; hardcode broad.
 DEFAULT_BENCHMARK_CONFIGS = [
-    BenchmarkConfig("quick",   use_rag=True,  grounded=True),
-    BenchmarkConfig("quick",   use_rag=True,  grounded=False),
-    BenchmarkConfig("quick",   use_rag=False, grounded=False),
-    BenchmarkConfig("fast",    use_rag=True,  grounded=True),
-    BenchmarkConfig("fast",    use_rag=True,  grounded=False),
-    BenchmarkConfig("fast",    use_rag=False, grounded=False),
-    BenchmarkConfig("deep",    use_rag=True,  grounded=True),
-    BenchmarkConfig("deep",    use_rag=True,  grounded=False),
-    BenchmarkConfig("deep",    use_rag=False, grounded=False),
-    BenchmarkConfig("general", use_rag=True,  grounded=True),
-    BenchmarkConfig("general", use_rag=True,  grounded=False),
-    BenchmarkConfig("general", use_rag=False, grounded=False),
+    BenchmarkConfig("qwen-7b",  use_rag=True,  grounded=False),
+    BenchmarkConfig("qwen-7b",  use_rag=False, grounded=False),
+    BenchmarkConfig("mistral",  use_rag=True,  grounded=False),
+    BenchmarkConfig("mistral",  use_rag=False, grounded=False),
+    BenchmarkConfig("qwen-14b", use_rag=True,  grounded=False),
+    BenchmarkConfig("qwen-14b", use_rag=False, grounded=False),
+    BenchmarkConfig("llama",    use_rag=True,  grounded=False),
+    BenchmarkConfig("llama",    use_rag=False, grounded=False),
 ]
 
 

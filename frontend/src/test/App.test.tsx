@@ -120,7 +120,7 @@ describe("App — model selector", () => {
     await user.click(screen.getByText("COSMO"));
     const select = document.querySelector(".model-select") as HTMLSelectElement;
     expect(select).not.toBeNull();
-    expect(select.value).toBe("quick");
+    expect(select.value).toBe("qwen-7b");
   });
 
   it("hides model selector on APOLLO tab", async () => {
@@ -137,7 +137,7 @@ describe("App — model selector", () => {
 
     await user.click(screen.getByText("COSMO"));
     const select = document.querySelector(".model-select") as HTMLSelectElement;
-    await user.selectOptions(select, "deep");
-    expect(select.value).toBe("deep");
+    await user.selectOptions(select, "qwen-14b");
+    expect(select.value).toBe("qwen-14b");
   });
 });

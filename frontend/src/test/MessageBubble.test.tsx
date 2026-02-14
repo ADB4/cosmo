@@ -25,7 +25,7 @@ describe("MessageBubble", () => {
   it("renders assistant messages with assistant class and cosmo prefix", () => {
     render(
       <MessageBubble
-        message={msg({ role: "assistant", content: "My answer", mode: "quick" })}
+        message={msg({ role: "assistant", content: "My answer", mode: "qwen-7b" })}
       />,
     );
     const el = document.querySelector(".message--assistant");
@@ -46,15 +46,15 @@ describe("MessageBubble", () => {
   it("shows mode tag on assistant messages", () => {
     render(
       <MessageBubble
-        message={msg({ role: "assistant", content: "response", mode: "deep" })}
+        message={msg({ role: "assistant", content: "response", mode: "qwen-14b" })}
       />,
     );
-    expect(screen.getByText("deep")).toBeInTheDocument();
+    expect(screen.getByText("qwen-14b")).toBeInTheDocument();
   });
 
   it("does not show mode tag on user messages", () => {
     render(
-      <MessageBubble message={msg({ content: "question", mode: "quick" })} />,
+      <MessageBubble message={msg({ content: "question", mode: "qwen-7b" })} />,
     );
     expect(document.querySelector(".msg-mode-tag")).toBeNull();
   });

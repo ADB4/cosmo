@@ -15,14 +15,14 @@ afterEach(() => {
 
 describe("ChatPanel — initial state", () => {
   it("renders with initial system message", () => {
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
     expect(
       screen.getByText(/Connected to Ollama/),
     ).toBeInTheDocument();
   });
 
   it("renders the text input and send button", () => {
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
     expect(
       screen.getByPlaceholderText("Ask a question about the documentation..."),
     ).toBeInTheDocument();
@@ -30,12 +30,12 @@ describe("ChatPanel — initial state", () => {
   });
 
   it("disables Send when input is empty", () => {
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
     expect(screen.getByText("Send").closest("button")).toBeDisabled();
   });
 
   it("does not show Clear button initially (only 1 message)", () => {
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
     expect(screen.queryByText("Clear")).toBeNull();
   });
 });
@@ -56,7 +56,7 @@ describe("ChatPanel — sending a message", () => {
     );
 
     const user = userEvent.setup();
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
 
     const input = screen.getByPlaceholderText(
       "Ask a question about the documentation...",
@@ -87,7 +87,7 @@ describe("ChatPanel — sending a message", () => {
     );
 
     const user = userEvent.setup();
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
 
     const input = screen.getByPlaceholderText(
       "Ask a question about the documentation...",
@@ -117,7 +117,7 @@ describe("ChatPanel — clear history", () => {
       );
 
     const user = userEvent.setup();
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
 
     const input = screen.getByPlaceholderText(
       "Ask a question about the documentation...",
@@ -151,7 +151,7 @@ describe("ChatPanel — keyboard shortcut", () => {
     );
 
     const user = userEvent.setup();
-    render(<ChatPanel mode="quick" />);
+    render(<ChatPanel mode="qwen-7b" />);
 
     const input = screen.getByPlaceholderText(
       "Ask a question about the documentation...",

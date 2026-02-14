@@ -165,7 +165,7 @@ describe("evaluateAnswer", () => {
     expect(body.question).toBe("What is TS?");
     expect(body.user_answer).toBe("A typed JS superset");
     expect(body.model_answer).toBe("TypeScript is a typed superset of JavaScript");
-    expect(body.mode).toBe("quick");
+    expect(body.mode).toBe("qwen-7b");
   });
 });
 
@@ -188,7 +188,7 @@ describe("streamChat", () => {
       Promise.resolve({ ok: true, body: stream }),
     );
 
-    const controller = streamChat("test", "quick", 4, {
+    const controller = streamChat("test", "qwen-7b", 4, {
       onToken: (t) => tokens.push(t),
       onDone: () => { done = true; },
       onError: () => {},
@@ -213,7 +213,7 @@ describe("streamChat", () => {
       }),
     );
 
-    streamChat("test", "quick", 4, {
+    streamChat("test", "qwen-7b", 4, {
       onToken: () => {},
       onDone: () => {},
       onError: (err) => { errorMsg = err; },

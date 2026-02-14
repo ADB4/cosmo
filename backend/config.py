@@ -46,15 +46,19 @@ EMBEDDING_BATCH_SIZE = 50
 
 # ---------------------------------------------------------------------------
 # LLM models (Ollama)
+#
+# Mode names reflect actual model identity rather than implying
+# a quality hierarchy. Benchmark data (192 questions, 6 quizzes)
+# showed qwen-7b as the best all-round performer.
 # ---------------------------------------------------------------------------
 
 EMBED_MODEL = "nomic-embed-text"
 
 CHAT_MODELS = {
-    "quick": "qwen2.5-coder:7b",
-    "deep": "qwen2.5-coder:14b",
-    "general": "llama3.1:8b",
-    "fast": "mistral:7b",
+    "qwen-7b":  "qwen2.5-coder:7b",
+    "qwen-14b": "qwen2.5-coder:14b",
+    "llama":    "llama3.1:8b",
+    "mistral":  "mistral:7b",
 }
 
 VALID_MODES = tuple(CHAT_MODELS.keys())
@@ -70,22 +74,22 @@ NUM_THREAD = 8  # M2 Pro has 12 cores; 8 avoids OS contention
 
 # Chat (interactive streaming) — needs headroom for conversation history
 CHAT_OPTIONS = {
-    "quick": {
+    "qwen-7b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
     },
-    "deep": {
+    "qwen-14b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
     },
-    "general": {
+    "llama": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
     },
-    "fast": {
+    "mistral": {
         "num_ctx": 4096,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
@@ -94,25 +98,25 @@ CHAT_OPTIONS = {
 
 # Quiz — deterministic, per-question-type token limits
 QUIZ_OPTIONS = {
-    "quick": {
+    "qwen-7b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
         "temperature": 0,
     },
-    "deep": {
+    "qwen-14b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
         "temperature": 0,
     },
-    "general": {
+    "llama": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
         "temperature": 0,
     },
-    "fast": {
+    "mistral": {
         "num_ctx": 4096,
         "num_thread": NUM_THREAD,
         "num_batch": 512,

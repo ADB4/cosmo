@@ -97,7 +97,7 @@ export async function evaluateAnswer(
   question: string,
   userAnswer: string,
   modelAnswer: string,
-  mode = "quick",
+  mode = "qwen-7b",
 ): Promise<{ score: "correct" | "partial" | "incorrect"; feedback: string }> {
   const res = await fetch(`${BASE}/quizzes/evaluate`, {
     method: "POST",

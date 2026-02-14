@@ -19,8 +19,14 @@ from backend.config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     DB_PATH,
+    DEFAULT_HISTORY_TURNS,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
+    QUIZ_DIR,
+    SERVER_HOST,
+    SERVER_PORT,
+    UPLOAD_DIR,
+    VALID_MODES,
 )
 from backend.document_processor import (
     ChatHistory,
@@ -91,7 +97,7 @@ def stats():
 def chat():
     data = request.get_json(silent=True) or {}
     question = data.get("question", "").strip()
-    mode = data.get("mode", "quick")
+    mode = data.get("mode", "qwen-7b")
     n_results = data.get("n_results", 4)
 
     if not question:
@@ -321,7 +327,7 @@ def evaluate_answer():
     question = data.get("question", "")
     user_answer = data.get("user_answer", "")
     model_answer = data.get("model_answer", "")
-    mode = data.get("mode", "quick")
+    mode = data.get("mode", "qwen-7b")
 
     if not question or not user_answer:
         return jsonify({"error": "question and user_answer are required"}), 400
@@ -357,7 +363,7 @@ def evaluate_answer():
         '{"score": "<correct|partial|incorrect>", "feedback": "<1-3 sentence explanation>"}'
     )
 
-    llm_model = proc.models.get(mode, proc.models["quick"])
+    llm_model = proc.models.get(mode, proc.models["qwen-7b"])
 
     try:
         import ollama as _ollama

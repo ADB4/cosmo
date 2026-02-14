@@ -160,14 +160,14 @@ export const MOCK_MESSAGES: ChatMessage[] = [
     id: "msg-2",
     role: "user",
     content: "What is TypeScript?",
-    mode: "quick",
+    mode: "qwen-7b",
     timestamp: 1700000001000,
   },
   {
     id: "msg-3",
     role: "assistant",
     content: "TypeScript is a typed superset of JavaScript that compiles to plain JavaScript.",
-    mode: "quick",
+    mode: "qwen-7b",
     timestamp: 1700000002000,
   },
 ];

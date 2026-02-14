@@ -340,10 +340,12 @@ def _parse_benchmark_configs(raw: str) -> list | None:
     """
     Parse a compact config string into BenchmarkConfig objects.
 
-    Format: "mode:rag:grounded,mode:rag:grounded,..."
+    Format: "mode:rag|no-rag[:grounded|broad],..."
+    The grounded/broad part is optional and defaults to broad.
+
     Examples:
-        "quick:rag:broad,deep:rag:broad,fast:no-rag:broad"
-        "quick:rag:grounded,quick:no-rag:broad"
+        "qwen-7b:rag,qwen-14b:rag,mistral:no-rag"
+        "qwen-7b:rag,qwen-7b:no-rag"
     """
     from backend.quiz_processor import BenchmarkConfig
     from backend.config import VALID_MODES
@@ -351,13 +353,15 @@ def _parse_benchmark_configs(raw: str) -> list | None:
     configs = []
     for token in raw.split(","):
         parts = [p.strip().lower() for p in token.split(":")]
-        if len(parts) != 3:
+        if len(parts) not in (2, 3):
             print(f"Error: invalid config '{token}'. "
-                  f"Expected format 'mode:rag|no-rag:grounded|broad'",
+                  f"Expected format 'mode:rag|no-rag' or 'mode:rag|no-rag:grounded|broad'",
                   file=sys.stderr)
             return None
 
-        mode, rag_str, ground_str = parts
+        mode = parts[0]
+        rag_str = parts[1]
+        ground_str = parts[2] if len(parts) == 3 else "broad"
 
         if mode not in VALID_MODES:
             print(f"Error: invalid mode '{mode}'. "
@@ -396,7 +400,7 @@ def interactive_command(args) -> int:
     print(f"{'=' * 60}")
     print("Commands:")
     print("  Ask a question directly")
-    print("  'mode <quick|deep|general|fast>' - Switch model")
+    print("  'mode <qwen-7b|qwen-14b|llama|mistral>' - Switch model")
     print("  'clear' - Clear conversation history")
     print("  'stats' - Show knowledge base stats")
     print("  'quit' or 'exit' - Exit")
@@ -422,11 +426,11 @@ def interactive_command(args) -> int:
                 continue
             if question.lower().startswith("mode "):
                 parts = question.split(maxsplit=1)
-                if len(parts) == 2 and parts[1] in ("quick", "deep", "general", "fast"):
+                if len(parts) == 2 and parts[1] in ("qwen-7b", "qwen-14b", "llama", "mistral"):
                     mode = parts[1]
                     print(f"Switched to {mode} mode")
                 else:
-                    print("Invalid mode. Choose: quick, deep, general, fast")
+                    print("Invalid mode. Choose: qwen-7b, qwen-14b, llama, mistral")
                 continue
 
             print("\nSearching...\n")
@@ -469,13 +473,13 @@ Examples:
   python -m backend.cli quiz -i quizzes/w13.json --sections sa
   python -m backend.cli quiz -i quizzes/w13.json --list
 
-  # Benchmark across all model/rag/grounded combos
+  # Benchmark across all model/rag combos (8 configs)
   python -m backend.cli benchmark -i quizzes/w13.json --sections tf --limit 15
-  python -m backend.cli benchmark -i quizzes/w13.json --configs "quick:rag:broad,deep:rag:broad,fast:no-rag:broad"
+  python -m backend.cli benchmark -i quizzes/w13.json --configs "qwen-7b:rag,qwen-14b:rag,mistral:no-rag"
 
   # Benchmark across all quiz files in a directory
   python -m backend.cli benchmark --dir quizzes/ --sections tf,mc
-  python -m backend.cli benchmark --dir quizzes/ --configs "quick:rag:broad,deep:rag:broad" --limit 20
+  python -m backend.cli benchmark --dir quizzes/ --configs "qwen-7b:rag,qwen-14b:rag" --limit 20
 
   python -m backend.cli interactive
   python -m backend.cli list
@@ -499,14 +503,14 @@ Examples:
     # ask
     ask_p = subparsers.add_parser("ask", help="Ask a question")
     ask_p.add_argument("--question", "-q", required=True, help="Question text")
-    ask_p.add_argument("--mode", "-m", default="quick", choices=["quick", "deep", "general", "fast"])
+    ask_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
     ask_p.add_argument("--results", "-n", type=int, default=4)
 
     # quiz
     quiz_p = subparsers.add_parser("quiz", help="Take a quiz (supports .md and .json)")
     quiz_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
     quiz_p.add_argument("--output", "-o", default=None, help="Output results path")
-    quiz_p.add_argument("--mode", "-m", default="quick", choices=["quick", "deep", "general", "fast"])
+    quiz_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
     quiz_p.add_argument("--no-rag", action="store_true", help="Skip RAG context")
     quiz_p.add_argument("--broad", action="store_true",
                         help="Use broad mode (LLM supplements with own knowledge)")
@@ -538,14 +542,14 @@ Examples:
                          help="Max questions per quiz per run")
     bench_p.add_argument("--configs", default=None,
                          help="Custom configs: 'mode:rag|no-rag:grounded|broad,...' "
-                              "(default: all 12 combos)")
+                              "(default: all 8 model/rag combos)")
 
     # list
     subparsers.add_parser("list", help="List indexed documents")
 
     # interactive
     int_p = subparsers.add_parser("interactive", help="Interactive Q&A session")
-    int_p.add_argument("--mode", "-m", default="quick", choices=["quick", "deep", "general", "fast"])
+    int_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
     int_p.add_argument("--results", "-n", type=int, default=4)
     int_p.add_argument("--history", type=int, default=5)
 

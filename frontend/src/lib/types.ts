@@ -1,5 +1,5 @@
 /** Modes the backend supports for LLM selection */
-export type ModelMode = "quick" | "deep" | "general" | "fast";
+export type ModelMode = "qwen-7b" | "qwen-14b" | "llama" | "mistral";
 
 /** A single message in the chat history (client-side) */
 export interface ChatMessage {
@@ -34,12 +34,11 @@ export interface IngestResponse {
 
 /** Describes model modes for display */
 export const MODE_INFO: Record<ModelMode, { label: string; description: string }> = {
-  quick: { label: "Quick — qwen2.5-coder:7b", description: "fast, good quality" },
-  deep: { label: "Deep — qwen2.5-coder:14b", description: "slower, best quality" },
-  general: { label: "General — llama3.1:8b", description: "non-code topics" },
-  fast: { label: "Fast — mistral:7b", description: "fastest responses" },
+  "qwen-7b":  { label: "qwen2.5-coder:7b",  description: "7B, best all-round" },
+  "qwen-14b": { label: "qwen2.5-coder:14b", description: "14B, highest accuracy" },
+  "llama":    { label: "llama3.1:8b",        description: "8B, general purpose" },
+  "mistral":  { label: "mistral:7b",         description: "7B, good instruction following" },
 };
-
 /* ============================================================
    Apollo — Quiz / Study types
    ============================================================ */
