@@ -91,6 +91,23 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .debug-save-msg{font-size:12px;margin-top:8px;color:var(--green)}
 .debug-save-msg--error{color:var(--red)}
 
+.msg-content table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.msg-content th,
+.msg-content td {
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  text-align: left;
+}
+
+.msg-content th {
+  color: var(--text-bright);
+  background: var(--bg-elevated);
+}
 /* ── Responsive ── */
 @media(max-width:700px){
   .study-body{flex-direction:column}

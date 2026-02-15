@@ -81,36 +81,43 @@ CHAT_OPTIONS = {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
+        "num_predict": 1024,
     },
     "llama3-3b": {
         "num_ctx": 4096,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
+        "num_predict": 1024,
     },
     "llama3-8b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
+        "num_predict": 1024,
     },
     "mistral-7b": {
         "num_ctx": 4096,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
+        "num_predict": 1024,
     },
     "phi4-14b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
+        "num_predict": 1024,
     },
     "qwen-7b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
+        "num_predict": 1024,
     },
     "qwen-14b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
+        "num_predict": 1024,
     },
 }
 
