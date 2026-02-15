@@ -299,6 +299,8 @@ class DocumentProcessor:
     EMBEDDING_BATCH_SIZE = EMBEDDING_BATCH_SIZE
 
     def __init__(self, persist_dir: str | None = None):
+        import tiktoken
+        self._tokenizer = tiktoken.get_encoding("cl100k_base")
         self._check_ollama_connection()
         self.client = chromadb.PersistentClient(path=persist_dir or DB_PATH)
         self.collection = self.client.get_or_create_collection(
@@ -360,42 +362,43 @@ class DocumentProcessor:
 
     # -- embedding ----------------------------------------------------------
     def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for a batch of texts.
-        Truncates any text that would exceed the embedding model's
-        context window. Tries the batch API first (ollama.embed),
-        falls back to one-at-a-time if not available.
-        """
         from backend.config import EMBED_MAX_TOKENS
 
-        # Rough truncation: ~4 chars per token for English text.
-        # Conservative estimate ensures we stay under the token limit.
-        max_chars = EMBED_MAX_TOKENS * 3
         truncated = []
         for text in texts:
-            if len(text) > max_chars:
-                # Truncate at word boundary
-                cut = text[:max_chars]
-                last_space = cut.rfind(" ")
-                if last_space > max_chars * 0.8:
-                    cut = cut[:last_space]
-                truncated.append(cut)
-                logger.debug(
-                    f"Truncated chunk from {len(text)} to {len(cut)} chars "
-                    f"for embedding (max ~{EMBED_MAX_TOKENS} tokens)"
-                )
+            tokens = self._tokenizer.encode(text)
+            if len(tokens) > EMBED_MAX_TOKENS:
+                tokens = tokens[:EMBED_MAX_TOKENS]
+                truncated.append(self._tokenizer.decode(tokens))
             else:
                 truncated.append(text)
 
         try:
             response = ollama.embed(model=self.embed_model, input=truncated)
             return response["embeddings"]
-        except (AttributeError, TypeError, KeyError):
-            pass
+        except Exception as e:
+            logger.debug(f"Batch embed failed ({e}), falling back to one-at-a-time")
+
         embeddings = []
-        for text in truncated:
-            response = ollama.embeddings(model=self.embed_model, prompt=text)
-            embeddings.append(response["embedding"])
+        for i, text in enumerate(truncated):
+            try:
+                response = ollama.embeddings(model=self.embed_model, prompt=text)
+                embeddings.append(response["embedding"])
+            except Exception as e:
+                # Log the problem chunk and skip it with a zero vector
+                token_count = len(self._tokenizer.encode(text))
+                logger.warning(
+                    f"Embedding failed for chunk {i} ({token_count} tokens, "
+                    f"{len(text)} chars): {e}"
+                )
+                # Return a zero vector so indexing can continue
+                if embeddings:
+                    embeddings.append([0.0] * len(embeddings[0]))
+                else:
+                    # Need to get dimension from a successful embedding first
+                    dummy = ollama.embeddings(model=self.embed_model, prompt="test")
+                    dim = len(dummy["embedding"])
+                    embeddings.append([0.0] * dim)
         return embeddings
 
     # -- ingestion ----------------------------------------------------------

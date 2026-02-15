@@ -40,10 +40,10 @@ SERVER_HOST = os.environ.get("COSMO_HOST", "0.0.0.0")
 
 ALLOWED_EXTENSIONS = {".pdf", ".md", ".markdown"}
 
-CHUNK_SIZE = int(os.environ.get("COSMO_CHUNK_SIZE", 1500))
+CHUNK_SIZE = int(os.environ.get("COSMO_CHUNK_SIZE", 1200))
 CHUNK_OVERLAP = int(os.environ.get("COSMO_CHUNK_OVERLAP", 200))
 EMBEDDING_BATCH_SIZE = 50
-EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 512))
+EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 500))  # 512 limit with 12-token safety margin
 # ---------------------------------------------------------------------------
 # LLM models (Ollama)
 #
@@ -52,7 +52,7 @@ EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 512))
 # showed qwen-7b as the best all-round performer.
 # ---------------------------------------------------------------------------
 
-EMBED_MODEL = "mxbai-embed-large"
+EMBED_MODEL = "nomic-embed-text"
 
 CHAT_MODELS = {
     "gemma2-9b": "gemma2:9b",
