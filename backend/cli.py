@@ -20,6 +20,7 @@ from backend.document_processor import (
     DocumentProcessor,
     OllamaConnectionError,
 )
+from backend.config import CHAT_MODELS, QUIZ_OPTIONS, DOCS_DIR, DB_PATH
 
 
 def _get_processor(args) -> DocumentProcessor:
@@ -125,7 +126,7 @@ def ask_command(args) -> int:
     print("Searching documentation...\n")
 
     try:
-        for token in processor.ask_stream(
+        for token in processor.ask_question(
             args.question, mode=args.mode, n_results=args.results
         ):
             sys.stdout.write(token)
@@ -503,14 +504,14 @@ Examples:
     # ask
     ask_p = subparsers.add_parser("ask", help="Ask a question")
     ask_p.add_argument("--question", "-q", required=True, help="Question text")
-    ask_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
+    ask_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(CHAT_MODELS.keys()))
     ask_p.add_argument("--results", "-n", type=int, default=4)
 
     # quiz
     quiz_p = subparsers.add_parser("quiz", help="Take a quiz (supports .md and .json)")
     quiz_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
     quiz_p.add_argument("--output", "-o", default=None, help="Output results path")
-    quiz_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
+    quiz_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(QUIZ_OPTIONS.keys()))
     quiz_p.add_argument("--no-rag", action="store_true", help="Skip RAG context")
     quiz_p.add_argument("--broad", action="store_true",
                         help="Use broad mode (LLM supplements with own knowledge)")
@@ -549,7 +550,7 @@ Examples:
 
     # interactive
     int_p = subparsers.add_parser("interactive", help="Interactive Q&A session")
-    int_p.add_argument("--mode", "-m", default="qwen-7b", choices=["qwen-7b", "qwen-14b", "llama", "mistral"])
+    int_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(QUIZ_OPTIONS.keys()))
     int_p.add_argument("--results", "-n", type=int, default=4)
     int_p.add_argument("--history", type=int, default=5)
 

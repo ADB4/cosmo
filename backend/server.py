@@ -98,7 +98,7 @@ def chat():
     data = request.get_json(silent=True) or {}
     question = data.get("question", "").strip()
     mode = data.get("mode", "qwen-7b")
-    n_results = data.get("n_results", 4)
+    n_results = data.get("n_results", 8)
 
     if not question:
         return jsonify({"error": "question is required"}), 400

@@ -62,7 +62,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
     const assistantId = assistantMsg.id;
 
-    abortRef.current = streamChat(q, mode, 4, grounded, {
+    abortRef.current = streamChat(q, mode, 8, grounded, {
       onToken: (token) => {
         setMessages((prev) =>
           prev.map((m) =>

@@ -806,14 +806,22 @@ class BenchmarkConfig:
 # Default benchmark matrix — 4 models x 2 RAG settings = 8 configs
 # Grounded/broad showed no difference across 192 questions; hardcode broad.
 DEFAULT_BENCHMARK_CONFIGS = [
-    BenchmarkConfig("qwen-7b",  use_rag=True,  grounded=False),
-    BenchmarkConfig("qwen-7b",  use_rag=False, grounded=False),
-    BenchmarkConfig("mistral",  use_rag=True,  grounded=False),
-    BenchmarkConfig("mistral",  use_rag=False, grounded=False),
+    
+    BenchmarkConfig("gemma2-9b",  use_rag=True,  grounded=False),
+    BenchmarkConfig("gemma2-9b",  use_rag=False, grounded=False),
+    BenchmarkConfig("llama3-3b",  use_rag=True,  grounded=False),
+    BenchmarkConfig("llama3-3b",  use_rag=False, grounded=False),
+    BenchmarkConfig("llama3-8b",  use_rag=True,  grounded=False),
+    BenchmarkConfig("llama3-8b",  use_rag=False, grounded=False),
+    BenchmarkConfig("mistral-7b",  use_rag=True,  grounded=False),
+    BenchmarkConfig("mistral-7b",  use_rag=False, grounded=False),
+    BenchmarkConfig("phi4-14b", use_rag=True,  grounded=False),
+    BenchmarkConfig("phi4-14b", use_rag=False, grounded=False),
+    BenchmarkConfig("qwen-7b", use_rag=True,  grounded=False),
+    BenchmarkConfig("qwen-7b", use_rag=False, grounded=False),
     BenchmarkConfig("qwen-14b", use_rag=True,  grounded=False),
     BenchmarkConfig("qwen-14b", use_rag=False, grounded=False),
-    BenchmarkConfig("llama",    use_rag=True,  grounded=False),
-    BenchmarkConfig("llama",    use_rag=False, grounded=False),
+
 ]
 
 

@@ -52,13 +52,16 @@ EMBEDDING_BATCH_SIZE = 50
 # showed qwen-7b as the best all-round performer.
 # ---------------------------------------------------------------------------
 
-EMBED_MODEL = "nomic-embed-text"
+EMBED_MODEL = "mxbai-embed-large"
 
 CHAT_MODELS = {
+    "gemma2-9b": "gemma2:9b",
+    "llama3-3b": "llama3.2:3b",
+    "llama3-8b":    "llama3.1:8b",
+    "mistral-7b":  "mistral:7b",
+    "phi4-14b": "phi4:14b",
     "qwen-7b":  "qwen2.5-coder:7b",
     "qwen-14b": "qwen2.5-coder:14b",
-    "llama":    "llama3.1:8b",
-    "mistral":  "mistral:7b",
 }
 
 VALID_MODES = tuple(CHAT_MODELS.keys())
@@ -74,6 +77,31 @@ NUM_THREAD = 8  # M2 Pro has 12 cores; 8 avoids OS contention
 
 # Chat (interactive streaming) — needs headroom for conversation history
 CHAT_OPTIONS = {
+    "gemma2-9b": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+    },
+    "llama3-3b": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+    "llama3-8b": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+    "mistral-7b": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+    },
+    "phi4-14b": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+    },
     "qwen-7b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
@@ -83,21 +111,41 @@ CHAT_OPTIONS = {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
-    },
-    "llama": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-    },
-    "mistral": {
-        "num_ctx": 4096,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
     },
 }
 
 # Quiz — deterministic, per-question-type token limits
 QUIZ_OPTIONS = {
+    "gemma2-9b": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+        "temperature": 0,
+    },
+    "llama3-3b": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+    "llama3-8b": {
+        "num_ctx": 8192,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+    "mistral-7b": {
+        "num_ctx": 4096,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "temperature": 0,
+    },
+    "phi4-14b": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 1024,
+        "temperature": 0,
+    },
     "qwen-7b": {
         "num_ctx": 8192,
         "num_thread": NUM_THREAD,
@@ -108,18 +156,6 @@ QUIZ_OPTIONS = {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
-        "temperature": 0,
-    },
-    "llama": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "temperature": 0,
-    },
-    "mistral": {
-        "num_ctx": 4096,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
         "temperature": 0,
     },
 }

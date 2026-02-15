@@ -1,5 +1,5 @@
 /** Modes the backend supports for LLM selection */
-export type ModelMode = "qwen-7b" | "qwen-14b" | "llama" | "mistral";
+export type ModelMode =     "gemma2-9b" | "llama3-3b" | "llama3-8b" | "mistral-7b" | "phi4-14b" | "qwen-7b" | "qwen-14b";
 
 /** A single message in the chat history (client-side) */
 export interface ChatMessage {
@@ -34,10 +34,15 @@ export interface IngestResponse {
 
 /** Describes model modes for display */
 export const MODE_INFO: Record<ModelMode, { label: string; description: string }> = {
+  "gemma2-9b":  { label: "gemma2:9b",       description: "9B, best all-round" },
+  "llama3-3b":    { label: "llama3.2:3b",   description: "3B, compact but capable" },
+  "llama3-8b":    { label: "llama3.1:8b",   description: "8B, general purpose" },
+  "mistral-7b":  { label: "mistral:7b",     description: "7B, good instruction following" },
+  "phi4-14b":  { label: "phi4:14b",         description: "14B, deep reasoning" },
   "qwen-7b":  { label: "qwen2.5-coder:7b",  description: "7B, best all-round" },
-  "qwen-14b": { label: "qwen2.5-coder:14b", description: "14B, highest accuracy" },
-  "llama":    { label: "llama3.1:8b",        description: "8B, general purpose" },
-  "mistral":  { label: "mistral:7b",         description: "7B, good instruction following" },
+  "qwen-14b": { label: "qwen2.5-coder:14b", description: "14B, deep reasoning" },
+
+
 };
 /* ============================================================
    Apollo — Quiz / Study types
