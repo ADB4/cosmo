@@ -359,20 +359,41 @@ class DocumentProcessor:
             logger.warning(f"Error deleting existing chunks: {e}")
 
     # -- embedding ----------------------------------------------------------
-
     def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
         Generate embeddings for a batch of texts.
-        Tries the batch API first (ollama.embed), falls back to
-        one-at-a-time if not available.
+        Truncates any text that would exceed the embedding model's
+        context window. Tries the batch API first (ollama.embed),
+        falls back to one-at-a-time if not available.
         """
+        from backend.config import EMBED_MAX_TOKENS
+
+        # Rough truncation: ~4 chars per token for English text.
+        # Conservative estimate ensures we stay under the token limit.
+        max_chars = EMBED_MAX_TOKENS * 3
+        truncated = []
+        for text in texts:
+            if len(text) > max_chars:
+                # Truncate at word boundary
+                cut = text[:max_chars]
+                last_space = cut.rfind(" ")
+                if last_space > max_chars * 0.8:
+                    cut = cut[:last_space]
+                truncated.append(cut)
+                logger.debug(
+                    f"Truncated chunk from {len(text)} to {len(cut)} chars "
+                    f"for embedding (max ~{EMBED_MAX_TOKENS} tokens)"
+                )
+            else:
+                truncated.append(text)
+
         try:
-            response = ollama.embed(model=self.embed_model, input=texts)
+            response = ollama.embed(model=self.embed_model, input=truncated)
             return response["embeddings"]
         except (AttributeError, TypeError, KeyError):
             pass
         embeddings = []
-        for text in texts:
+        for text in truncated:
             response = ollama.embeddings(model=self.embed_model, prompt=text)
             embeddings.append(response["embedding"])
         return embeddings
@@ -610,20 +631,31 @@ class DocumentProcessor:
 
         if grounded:
             system_instruction = (
-                "You are a React/TypeScript study companion. Answer the question "
-                "based primarily on the provided documentation excerpts. Cite "
-                "sources using [1], [2], etc. If the documentation doesn't fully "
-                "address the question, say so."
+                "You are a study companion for a React/TypeScript/testing curriculum. "
+                "You will receive documentation excerpts numbered [1], [2], etc.\n\n"
+                "Rules:\n"
+                "- Read ALL excerpts carefully. The answer is almost always contained "
+                "in one or more of them.\n"
+                "- Extract and present the relevant information directly in your answer. "
+                "Do not tell the user to 'refer to' or 'check' a source — include the "
+                "details yourself.\n"
+                "- When an excerpt contains a list, priority order, or step-by-step "
+                "process, reproduce it in your answer.\n"
+                "- Cite sources inline like [1] or [3] after the claim they support.\n"
+                "- If the excerpts genuinely do not contain the answer, say so briefly "
+                "and give your best answer from general knowledge.\n"
+                "- Keep answers concise and direct. No preamble like 'Great question' "
+                "or 'Based on the documentation provided'."
             )
         else:
             system_instruction = (
-                "You are a React/TypeScript study companion. Use the provided "
-                "documentation excerpts as your primary source and cite them "
-                "using [1], [2], etc. where relevant. If the excerpts don't "
-                "fully cover the question, supplement with your own knowledge "
-                "to give the most accurate and complete answer possible. Do "
-                "not refuse to answer just because the documentation is "
-                "incomplete."
+                "You are a study companion for a React/TypeScript/testing curriculum. "
+                "You will receive documentation excerpts numbered [1], [2], etc. "
+                "Use them as your primary source and cite them inline like [1] or [3] "
+                "where relevant. If the excerpts don't fully cover the question, "
+                "supplement with your own knowledge to give the most accurate and "
+                "complete answer possible. Do not refuse to answer just because the "
+                "documentation is incomplete. Keep answers concise and direct."
             )
 
         prompt = (
