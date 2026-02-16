@@ -7,7 +7,9 @@ venv/
 env/
 frontend/tsconfig.tsbuildinfo
 
-artifacts/
+artifacts/*
+!artifacts/docs/
+!artifacts/docs/**
 quizzes/
 quizzes_legacy/
 results/

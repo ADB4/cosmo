@@ -4,11 +4,13 @@ Cosmo CLI — command-line interface for the RAG study companion.
 
 Usage:
     python -m backend.cli ingest --dir docs/
+    python -m backend.cli ingest --path docs/handbook.pdf --top-level-only
     python -m backend.cli ask -q "How do I type a useState hook?"
     python -m backend.cli interactive
     python -m backend.cli quiz --input quizzes/w13.json
     python -m backend.cli quiz --input quizzes/w13.json --sections tf,mc --limit 10
     python -m backend.cli benchmark --input quizzes/w13.json --sections tf --limit 15
+    python -m backend.cli convert --path docs/effective-typescript.pdf -o converted/
     python -m backend.cli list
 """
 
@@ -53,6 +55,7 @@ def _parse_sections(raw: str | None) -> set[str] | None:
 
 def ingest_command(args) -> int:
     processor = _get_processor(args)
+    top_level_only = getattr(args, "top_level_only", False)
 
     if args.path:
             from pathlib import Path
@@ -71,9 +74,13 @@ def ingest_command(args) -> int:
             ext = p.suffix.lower()
             try:
                 if ext == ".pdf":
-                    processor.ingest_pdf(str(p), force=args.force)
+                    processor.ingest_pdf(
+                        str(p), force=args.force, top_level_only=top_level_only
+                    )
                 elif ext in (".md", ".markdown"):
-                    processor.ingest_markdown(str(p), force=args.force)
+                    processor.ingest_markdown(
+                        str(p), force=args.force, top_level_only=top_level_only
+                    )
                 else:
                     print(f"Error: Unsupported file type: {ext}", file=sys.stderr)
                     return 1
@@ -100,12 +107,16 @@ def ingest_command(args) -> int:
 
         for pdf in pdf_files:
             try:
-                processor.ingest_pdf(str(pdf), force=args.force)
+                processor.ingest_pdf(
+                    str(pdf), force=args.force, top_level_only=top_level_only
+                )
             except Exception as e:
                 print(f"Error processing {pdf.name}: {e}", file=sys.stderr)
         for md in md_files:
             try:
-                processor.ingest_markdown(str(md), force=args.force)
+                processor.ingest_markdown(
+                    str(md), force=args.force, top_level_only=top_level_only
+                )
             except Exception as e:
                 print(f"Error processing {md.name}: {e}", file=sys.stderr)
 
@@ -157,6 +168,54 @@ def list_command(args) -> int:
         print(f"  {source}")
         print(f"    Type: {info['type']}, Chunks: {info['chunks']}")
     print(f"{'=' * 60}\n")
+    return 0
+
+
+def convert_command(args) -> int:
+    """Convert PDF files to markdown and save to an output directory."""
+    from pathlib import Path
+
+    out_dir = Path(args.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    pdf_paths: list[Path] = []
+
+    p = Path(args.path)
+    if not p.exists():
+        print(f"Error: Not found: {args.path}", file=sys.stderr)
+        return 1
+
+    if p.is_dir():
+        pdf_paths = sorted(p.glob("**/*.pdf"))
+        if not pdf_paths:
+            print(f"No PDF files found in {args.path}", file=sys.stderr)
+            return 1
+    elif p.suffix.lower() == ".pdf":
+        pdf_paths = [p]
+    else:
+        print(f"Error: Not a PDF: {args.path}", file=sys.stderr)
+        return 1
+
+    # No Ollama connection needed — pdf_to_markdown is a static method
+    converted = 0
+    for pdf_path in pdf_paths:
+        print(f"Converting: {pdf_path.name}")
+        try:
+            md_content = DocumentProcessor.pdf_to_markdown(str(pdf_path))
+        except Exception as e:
+            print(f"  Error: {e}", file=sys.stderr)
+            continue
+
+        if not md_content.strip():
+            print(f"  No content extracted from {pdf_path.name}")
+            continue
+
+        out_path = out_dir / f"{pdf_path.stem}.md"
+        out_path.write_text(md_content, encoding="utf-8")
+        print(f"  Saved: {out_path}")
+        converted += 1
+
+    print(f"\nConverted {converted}/{len(pdf_paths)} files to {out_dir}")
     return 0
 
 
@@ -465,8 +524,13 @@ def main():
         epilog="""\
 Examples:
   python -m backend.cli ingest --path docs/react-handbook.pdf
+  python -m backend.cli ingest --path docs/effective-typescript.pdf --top-level-only
   python -m backend.cli ingest --dir docs/
   python -m backend.cli ask -q "How do I type a useState hook?"
+
+  # Convert PDF to markdown (no ingestion, no Ollama needed)
+  python -m backend.cli convert --path docs/effective-typescript.pdf -o converted/
+  python -m backend.cli convert --path docs/ -o converted/
 
   # Quiz with section filter and question limit
   python -m backend.cli quiz -i quizzes/w13.json --sections tf,mc --limit 10
@@ -500,12 +564,31 @@ Examples:
     ingest_p.add_argument("--path", help="Path to single file")
     ingest_p.add_argument("--dir", help="Directory to ingest")
     ingest_p.add_argument("--force", action="store_true", help="Force re-indexing")
+    ingest_p.add_argument(
+        "--top-level-only", action="store_true",
+        help="Only split on ## headings (keep ### and deeper in section body). "
+             "Useful for book-style documents like Effective TypeScript.",
+    )
 
     # ask
     ask_p = subparsers.add_parser("ask", help="Ask a question")
     ask_p.add_argument("--question", "-q", required=True, help="Question text")
     ask_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(CHAT_MODELS.keys()))
     ask_p.add_argument("--results", "-n", type=int, default=4)
+
+    # convert
+    conv_p = subparsers.add_parser(
+        "convert",
+        help="Convert PDF files to markdown (no ingestion, no Ollama needed)",
+    )
+    conv_p.add_argument(
+        "--path", required=True,
+        help="Path to a PDF file or directory of PDFs",
+    )
+    conv_p.add_argument(
+        "--output-dir", "-o", default="./converted",
+        help="Directory to save markdown files (default: ./converted)",
+    )
 
     # quiz
     quiz_p = subparsers.add_parser("quiz", help="Take a quiz (supports .md and .json)")
@@ -567,6 +650,7 @@ Examples:
         "interactive": interactive_command,
         "quiz": quiz_command,
         "benchmark": benchmark_command,
+        "convert": convert_command,
     }
     return commands[args.command](args)
 

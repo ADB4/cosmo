@@ -88,6 +88,8 @@ class MarkdownSection:
     heading_level: int    # e.g. 2
     body: str             # The text content under this heading
     breadcrumb: List[str] # e.g. ["React Basics", "Components", "Props and State"]
+    item_number: Optional[str] = None   # e.g. "23" if heading matches Item pattern
+    item_title: Optional[str] = None    # e.g. "Create Objects All at Once"
 
     @property
     def breadcrumb_path(self) -> str:
@@ -103,15 +105,30 @@ class ChunkWithMetadata:
     metadata: Dict[str, str]
 
 
-def parse_markdown_sections(content: str) -> List[MarkdownSection]:
+# Regex for "Item 23: Create Objects All at Once" pattern
+_ITEM_PATTERN = re.compile(r"^Item\s+(\d+):\s+(.+)$")
+
+
+def parse_markdown_sections(
+    content: str,
+    top_level_only: bool = False,
+) -> List[MarkdownSection]:
     """
     Parse markdown into sections split by headings, preserving hierarchy.
+
+    Args:
+        content: Raw markdown text.
+        top_level_only: If True, only split on level-1 and level-2 headings.
+            All deeper headings (###, ####, etc.) are kept as part of
+            the parent section's body. Useful for book-style documents
+            where each ## is a self-contained chapter or "Item".
 
     Handles:
     - ATX headings (# through ######)
     - Content before the first heading (assigned level 0, heading "Introduction")
     - Nested heading breadcrumbs (an h3 under an h2 under an h1 gets all three)
     - Headings inside fenced code blocks are skipped
+    - "Item N: Title" pattern extraction into metadata fields
     """
     lines = content.split("\n")
     heading_pattern = re.compile(r"^(#{1,6})\s+(.+)$")
@@ -133,11 +150,22 @@ def parse_markdown_sections(content: str) -> List[MarkdownSection]:
             text = match.group(2).strip()
             heading_positions.append((i, level, text))
 
+    # When top_level_only is True, only level-1 and level-2 headings
+    # become section split points. Deeper headings stay in the body text.
+    if top_level_only:
+        split_positions = [
+            (line_num, level, text)
+            for line_num, level, text in heading_positions
+            if level <= 2
+        ]
+    else:
+        split_positions = heading_positions
+
     # Second pass: extract sections with body text
     sections: List[MarkdownSection] = []
 
     # Handle content before first heading
-    first_heading_line = heading_positions[0][0] if heading_positions else len(lines)
+    first_heading_line = split_positions[0][0] if split_positions else len(lines)
     preamble = "\n".join(lines[:first_heading_line]).strip()
     if preamble:
         sections.append(MarkdownSection(
@@ -151,10 +179,10 @@ def parse_markdown_sections(content: str) -> List[MarkdownSection]:
     # Build breadcrumb stack: tracks the most recent heading at each level
     breadcrumb_stack: Dict[int, str] = {}
 
-    for idx, (line_num, level, text) in enumerate(heading_positions):
+    for idx, (line_num, level, text) in enumerate(split_positions):
         # Determine where this section's body ends
-        if idx + 1 < len(heading_positions):
-            next_line = heading_positions[idx + 1][0]
+        if idx + 1 < len(split_positions):
+            next_line = split_positions[idx + 1][0]
         else:
             next_line = len(lines)
 
@@ -172,12 +200,19 @@ def parse_markdown_sections(content: str) -> List[MarkdownSection]:
             for lvl in sorted(breadcrumb_stack.keys())
         ]
 
+        # Check for "Item N: Title" pattern
+        item_match = _ITEM_PATTERN.match(text)
+        item_number = item_match.group(1) if item_match else None
+        item_title = item_match.group(2).strip() if item_match else None
+
         sections.append(MarkdownSection(
             heading="#" * level + " " + text,
             heading_text=text,
             heading_level=level,
             body=body,
             breadcrumb=breadcrumb,
+            item_number=item_number,
+            item_title=item_title,
         ))
 
     return sections
@@ -259,30 +294,44 @@ def chunk_markdown_file(
     file_hash: str,
     max_size: int = CHUNK_SIZE,
     overlap: int = CHUNK_OVERLAP,
+    top_level_only: bool = False,
 ) -> List[ChunkWithMetadata]:
     """
     Full pipeline: parse markdown into sections, chunk each section,
     and attach rich metadata to every chunk.
+
+    Args:
+        top_level_only: Passed through to parse_markdown_sections.
+            When True, only splits on level-1/2 headings — useful for
+            book-style documents like Effective TypeScript.
     """
-    sections = parse_markdown_sections(content)
+    sections = parse_markdown_sections(content, top_level_only=top_level_only)
     results: List[ChunkWithMetadata] = []
 
     for section_idx, section in enumerate(sections):
         chunks = chunk_section(section, max_size=max_size, overlap=overlap)
 
         for chunk_in_section_idx, chunk_text in enumerate(chunks):
+            metadata = {
+                "source": filename,
+                "file_hash": file_hash,
+                "doc_type": "markdown",
+                "heading": section.heading_text,
+                "heading_level": str(section.heading_level),
+                "breadcrumb": section.breadcrumb_path,
+                "chunk_index_in_section": str(chunk_in_section_idx),
+                "section_index": str(section_idx),
+            }
+
+            # Add Item metadata when present
+            if section.item_number is not None:
+                metadata["item_number"] = section.item_number
+            if section.item_title is not None:
+                metadata["item_title"] = section.item_title
+
             results.append(ChunkWithMetadata(
                 text=chunk_text,
-                metadata={
-                    "source": filename,
-                    "file_hash": file_hash,
-                    "doc_type": "markdown",
-                    "heading": section.heading_text,
-                    "heading_level": str(section.heading_level),
-                    "breadcrumb": section.breadcrumb_path,
-                    "chunk_index_in_section": str(chunk_in_section_idx),
-                    "section_index": str(section_idx),
-                },
+                metadata=metadata,
             ))
 
     return results
@@ -403,13 +452,17 @@ class DocumentProcessor:
 
     # -- ingestion ----------------------------------------------------------
 
-    def ingest_pdf(self, pdf_path: str, force: bool = False) -> int:
+    def ingest_pdf(self, pdf_path: str, force: bool = False, top_level_only: bool = False) -> int:
         """
         Convert PDF to markdown via pymupdf4llm, then process with the
         heading-hierarchy-aware markdown chunker.
 
         This gives PDFs the same rich metadata (headings, breadcrumbs,
         section-aware overlap) that native markdown files get.
+
+        Args:
+            top_level_only: Only split on level-1/2 headings. Useful for
+                book-style PDFs like Effective TypeScript.
         """
         file_hash = self.get_file_hash(pdf_path)
 
@@ -445,6 +498,7 @@ class DocumentProcessor:
             file_hash=file_hash,
             max_size=CHUNK_SIZE,
             overlap=CHUNK_OVERLAP,
+            top_level_only=top_level_only,
         )
 
         # Override doc_type so stats/filtering can distinguish PDFs
@@ -488,13 +542,17 @@ class DocumentProcessor:
         print(f"Indexed {indexed} chunks from {filename}")
         return indexed
 
-    def ingest_markdown(self, md_path: str, force: bool = False) -> int:
+    def ingest_markdown(self, md_path: str, force: bool = False, top_level_only: bool = False) -> int:
         """
         Process markdown with heading-hierarchy-aware chunking.
 
         Splits on heading hierarchy, preserves heading text/level/breadcrumb
         path in metadata, and applies section-aware overlap that never bleeds
         across heading boundaries.
+
+        Args:
+            top_level_only: Only split on level-1/2 headings. Useful for
+                book-style markdown where each ## is a chapter or Item.
         """
         file_hash = self.get_file_hash(md_path)
 
@@ -517,6 +575,7 @@ class DocumentProcessor:
             file_hash=file_hash,
             max_size=CHUNK_SIZE,
             overlap=CHUNK_OVERLAP,
+            top_level_only=top_level_only,
         )
 
         if not chunks_with_meta:
@@ -738,6 +797,9 @@ class DocumentProcessor:
 
         yield sources
         return full_answer + sources
+
+    # Alias used by interactive CLI
+    ask_stream = ask_question
 
     # -- stats --------------------------------------------------------------
 
