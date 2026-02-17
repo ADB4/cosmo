@@ -1,0 +1,2089 @@
+---
+title: Mui Integrations
+source: mui.com/material-ui
+syllabus_weeks: [10]
+topics: [style library interoperability, CSS Modules, Emotion, styled-components, Tailwind CSS, Next.js, routing, CSS injection order]
+---
+
+
+
+# Interoperability
+
+# Style library interoperability
+
+While you can use the Emotion-based styling solution provided by Material UI, you can also use the one you already know, from plain CSS to styled-components.
+
+This guide aims to document the most popular alternatives,
+but you should find that the principles applied here can be adapted to other libraries.
+There are examples for the following styling solutions:
+
+- [Plain CSS](#plain-css)
+- [Global CSS](#global-css)
+- [Styled Components](#styled-components)
+- [CSS Modules](#css-modules)
+- [Emotion](#emotion)
+- [Tailwind CSS v3](#tailwind-css-v3)
+- [~~JSS~~ TSS](#jss-tss)
+
+## Plain CSS
+
+Nothing fancy, just plain CSS.
+
+
+[![Edit Button](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/plain-css-fdue7)
+
+```css title="PlainCssSlider.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+```
+
+```jsx title="PlainCssSlider.css"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import './PlainCssSlider.css';
+
+export default function PlainCssSlider() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider defaultValue={30} className="slider" />
+    </div>
+  );
+}
+```
+
+### CSS injection order ⚠️
+
+**Note:** Most CSS-in-JS solutions inject their styles at the bottom of the HTML `<head>`, which gives Material UI precedence over your custom styles. To remove the need for **!important**, you need to change the CSS injection order. Here's a demo of how it can be done in Material UI:
+
+```jsx
+import * as React from 'react';
+import { StyledEngineProvider } from '@mui/material/styles';
+
+export default function GlobalCssPriority() {
+  return (
+    <StyledEngineProvider injectFirst>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </StyledEngineProvider>
+  );
+}
+```
+
+**Note:** If you are using Emotion and have a custom cache in your app, that one will override the one coming from Material UI. In order for the injection order to still be correct, you need to add the prepend option. Here is an example:
+
+```jsx
+import * as React from 'react';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+
+const cache = createCache({
+  key: 'css',
+  prepend: true,
+});
+
+export default function PlainCssPriority() {
+  return (
+    <CacheProvider value={cache}>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </CacheProvider>
+  );
+}
+```
+
+**Note:** If you are using styled-components and have `StyleSheetManager` with a custom `target`, make sure that the target is the first element in the HTML `<head>`. If you are curious to see how it can be done, you can take a look on the [`StyledEngineProvider`](https://github.com/mui/material-ui/blob/-/packages/mui-styled-engine-sc/src/StyledEngineProvider/StyledEngineProvider.js) implementation in the `@mui/styled-engine-sc` package.
+
+### Deeper elements
+
+If you attempt to style the Slider,
+you will likely need to affect some of the Slider's child elements, for example the thumb.
+In Material UI, all child elements have an increased specificity of 2: `.parent .child {}`. When writing overrides, you need to do the same.
+
+The following examples override the slider's `thumb` style in addition to the custom styles on the slider itself.
+
+
+```css title="PlainCssSliderDeep1.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+
+.slider .MuiSlider-thumb {
+  border-radius: 1px;
+}
+```
+
+```jsx title="PlainCssSliderDeep1.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import './PlainCssSliderDeep1.css';
+
+export default function PlainCssSliderDeep1() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider defaultValue={30} className="slider" />
+    </div>
+  );
+}
+```
+
+The above demo relies on the [default `className` values](https://v6.mui.com/system/styles/advanced/), but you can provide your own class name with the `slotProps` API.
+
+```css title="PlainCssSliderDeep2.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+
+.slider .thumb {
+  border-radius: 1px;
+}
+```
+
+```jsx title="PlainCssSliderDeep2.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import './PlainCssSliderDeep2.css';
+
+export default function PlainCssSliderDeep2() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider
+        defaultValue={30}
+        className="slider"
+        slotProps={{ thumb: { className: 'thumb' } }}
+      />
+    </div>
+  );
+}
+```
+
+## Global CSS
+
+Explicitly providing the class names to the component is too much effort?
+[You can target the class names generated by Material UI](https://v6.mui.com/system/styles/advanced/).
+
+[![Edit Button](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/global-classnames-dho8k)
+
+```css title="GlobalCssSlider.css"
+.MuiSlider-root {
+  color: #20b2aa;
+}
+
+.MuiSlider-root:hover {
+  color: #2e8b57;
+}
+```
+
+```jsx title="GlobalCssSlider.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import './GlobalCssSlider.css';
+
+export default function GlobalCssSlider() {
+  return <Slider defaultValue={30} />;
+}
+```
+
+### CSS injection order ⚠️
+
+**Note:** Most CSS-in-JS solutions inject their styles at the bottom of the HTML `<head>`, which gives Material UI precedence over your custom styles. To remove the need for **!important**, you need to change the CSS injection order. Here's a demo of how it can be done in Material UI:
+
+```jsx
+import * as React from 'react';
+import { StyledEngineProvider } from '@mui/material/styles';
+
+export default function GlobalCssPriority() {
+  return (
+    <StyledEngineProvider injectFirst>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </StyledEngineProvider>
+  );
+}
+```
+
+**Note:** If you are using Emotion and have a custom cache in your app, that one will override the one coming from Material UI. In order for the injection order to still be correct, you need to add the prepend option. Here is an example:
+
+```jsx
+import * as React from 'react';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+
+const cache = createCache({
+  key: 'css',
+  prepend: true,
+});
+
+export default function GlobalCssPriority() {
+  return (
+    <CacheProvider value={cache}>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </CacheProvider>
+  );
+}
+```
+
+**Note:** If you are using styled-components and have `StyleSheetManager` with a custom `target`, make sure that the target is the first element in the HTML `<head>`. If you are curious to see how it can be done, you can take a look on the [`StyledEngineProvider`](https://github.com/mui/material-ui/blob/-/packages/mui-styled-engine-sc/src/StyledEngineProvider/StyledEngineProvider.js) implementation in the `@mui/styled-engine-sc` package.
+
+### Deeper elements
+
+If you attempt to style the Slider,
+you will likely need to affect some of the Slider's child elements, for example the thumb.
+In Material UI, all child elements have an increased specificity of 2: `.parent .child {}`. When writing overrides, you need to do the same.
+
+The following example overrides the slider's `thumb` style in addition to the custom styles on the slider itself.
+
+
+```css title="GlobalCssSliderDeep.css"
+.MuiSlider-root {
+  color: #20b2aa;
+}
+
+.MuiSlider-root:hover {
+  color: #2e8b57;
+}
+
+.MuiSlider-root .MuiSlider-thumb {
+  border-radius: 1px;
+}
+```
+
+```jsx title="GlobalCssSliderDeep.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import './GlobalCssSliderDeep.css';
+
+export default function GlobalCssSliderDeep() {
+  return <Slider defaultValue={30} />;
+}
+```
+
+## Styled Components
+
+![stars](https://img.shields.io/github/stars/styled-components/styled-components.svg?style=social&label=Star)
+![npm](https://img.shields.io/npm/dm/styled-components.svg)
+
+### Change the default styled engine
+
+By default, Material UI components come with Emotion as their style engine.
+If, however, you would like to use styled-components, you can configure your app by following the [styled-components guide](/material-ui/integrations/styled-components/).
+
+Following this approach reduces the bundle size, and removes the need to configure the CSS injection order.
+
+After the style engine is configured properly, you can use the [`styled()`](/system/styled/) utility
+from `@mui/material/styles` and have direct access to the theme.
+
+
+[![Edit Button](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/styled-components-interoperability-w9z9d)
+
+```jsx
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+import { styled } from '@mui/material/styles';
+
+const CustomizedSlider = styled(Slider)`
+  color: #20b2aa;
+
+  :hover {
+    color: #2e8b57;
+  }
+`;
+
+export default function StyledComponents() {
+  return <CustomizedSlider defaultValue={30} />;
+}
+```
+
+### Deeper elements
+
+If you attempt to style the Slider,
+you will likely need to affect some of the Slider's child elements, for example the thumb.
+In Material UI, all child elements have an increased specificity of 2: `.parent .child {}`. When writing overrides, you need to do the same.
+
+The following examples override the slider's `thumb` style in addition to the custom styles on the slider itself.
+
+
+The above demo relies on the [default `className` values](https://v6.mui.com/system/styles/advanced/), but you can provide your own class name with the `slotProps` API.
+
+```jsx
+import * as React from 'react';
+import { styled } from '@mui/material/styles';
+import Slider from '@mui/material/Slider';
+
+const CustomizedSlider = styled((props) => (
+  <Slider slotProps={{ thumb: { className: 'thumb' } }} {...props} />
+))`
+  color: #20b2aa;
+
+  :hover {
+    color: #2e8b57;
+  }
+
+  & .thumb {
+    border-radius: 1px;
+  }
+`;
+
+export default function StyledComponentsDeep2() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <CustomizedSlider defaultValue={30} />
+    </div>
+  );
+}
+```
+
+### Theme
+
+By using the Material UI theme provider, the theme will be available in the theme context
+of the styled engine too (Emotion or styled-components, depending on your configuration).
+
+> **Warning:**
+>
+> If you are already using a custom theme with styled-components or Emotion,
+> it might not be compatible with Material UI's theme specification. If it's not
+> compatible, you need to render Material UI's ThemeProvider first. This will
+> ensure the theme structures are isolated. This is ideal for the progressive adoption
+> of Material UI's components in the codebase.
+
+
+You are encouraged to share the same theme object between Material UI and the rest of your project.
+
+```jsx
+const CustomizedSlider = styled(Slider)(
+  ({ theme }) => `
+  color: ${theme.palette.primary.main};
+
+  :hover {
+    color: ${darken(theme.palette.primary.main, 0.2)};
+  }
+`,
+);
+```
+
+
+### Portals
+
+The [Portal](/material-ui/react-portal/) component provides a first-class way to render children into a DOM node that exists outside the DOM hierarchy of the parent component.
+Because of the way styled-components scopes its CSS, you may run into issues where styling is not applied.
+
+For example, if you attempt to style the `tooltip` generated by the [Tooltip](/material-ui/react-tooltip/) component,
+you will need to pass along the `className` property to the element being rendered outside of it's DOM hierarchy.
+The following example shows a workaround:
+
+```jsx
+import * as React from 'react';
+import { styled } from '@mui/material/styles';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
+
+const StyledTooltip = styled(({ className, ...props }) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))`
+  & .MuiTooltip-tooltip {
+    background: navy;
+  }
+`;
+```
+
+
+## CSS Modules
+
+![stars](https://img.shields.io/github/stars/css-modules/css-modules.svg?style=social&label=Star)
+
+It's hard to know the market share of [this styling solution](https://github.com/css-modules/css-modules) as it's dependent on the bundling solution people are using.
+
+
+[![Edit Button](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/p/sandbox/css-modules-nuyg8)
+
+```css title="CssModulesSlider.module.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+```
+
+```jsx title="CssModulesSlider.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+// webpack, Parcel or else will inject the CSS into the page
+import styles from './CssModulesSlider.module.css';
+
+export default function CssModulesSlider() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider defaultValue={30} className={styles.slider} />
+    </div>
+  );
+}
+```
+
+### CSS injection order ⚠️
+
+**Note:** Most CSS-in-JS solutions inject their styles at the bottom of the HTML `<head>`, which gives Material UI precedence over your custom styles. To remove the need for **!important**, you need to change the CSS injection order. Here's a demo of how it can be done in Material UI:
+
+```jsx
+import * as React from 'react';
+import { StyledEngineProvider } from '@mui/material/styles';
+
+export default function GlobalCssPriority() {
+  return (
+    <StyledEngineProvider injectFirst>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </StyledEngineProvider>
+  );
+}
+```
+
+**Note:** If you are using Emotion and have a custom cache in your app, that one will override the one coming from Material UI. To ensure the correct injection order, use the `prepend` option:
+
+```jsx
+import * as React from 'react';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+
+const cache = createCache({
+  key: 'css',
+  prepend: true,
+});
+
+export default function CssModulesPriority() {
+  return (
+    <CacheProvider value={cache}>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </CacheProvider>
+  );
+}
+```
+
+**Note:** If you are using styled-components with `StyleSheetManager` and a custom `target`, ensure that the target is the first element in the HTML `<head>`. See the [`StyledEngineProvider`](https://github.com/mui/material-ui/blob/-/packages/mui-styled-engine-sc/src/StyledEngineProvider/StyledEngineProvider.js) implementation in the `@mui/styled-engine-sc` package for an example.
+
+### Deeper elements
+
+When styling a Slider, you may need to target child elements like the thumb. Material UI components often use increased specificity for child elements (for example, `.parent .child`). CSS Modules scopes class names, so the generated class names will not match Material UI's.
+
+To apply styles to Material UI classes from CSS Modules, use the `:global` selector.
+
+#### Using `:global`
+
+```css title="CssModulesSliderDeep1.module.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+
+.slider :global(.MuiSlider-thumb) {
+  border-radius: 1px;
+}
+```
+
+```jsx title="CssModulesSliderDeep1.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+// webpack, Parcel or else will inject the CSS into the page
+import styles from './CssModulesSliderDeep1.module.css';
+
+export default function CssModulesSliderDeep1() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider defaultValue={30} className={styles.slider} />
+    </div>
+  );
+}
+```
+
+#### Using `slotProps`
+
+```css title="CssModulesSliderDeep2.module.css"
+.slider {
+  color: #20b2aa;
+}
+
+.slider:hover {
+  color: #2e8b57;
+}
+
+.slider .thumb {
+  border-radius: 1px;
+}
+```
+
+```jsx title="CssModulesSliderDeep2.js"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+// webpack, Parcel or else will inject the CSS into the page
+import styles from './CssModulesSliderDeep2.module.css';
+
+export default function CssModulesSliderDeep2() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider
+        defaultValue={30}
+        className={styles.slider}
+        slotProps={{ thumb: { className: styles.thumb } }}
+      />
+    </div>
+  );
+}
+```
+
+### Targeting Material UI state classes with CSS Modules
+
+Material UI uses global class names to indicate component states (for example, `.Mui-selected`, `.Mui-disabled`). Since CSS Modules scope styles locally, targeting these global state classes requires `:global`.
+
+Here's how to apply styles conditionally, based on Material UI state classes:
+
+```css title="MyList.module.css"
+.myListItem {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+/* Combine global state class with a locally scoped class */
+:global(.Mui-selected).myListItem {
+  background-color: #1976d2;
+  color: white;
+}
+```
+
+```jsx title="CssModulesSliderCustomPseudoClasses.js"
+import * as React from 'react';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import styles from './MyList.module.css';
+
+export default function MyList() {
+  return (
+    <List>
+      <ListItem className={styles.myListItem} selected>
+        <ListItemText primary="Selected item" />
+      </ListItem>
+      <ListItem className={styles.myListItem}>
+        <ListItemText primary="Regular item" />
+      </ListItem>
+    </List>
+  );
+}
+```
+
+This technique allows you to maintain modular styles while responding to dynamic states set by Material UI's global class names.
+
+## Emotion
+
+![stars](https://img.shields.io/github/stars/emotion-js/emotion.svg?style=social&label=Star)
+![npm](https://img.shields.io/npm/dm/@emotion/react.svg)
+
+### The `css` prop
+
+Emotion's `css()` method works seamlessly with Material UI.
+
+
+### Theme
+
+It works exactly like styled components. You can [use the same guide](/material-ui/integrations/interoperability/#styled-components).
+
+### The `styled()` API
+
+It works exactly like styled components. You can [use the same guide](/material-ui/integrations/interoperability/#styled-components).
+
+## Tailwind CSS v3
+
+![stars](https://img.shields.io/github/stars/tailwindlabs/tailwindcss.svg?style=social&label=Star)
+![npm](https://img.shields.io/npm/dm/tailwindcss)
+
+> **Info:**
+>
+> For Tailwind CSS v4, please refer to the [v4 integration guide](/material-ui/integrations/tailwindcss/tailwindcss-v4/).
+
+
+### Setup
+
+<!-- #target-branch-reference -->
+
+To use Tailwind CSS with Material UI components, you can start by cloning the [example project](https://github.com/mui/material-ui/tree/master/examples/material-ui-vite-tailwind-ts) built with Vite and TypeScript.
+If you use a different framework, or already have set up your project, follow these steps:
+
+1. Add Tailwind CSS to your project, following the instructions in https://v3.tailwindcss.com/docs/installation/framework-guides.
+2. Remove [Tailwind CSS's preflight](https://v3.tailwindcss.com/docs/preflight) style so it can use the Material UI's preflight instead ([CssBaseline](/material-ui/react-css-baseline/)).
+
+```diff title="tailwind.config.js"
+ module.exports = {
++  corePlugins: {
++    preflight: false,
++  },
+ };
+```
+
+3. Add the `important` option, using the id of your app wrapper.
+   - For Next.js projects, use `#__next`. **Note for Next.js 13+ Users (App Router)**: You must now manually add `id="__next"` to your root element (typically `<body>`), as Next.js no longer adds it automatically:
+
+   ```tsx
+   <body id="__next">{/* Your app content */}</body>
+   ```
+
+   - For Vite/SPA projects, use `#root` (default in most templates)
+
+```diff title="tailwind.config.js"
+ module.exports = {
+   content: [
+     "./src/**/*.{js,jsx,ts,tsx}",
+   ],
++  important: '#__next', // or '#root'
+   theme: {
+     extend: {},
+   },
+   plugins: [],
+ }
+
+```
+
+Most of the CSS used by Material UI has a specificity of 1, hence this `important` property is unnecessary.
+However, in a few edge cases, Material UI uses nested CSS selectors that win over Tailwind CSS.
+Use this step to help ensure that the [deeper elements](#deeper-elements-5) can always be customized using Tailwind's utility classes.
+More details on this option can be found here https://v3.tailwindcss.com/docs/configuration#selector-strategy.
+
+4. Fix the CSS injection order. Most CSS-in-JS solutions inject their styles at the bottom of the HTML `<head>`, which gives Material UI precedence over Tailwind CSS. To reduce the need for the `important` property, you need to change the CSS injection order. Here's a demo of how it can be done in Material UI:
+
+```jsx
+import * as React from 'react';
+import { StyledEngineProvider } from '@mui/material/styles';
+
+export default function GlobalCssPriority() {
+  return (
+    <StyledEngineProvider injectFirst>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </StyledEngineProvider>
+  );
+}
+```
+
+**Note:** If you are using Emotion and have a custom cache in your app, it will override the one coming from Material UI. In order for the injection order to still be correct, you need to add the prepend option. Here is an example:
+
+```jsx
+import * as React from 'react';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+
+const cache = createCache({
+  key: 'css',
+  prepend: true,
+});
+
+export default function PlainCssPriority() {
+  return (
+    <CacheProvider value={cache}>
+      {/* Your component tree. Now you can override Material UI's styles. */}
+    </CacheProvider>
+  );
+}
+```
+
+**Note:** If you are using styled-components and have `StyleSheetManager` with a custom `target`, make sure that the target is the first element in the HTML `<head>`. If you are curious to see how it can be done, you can take a look at the [`StyledEngineProvider`](https://github.com/mui/material-ui/blob/-/packages/mui-styled-engine-sc/src/StyledEngineProvider/StyledEngineProvider.js) implementation in the `@mui/styled-engine-sc` package.
+
+5. Change the target container for `Portal`-related elements so that they are injected under the main app wrapper that was used in step 3 for setting up the `important` option in the Tailwind config.
+
+```jsx
+// For Next.js:
+const rootElement = document.getElementById("__next");
+// For Vite/SPA:
+// const rootElement = document.getElementById("root");
+const root = createRoot(rootElement);
+
+const theme = createTheme({
+  components: {
+    MuiPopover: {
+      defaultProps: {
+        container: rootElement,
+      },
+    },
+    MuiPopper: {
+      defaultProps: {
+        container: rootElement,
+      },
+    },
+    MuiDialog: {
+      defaultProps: {
+        container: rootElement,
+      },
+    },
+    MuiModal: {
+      defaultProps: {
+        container: rootElement,
+      },
+    },
+  },
+});
+
+root.render(
+  <StyledEngineProvider injectFirst>
+    <ThemeProvider theme={theme}>
+      <App />
+    </ThemeProvider>
+  </StyledEngineProvider>;
+);
+```
+
+### Troubleshooting
+
+If styles aren't applying correctly:
+
+1. Verify your root ID matches the `important` selector in Tailwind config
+
+| Framework | Root Element ID | `important` Selector |
+| :-------: | :-------------: | :------------------: |
+|  Next.js  |  `id="__next"`  |      `#__next`       |
+| Vite/SPA  |   `id="root"`   |       `#root`        |
+
+2. Check that `preflight: false` is set
+3. Ensure `StyledEngineProvider` with `injectFirst` is properly configured
+
+### Usage
+
+Now it's all set up and you can start using Tailwind CSS on the Material UI components!
+
+
+[![Edit on StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/edit/github-ndkshy?file=pages%2Findex.tsx)
+
+```jsx title="index.tsx"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+
+export default function App() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider defaultValue={30} className="text-teal-600" />
+    </div>
+  );
+}
+```
+
+### Deeper elements
+
+If you attempt to style the Slider, for example, you'll likely want to customize its child elements.
+
+This example showcases how to override the Slider's `thumb` style.
+
+
+```jsx title="SliderThumbOverrides.tsx"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+
+export default function SliderThumbOverrides() {
+  return (
+    <div>
+      <Slider defaultValue={30} />
+      <Slider
+        defaultValue={30}
+        className="text-teal-600"
+        slotProps={{ thumb: { className: 'rounded-sm' } }}
+      />
+    </div>
+  );
+}
+```
+
+### Styling pseudo states
+
+If you want to style a component's pseudo-state, you can use the appropriate key in the `classes` prop.
+Here is an example of how you can style the Slider's active state:
+
+```jsx title="SliderPseudoStateOverrides.tsx"
+import * as React from 'react';
+import Slider from '@mui/material/Slider';
+
+export default function SliderThumbOverrides() {
+  return <Slider defaultValue={30} classes={{ active: 'shadow-none' }} />;
+}
+```
+
+## ~~JSS~~ TSS
+
+[JSS](https://cssinjs.org/) itself is no longer supported in Material UI, however,
+[TSS](https://docs.tss-react.dev) integrates well with Material UI and provide a better
+TypeScript support than JSS.
+
+> **Info:**
+>
+> If you are updating from `@material-ui/core` (v4) to `@mui/material` (v5), check out the [tss-react section](/material-ui/migration/migrating-from-jss/#2-use-tss-react) of the Migration guide.
+
+
+```tsx
+import { render } from 'react-dom';
+import { CacheProvider } from '@emotion/react';
+import createCache from '@emotion/cache';
+import { ThemeProvider } from '@mui/material/styles';
+
+export const muiCache = createCache({
+  key: 'mui',
+  prepend: true,
+});
+
+//NOTE: Don't use <StyledEngineProvider injectFirst/>
+render(
+  <CacheProvider value={muiCache}>
+    <ThemeProvider theme={myTheme}>
+      <Root />
+    </ThemeProvider>
+  </CacheProvider>,
+  document.getElementById('root'),
+);
+```
+
+Now you can simply
+If you want to take controls over what the `theme` object should be,
+```ts
+import { useTheme } from '@mui/material/styles';
+//WARNING: tss-react require TypeScript v4.4 or newer. If you can't update use:
+//import { createMakeAndWithStyles } from "tss-react/compat";
+import { createMakeAndWithStyles } from 'tss-react';
+
+Then, the library is used like this:
+
+```tsx
+export function MyComponent(props: Props) {
+  const { className } = props;
+
+  const [color, setColor] = useState<'red' | 'blue'>('red');
+
+  const { classes, cx } = useStyles({ color });
+
+  //Thanks to cx, className will take priority over classes.root
+  return <span className={cx(classes.root, className)}>hello world</span>;
+}
+
+For info on how to setup SSR or anything else, please refer to [the TSS documentation](https://github.com/garronej/tss-react).
+
+> **Info:**
+>
+> There is [an ESLint plugin](https://docs.tss-react.dev/detecting-unused-classes) for detecting unused classes.
+
+
+> **Warning:**
+>
+> **Keep `@emotion/styled` as a dependency of your project**. Even if you never use it explicitly,
+> it's a peer dependency of `@mui/material`.
+
+
+
+# Nextjs
+
+# Next.js integration
+
+Learn how to use Material UI with Next.js.
+
+## App Router
+
+This section walks through the Material UI integration with the Next.js [App Router](https://nextjs.org/docs/app), an evolution of the [Pages Router](#pages-router), and, currently, the recommended way of building new Next.js applications starting from version 13.
+
+### Installing the dependencies
+
+Start by ensuring that you already have `@mui/material` and `next` installed.
+Then, run one of the following commands to install the dependencies:
+
+<codeblock storageKey="package-manager">
+
+```bash npm
+npm install @mui/material-nextjs @emotion/cache
+```
+
+```bash pnpm
+pnpm add @mui/material-nextjs @emotion/cache
+```
+
+```bash yarn
+yarn add @mui/material-nextjs @emotion/cache
+```
+
+</codeblock>
+
+### Configuration
+
+Inside `app/layout.tsx`, import the `AppRouterCacheProvider` and wrap all elements under the `<body>` with it:
+
+```diff title="app/layout.tsx"
++import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+ // or `v1X-appRouter` if you are using Next.js v1X
+
+ export default function RootLayout(props) {
+   return (
+     <html lang="en">
+       <body>
++        <AppRouterCacheProvider>
+           {props.children}
++        </AppRouterCacheProvider>
+       </body>
+     </html>
+   );
+ }
+```
+
+> **Info:**
+>
+> The `AppRouterCacheProvider` component is responsible for collecting the CSS generated by MUI System on the server, as Next.js is streaming chunks of the .html page to the client.
+> 
+> While it's not required to use the `AppRouterCacheProvider` component, it's recommended to use it to ensure that the styles are appended to the `<head>` and not rendering in the `<body>`.
+> See https://github.com/mui/material-ui/issues/26561#issuecomment-855286153 for why it's better.
+
+
+#### Custom cache (optional)
+
+Use the `options` prop to override the default [cache options](https://emotion.sh/docs/@emotion/cache#options)—for example, the code snippet below shows how to change the CSS key to `css` (the default is `mui`):
+
+```diff
+  <AppRouterCacheProvider
++   options={{ key: 'css' }}
+  >
+    {children}
+  </AppRouterCacheProvider>
+```
+
+### Font optimization
+
+To integrate [Next.js font optimization](https://nextjs.org/docs/app/getting-started/fonts) with Material UI, create a new file with the `'use client';` directive.
+Then create a theme using `var(--font-roboto)` as a value for the `typography.fontFamily` field.
+
+```js title="src/theme.ts"
+'use client';
+import { createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+  typography: {
+    fontFamily: 'var(--font-roboto)',
+  },
+});
+
+export default theme;
+```
+
+Finally, in `src/app/layout.tsx`, pass the theme to the `ThemeProvider`:
+
+```diff title="app/layout.tsx"
+ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
++import { Roboto } from 'next/font/google';
++import { ThemeProvider } from '@mui/material/styles';
++import theme from '../theme';
+
++const roboto = Roboto({
++  weight: ['300', '400', '500', '700'],
++  subsets: ['latin'],
++  display: 'swap',
++  variable: '--font-roboto',
++});
+
+ export default function RootLayout(props) {
+   const { children } = props;
+   return (
++    <html lang="en" className={roboto.variable}>
+       <body>
+          <AppRouterCacheProvider>
++           <ThemeProvider theme={theme}>
+              {children}
++           </ThemeProvider>
+          </AppRouterCacheProvider>
+       </body>
+     </html>
+   );
+ }
+```
+
+To learn more about theming, check out the [theming guide](/material-ui/customization/theming/) page.
+
+### CSS theme variables
+
+To use [CSS theme variables](/material-ui/customization/css-theme-variables/overview/), enable the `cssVariables` flag:
+
+```diff title="src/theme.ts"
+ 'use client';
+ const theme = createTheme({
++  cssVariables: true,
+ });
+```
+
+Learn more about [the advantages of CSS theme variables](/material-ui/customization/css-theme-variables/overview/#advantages) and how to [prevent SSR flickering](/material-ui/customization/css-theme-variables/configuration/#preventing-ssr-flickering).
+
+### Using other styling solutions
+
+If you are using a styling solution other than Emotion to customize Material UI components, set `enableCssLayer: true` in the `options` prop:
+
+```js
+<AppRouterCacheProvider options={{ enableCssLayer: true }}>
+```
+
+This option ensures that the styles generated by Material UI will be wrapped in a CSS `@layer mui` rule, which is overridden by anonymous layer styles when using Material UI with CSS Modules, Tailwind CSS, or even plain CSS without using `@layer`.
+
+To learn more about it, see [the MDN CSS layer documentation](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@layer).
+
+### Next.js v16 Client Component restriction
+
+If you encounter `Functions cannot be passed directly to Client Components` error from passing Next.js Link to Material UI `component` prop, you need to create a wrapper component with `use client` directive like the following:
+
+```tsx title="src/components/Link.tsx"
+'use client';
+import Link, { LinkProps } from 'next/link';
+
+export default Link;
+```
+
+Then, replace the Next.js Link with the wrapper component:
+
+```diff title="src/app/page.tsx"
+- import Link from 'next/link';
++ import Link from '../components/Link';
+  ...
+  <Button component={Link} href="/about" variant="contained">
+    Go to About Page
+  </Button>
+```
+
+## Pages Router
+
+This section walks through the Material UI integration with the Next.js [Pages Router](https://nextjs.org/docs/pages/building-your-application), for both [Server-side Rendering](https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering) (SSR) and [Static Site Generation](https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation) (SSG).
+
+### Installing the dependencies
+
+Start by ensuring that you already have `@mui/material` and `next` installed.
+Then, run one of the following commands to install the dependencies:
+
+<codeblock storageKey="package-manager">
+
+```bash npm
+npm install @mui/material-nextjs @emotion/cache @emotion/server
+```
+
+```bash pnpm
+pnpm add @mui/material-nextjs @emotion/cache @emotion/server
+```
+
+```bash yarn
+yarn add @mui/material-nextjs @emotion/cache @emotion/server
+```
+
+</codeblock>
+
+### Configuration
+
+Inside the `pages/_document.tsx` file:
+
+- Import `documentGetInitialProps` and use it as the Document's `getInitialProps`.
+- Import `DocumentHeadTags` and render it inside the `<Head>`.
+
+```diff title="pages/_document.tsx"
++import {
++  DocumentHeadTags,
++  documentGetInitialProps,
++} from '@mui/material-nextjs/v15-pagesRouter';
+ // or `v1X-pagesRouter` if you are using Next.js v1X
+
+ export default function MyDocument(props) {
+   return (
+     <Html lang="en">
+       <Head>
++        <DocumentHeadTags {...props} />
+         ...
+       </Head>
+       <body>
+         <Main />
+         <NextScript />
+       </body>
+     </Html>
+   );
+ }
+
++MyDocument.getInitialProps = async (ctx) => {
++  const finalProps = await documentGetInitialProps(ctx);
++  return finalProps;
++};
+```
+
+Then, inside `pages/_app.tsx`, import the `AppCacheProvider` component and render it as the root element:
+
+```diff title="pages/_app.tsx"
++import { AppCacheProvider } from '@mui/material-nextjs/v15-pagesRouter';
+ // Or `v1X-pages` if you are using Next.js v1X
+
+ export default function MyApp(props) {
+   return (
++    <AppCacheProvider {...props}>
+       <Head>
+         ...
+       </Head>
+       ...
++    </AppCacheProvider>
+   );
+ }
+```
+
+> **Info:**
+>
+> The `AppCacheProvider` component is responsible for collecting the CSS generated by MUI System on the server, as Next.js is rendering the .html page to the client.
+> 
+> While it's not required to use the `AppCacheProvider` component, it's recommended to use it to ensure that the styles are appended to the `<head>` and not rendering in the `<body>`.
+> See https://github.com/mui/material-ui/issues/26561#issuecomment-855286153 for why it's better.
+
+
+#### Custom cache (optional)
+
+To use a custom [Emotion cache](https://emotion.sh/docs/@emotion/cache), pass it to the `emotionCache` property in `_document.tsx`:
+
+```diff title="pages/_document.tsx"
+ ...
+
+ MyDocument.getInitialProps = async (ctx) => {
+   const finalProps = await documentGetInitialProps(ctx, {
++    emotionCache: createCustomCache(),
+   });
+   return finalProps;
+ };
+```
+
+#### Cascade layers (optional)
+
+To enable [cascade layers](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Cascade_layers) (`@layer`), create a new cache with `enableCssLayer: true` and pass it to the `emotionCache` property in both `_document.tsx` and `_app.tsx`:
+
+```diff title="pages/_document.tsx"
++import { createEmotionCache } from '@mui/material-nextjs/v15-pagesRouter';
+ ...
+
+ MyDocument.getInitialProps = async (ctx) => {
+   const finalProps = await documentGetInitialProps(ctx, {
++    emotionCache: createEmotionCache({ enableCssLayer: true }),
+   });
+   return finalProps;
+ };
+```
+
+```diff title="pages/_app.tsx"
++import { createEmotionCache } from '@mui/material-nextjs/v15-pagesRouter';
+  ...
+
+const clientCache = createEmotionCache({ enableCssLayer: true });
+
++ export default function MyApp({ emotionCache = clientCache }) {
+    return (
++     <AppCacheProvider emotionCache={emotionCache}>
+        <Head>
+          ...
+        </Head>
+        ...
+      </AppCacheProvider>
+    );
+  }
+```
+
+#### App enhancement (optional)
+
+Pass an array to the `plugins` property to enhance the app with additional features, like server-side-rendered styles if you're using JSS and styled-components.
+
+Each plugin must have the following properties:
+
+- `enhanceApp`: a higher-order component that receives the `App` component and returns a new app component.
+- `resolveProps`: a function that receives the initial props and returns a new props object.
+
+When run, `enhanceApp` from each plugin is called first, from top to bottom, and then the process is repeated for `resolveProps`.
+
+```js
+import { ServerStyleSheet } from 'styled-components';
+
+MyDocument.getInitialProps = async (ctx) => {
+  const jssSheets = new JSSServerStyleSheets();
+  const styledComponentsSheet = new ServerStyleSheet();
+
+  try {
+    const finalProps = await documentGetInitialProps(ctx, {
+      emotionCache: createEmotionCache(),
+      plugins: [
+        {
+          // styled-components
+          enhanceApp: (App) => (props) =>
+            styledComponentsSheet.collectStyles(<App {...props} />),
+          resolveProps: async (initialProps) => ({
+            ...initialProps,
+            styles: [
+              styledComponentsSheet.getStyleElement(),
+              ...initialProps.styles,
+            ],
+          }),
+        },
+        {
+          // JSS
+          enhanceApp: (App) => (props) => jssSheets.collect(<App {...props} />),
+          resolveProps: async (initialProps) => {
+            const css = jssSheets.toString();
+            return {
+              ...initialProps,
+              styles: [
+                ...initialProps.styles,
+                <style
+                  id="jss-server-side"
+                  key="jss-server-side"
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: css }}
+                />,
+                <style id="insertion-point-jss" key="insertion-point-jss" />,
+              ],
+            };
+          },
+        },
+      ],
+    });
+    return finalProps;
+  } finally {
+    styledComponentsSheet.seal();
+  }
+};
+```
+
+### TypeScript
+
+If you are using TypeScript, add `DocumentHeadTagsProps` to the Document's props interface:
+
+```diff
++import type { DocumentHeadTagsProps } from '@mui/material-nextjs/v15-pagesRouter';
+ // or `v1X-pagesRouter` if you are using Next.js v1X
+
++export default function MyDocument(props: DocumentProps & DocumentHeadTagsProps) {
+   ...
+ }
+```
+
+### Font optimization
+
+To integrate [Next.js font optimization](https://nextjs.org/docs/pages/getting-started/fonts) with Material UI, open `pages/_app.tsx` and create a theme using `var(--font-roboto)` as a value for the `typography.fontFamily` field.
+
+```diff title="pages/_app.tsx"
+ import * as React from 'react';
+ import Head from 'next/head';
+ import { AppProps } from 'next/app';
+ import { AppCacheProvider } from '@mui/material-nextjs/v15-pagesRouter';
++import { ThemeProvider, createTheme } from '@mui/material/styles';
++import { Roboto } from 'next/font/google';
+
++const roboto = Roboto({
++  weight: ['300', '400', '500', '700'],
++  subsets: ['latin'],
++  display: 'swap',
++  variable: '--font-roboto',
++});
+
++const theme = createTheme({
++  typography: {
++    fontFamily: 'var(--font-roboto)',
++  },
++});
+
+ export default function MyApp(props: AppProps) {
+  const { Component, pageProps } = props;
+  return (
+    <AppCacheProvider {...props}>
+      <Head>...</Head>
++     <ThemeProvider theme={theme}>
++       <main className={roboto.variable}>
+          <Component {...pageProps} />
++       </main>
++     </ThemeProvider>
+    </AppCacheProvider>
+  );
+ }
+```
+
+To learn more about theming, check out the [Theming guide](/material-ui/customization/theming/).
+
+### CSS theme variables
+
+To use [CSS theme variables](/material-ui/customization/css-theme-variables/overview/), enable the `cssVariables` flag:
+
+```diff title="src/theme.ts"
+ 'use client';
+ const theme = createTheme({
++  cssVariables: true,
+ });
+```
+
+Learn more about [the advantages of CSS theme variables](/material-ui/customization/css-theme-variables/overview/#advantages) and how to [prevent SSR flickering](/material-ui/customization/css-theme-variables/configuration/#preventing-ssr-flickering).
+
+
+# Styled Components
+
+# Using styled-components
+
+Learn how to use styled-components instead of Emotion with Material UI.
+
+> **Error:**
+>
+> As of late 2021, [styled-components](https://github.com/styled-components/styled-components) is **not compatible** with server-rendered Material UI projects.
+> This is because `babel-plugin-styled-components` isn't able to work with the `styled()` utility inside `@mui` packages.
+> See [this GitHub issue](https://github.com/mui/material-ui/issues/29742) for more details.
+> 
+> We **strongly recommend** using Emotion for SSR projects.
+
+
+By default, Material UI uses [Emotion](https://github.com/emotion-js/emotion) to generate CSS styles.
+All components rely on the `styled()` API to inject CSS into the page.
+This API is supported by multiple popular styling libraries, which makes it possible to switch between them in Material UI.
+
+We provide two different packages to wrap your chosen styling solution for compatibility with Material UI:
+
+- `@mui/styled-engine`: a thin wrapper around Emotion's [`styled()`](https://emotion.sh/docs/styled) API that includes required utilities like the `<GlobalStyles />` component, the `css` and `keyframe` helpers, and more. This is the default, and you do not need to install it.
+- `@mui/styled-engine-sc`: a similar wrapper, but specifically tailored for styled-components. You must install and implement this package to use styled-components with Material UI.
+
+These two packages implement the same interface, making them interchangeable.
+
+## Bundler configuration
+
+By default, `@mui/material` has `@mui/styled-engine` as a dependency.
+To use styled-components, you need to configure your bundler to replace it with `@mui/styled-engine-sc`.
+
+### With yarn
+
+If you're using yarn, you can configure it using a package resolution:
+
+<!-- #npm-tag-reference -->
+
+```diff title="package.json"
+ {
+   "dependencies": {
+-    "@mui/styled-engine": "@next"
++    "@mui/styled-engine": "npm:@mui/styled-engine-sc@next"
+   },
++  "resolutions": {
++    "@mui/styled-engine": "npm:@mui/styled-engine-sc@next"
++  },
+ }
+```
+
+### With npm
+
+Because package resolutions aren't available with npm, you must update your bundler's config to add this alias.
+The example below shows how to do this with webpack:
+
+```diff title="webpack.config.js"
+ module.exports = {
+   //...
++  resolve: {
++    alias: {
++      '@mui/styled-engine': '@mui/styled-engine-sc'
++    },
++  },
+ };
+```
+
+For TypeScript, you must also update the `tsconfig.json` as shown here:
+
+```diff title="tsconfig.json"
+ {
+   "compilerOptions": {
++    "paths": {
++      "@mui/styled-engine": ["./node_modules/@mui/styled-engine-sc"]
++    }
+   },
+ }
+```
+
+### Next.js
+
+```diff title="next.config.js"
++const withTM = require('next-transpile-modules')([
++  '@mui/material',
++  '@mui/system',
++  '@mui/icons-material', // If @mui/icons-material is being used
++]);
+
++module.exports = withTM({
+ webpack: (config) => {
+   config.resolve.alias = {
+     ...config.resolve.alias,
++    '@mui/styled-engine': '@mui/styled-engine-sc',
+    };
+    return config;
+  }
++});
+```
+
+> **Info:**
+>
+> **Versions compatibility**: To ensure compatibility, it's essential to align the major version of `@mui/styled-engine-sc` with that of the `styled-components` package you're using. For instance, if you opt for `styled-components` version 5, it's necessary to use `@mui/styled-engine-sc` version 5. Similarly, if your preference is `styled-components` version 6, you'll need to upgrade `@mui/styled-engine-sc` to its version 6, which is currently in an alpha state.
+
+
+
+# Routing
+
+# Routing libraries
+
+By default, the navigation is performed with a native &lt;a&gt; element. You can customize it, for instance, using Next.js's Link or react-router.
+
+## Navigation components
+
+There are two main components available to perform navigations.
+The most common one is the [`Link`](/material-ui/react-link/) as its name might suggest.
+It renders a native `<a>` element and applies the `href` as an attribute.
+
+
+You can also make a button perform navigation actions.
+If your component is extending [`ButtonBase`](/material-ui/api/button-base/), providing a `href` prop enables the link mode.
+For instance, with a `Button` component:
+
+
+## Global theme Link
+
+In real-life applications, using a native `<a>` element is rarely enough.
+You can improve the user experience by using an enhanced Link component systematically.
+The Material UI theme lets you configure this component once.
+For instance, with react-router:
+
+```tsx
+import { Link as RouterLink, LinkProps as RouterLinkProps } from 'react-router';
+import { LinkProps } from '@mui/material/Link';
+
+const LinkBehavior = React.forwardRef<
+  HTMLAnchorElement,
+  Omit<RouterLinkProps, 'to'> & { href: RouterLinkProps['to'] }
+>((props, ref) => {
+  const { href, ...other } = props;
+  // Map href (Material UI) -> to (react-router)
+  return <RouterLink ref={ref} to={href} {...other} />;
+});
+
+const theme = createTheme({
+  components: {
+    MuiLink: {
+      defaultProps: {
+        component: LinkBehavior,
+      } as LinkProps,
+    },
+    MuiButtonBase: {
+      defaultProps: {
+        LinkComponent: LinkBehavior,
+      },
+    },
+  },
+});
+```
+
+
+> **Warning:**
+>
+> This approach has limitations with TypeScript.
+> The `href` prop only accepts a string.
+> In the event you need to provide a richer structure, see the next section.
+
+
+## `component` prop
+
+You can achieve the integration with third-party routing libraries with the `component` prop.
+You can learn more about this prop in the **[composition guide](/material-ui/guides/composition/#component-prop)**.
+
+## React Router examples
+
+Here are a few demos with the [Link component](https://reactrouter.com/start/declarative/navigating#link) of [React Router](https://github.com/remix-run/react-router).
+You can apply the same strategy with all the components: BottomNavigation, Card, etc.
+
+### Link
+
+
+### Button
+
+
+**Note**: The button base component adds the `role="button"` attribute when it identifies the intent to render a button without a native `<button>` element.
+This can create issues when rendering a link.
+If you are not using one of the `href`, `to`, or `component="a"` props, you need to override the `role` attribute.
+The above demo achieves this by setting `role={undefined}` **after** the spread props.
+
+```jsx
+const LinkBehavior = React.forwardRef((props, ref) => (
+  <RouterLink ref={ref} to="/" {...props} role={undefined} />
+));
+```
+
+### Tabs
+
+
+### List
+
+
+## More examples
+
+### Next.js Pages Router
+
+The [example folder](https://github.com/mui/material-ui/tree/HEAD/examples/material-ui-nextjs-pages-router-ts) provides an adapter for the use of [Next.js's Link component](https://nextjs.org/docs/pages/api-reference/components/link) with Material UI.
+
+- The first version of the adapter is the [`NextLinkComposed`](https://github.com/mui/material-ui/blob/-/examples/material-ui-nextjs-pages-router-ts/src/Link.tsx) component.
+  This component is unstyled and only responsible for handling the navigation.
+  The prop `href` was renamed `to` to avoid a naming conflict.
+  This is similar to react-router's Link component.
+
+  ```tsx
+  import Button from '@mui/material/Button';
+  import { NextLinkComposed } from '../src/Link';
+
+  export default function Index() {
+    return (
+      <Button
+        component={NextLinkComposed}
+        to={{
+          pathname: '/about',
+          query: { name: 'test' },
+        }}
+      >
+        Button link
+      </Button>
+    );
+  }
+  ```
+
+- The second version of the adapter is the `Link` component.
+  This component is styled.
+  It uses the [Material UI Link component](/material-ui/react-link/) with `NextLinkComposed`.
+
+  ```tsx
+  import Link from '../src/Link';
+
+  export default function Index() {
+    return (
+      <Link
+        href={{
+          pathname: '/about',
+          query: { name: 'test' },
+        }}
+      >
+        Link
+      </Link>
+    );
+  }
+  ```
+
+### TanStack Router
+
+TanStack Router supports custom links through its `createLink` helper function.
+The snippet below shows the most basic implementation, wrapping a Material UI Link component.
+See [TanStack Router—Custom Link](https://tanstack.com/router/latest/docs/framework/react/guide/custom-link) for more component integration examples.
+
+```tsx
+import { createLink } from '@tanstack/react-router';
+import { Link as MUILink } from '@mui/material';
+
+const CustomLink = createLink(MUILink);
+
+function App() {
+  return (
+    <CustomLink underline="none" to="/about">
+      Link to about page
+    </CustomLink>
+  );
+}
+```
+
+
+# Tailwindcss V4
+
+# Tailwind CSS v4 integration
+
+Learn how to use Material UI with Tailwind CSS v4.
+
+## Overview
+
+There are two steps to integrate Tailwind CSS v4 with Material UI:
+
+1. Configure the styles to generate with the `@layer` directive.
+2. Set up the layer order so that `mui` comes before the `utilities` layer, allowing Tailwind CSS classes to override Material UI styles.
+
+The instructions below detail how to achieve this using common React frameworks.
+
+### Next.js App Router
+
+To integrate Tailwind CSS v4 with Material UI in a Next.js App Router project, start by configuring Material UI with Next.js in the [App Router integration guide](/material-ui/integrations/nextjs/#app-router).
+Then follow these steps:
+
+1. Enable the [CSS layer feature](/material-ui/integrations/nextjs/#using-other-styling-solutions) in the root layout:
+
+```tsx title="src/app/layout.tsx"
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+
+export default function RootLayout() {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+          {/* Your app */}
+        </AppRouterCacheProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+2. Configure the layer order in the Tailwind CSS file:
+
+```css title="src/app/global.css"
+@layer theme, base, mui, components, utilities;
+@import 'tailwindcss';
+```
+
+### Next.js Pages Router
+
+To integrate Tailwind CSS v4 with Material UI in a Next.js Pages Router project, start by configuring Material UI with Next.js in the [Pages Router integration guide](/material-ui/integrations/nextjs/#pages-router).
+Then follow these steps:
+
+1. Create a shared Emotion cache (required for SSR + hydration)
+
+   Material UI relies on Emotion for styling.
+   To avoid hydration mismatches, the same Emotion cache instance and configuration must be used on both the server and the client.
+
+   Create a shared cache:
+
+   ```tsx title="src/createEmotionCache.js"
+   import { createEmotionCache } from '@mui/material-nextjs/v15-pagesRouter';
+
+   export const emotionCache = createEmotionCache({ enableCssLayer: true });
+   ```
+
+   > `enableCssLayer: true` ensures Material UI styles are wrapped in `@layer mui`, which allows Tailwind CSS v4 utilities to override them predictably.
+
+2. Enable the [CSS layer feature](/material-ui/integrations/nextjs/#configuration-2) in a custom `_document`:
+
+```tsx title="pages/_document.tsx"
+import { documentGetInitialProps } from '@mui/material-nextjs/v15-pagesRouter';
+import { emotionCache } from '../src/createEmotionCache';
+// ...
+
+MyDocument.getInitialProps = async (ctx: DocumentContext) => {
+  const finalProps = await documentGetInitialProps(ctx, {
+    emotionCache,
+  });
+  return finalProps;
+};
+```
+
+3. Configure the global Tailwind CSS file:
+
+```css title="styles/global.css"
+@import 'tailwindcss';
+```
+
+4. Configure the layer order with the `GlobalStyles` component—it must be the first child of the `AppCacheProvider`:
+
+```tsx title="pages/_app.tsx"
+import '../styles/global.css';
+import { AppCacheProvider } from '@mui/material-nextjs/v15-pagesRouter';
+import GlobalStyles from '@mui/material/GlobalStyles';
+import { emotionCache } from '../src/createEmotionCache';
+
+export default function MyApp(props: AppProps) {
+  const { Component, pageProps } = props;
+  return (
+    <AppCacheProvider emotionCache={emotionCache}>
+      <GlobalStyles styles="@layer theme, base, mui, components, utilities;" />
+      {/* Your app */}
+    </AppCacheProvider>
+  );
+}
+```
+
+### Vite.js or any other SPA
+
+To integrate Tailwind CSS v4 with Material UI in a Vite-based app, make the following changes in `src/main.tsx`:
+
+1. Pass the `enableCssLayer` prop to the `StyledEngineProvider` component.
+2. Configure the layer order with the `GlobalStyles` component.
+
+```tsx title="main.tsx"
+import { StyledEngineProvider } from '@mui/material/styles';
+import GlobalStyles from '@mui/material/GlobalStyles';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <StyledEngineProvider enableCssLayer>
+      <GlobalStyles styles="@layer theme, base, mui, components, utilities;" />
+      {/* Your app */}
+    </StyledEngineProvider>
+  </React.StrictMode>,
+);
+```
+
+## Tailwind CSS IntelliSense for VS Code
+
+The official [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss) extension requires extra configuration to work properly when customizing the interior slots of Material UI components.
+After installing the extension, add the following line to your [VS Code `settings.json`](https://code.visualstudio.com/docs/configure/settings#_settings-json-file) file:
+
+```json
+{
+  // ...config
+  "tailwindCSS.experimental.classRegex": [["className\\s*:\\s*['\"]([^'\"]*)['\"]"]]
+}
+```
+
+Now you should see the autocomplete and syntax highlighting features when using the `slotProps` prop, as shown in the screenshot below:
+
+![A preview of Tailwind CSS Intellisense](/static/material-ui/tailwind-intellisense.jpg)
+
+## Usage
+
+- Use the `className` prop to apply Tailwind CSS classes to the root element of the component.
+- Use `slotProps.{slotName}.className` to apply Tailwind CSS classes to a component's [interior slots](/material-ui/customization/overriding-component-structure/#interior-slots).
+
+
+## Extend Material UI classes
+
+If you want to use Material UI theme tokens in your Tailwind CSS classes, copy the snippet below into your CSS file.
+
+```css title="global.css"
+@layer theme, base, mui, components, utilities;
+@import 'tailwindcss';
+
+@theme inline {
+  /* Material UI typography */
+  --font-h1: var(--mui-font-h1);
+  --font-h2: var(--mui-font-h2);
+  --font-h3: var(--mui-font-h3);
+  --font-h4: var(--mui-font-h4);
+  --font-h5: var(--mui-font-h5);
+  --font-h6: var(--mui-font-h6);
+  --font-subtitle1: var(--mui-font-subtitle1);
+  --font-subtitle2: var(--mui-font-subtitle2);
+  --font-body1: var(--mui-font-body1);
+  --font-body2: var(--mui-font-body2);
+  --font-button: var(--mui-font-button);
+  --font-caption: var(--mui-font-caption);
+  --font-overline: var(--mui-font-overline);
+
+  --letter-spacing-h1: -0.01562em;
+  --letter-spacing-h2: -0.00833em;
+  --letter-spacing-h4: 0.00735em;
+  --letter-spacing-h6: 0.0075em;
+  --letter-spacing-body1: 0.00938em;
+  --letter-spacing-body2: 0.01071em;
+
+  /* Material UI breakpoints */
+  --breakpoint-sm: 37.5rem; /* 600px */
+  --breakpoint-md: 56.25rem; /* 900px */
+  --breakpoint-lg: 75rem; /* 1200px */
+  --breakpoint-xl: 96rem; /* 1536px */
+  --breakpoint-2xl: 120rem; /* 1920px */
+
+  /* Material UI theme colors */
+  --color-primary: rgb(var(--mui-palette-primary-mainChannel));
+  --color-primary-light: rgb(var(--mui-palette-primary-lightChannel));
+  --color-primary-dark: rgb(var(--mui-palette-primary-darkChannel));
+  --color-primary-contrast: rgb(var(--mui-palette-primary-contrastTextChannel));
+
+  --color-secondary: rgb(var(--mui-palette-secondary-mainChannel));
+  --color-secondary-light: rgb(var(--mui-palette-secondary-lightChannel));
+  --color-secondary-dark: rgb(var(--mui-palette-secondary-darkChannel));
+  --color-secondary-contrast: rgb(var(--mui-palette-secondary-contrastTextChannel));
+
+  /* Material UI status colors */
+  --color-info: rgb(var(--mui-palette-info-mainChannel));
+  --color-info-light: rgb(var(--mui-palette-info-lightChannel));
+  --color-info-dark: rgb(var(--mui-palette-info-darkChannel));
+  --color-info-contrast: rgb(var(--mui-palette-info-contrastTextChannel));
+
+  --color-error: rgb(var(--mui-palette-error-mainChannel));
+  --color-error-light: rgb(var(--mui-palette-error-lightChannel));
+  --color-error-dark: rgb(var(--mui-palette-error-darkChannel));
+  --color-error-contrast: rgb(var(--mui-palette-error-contrastTextChannel));
+
+  --color-success: rgb(var(--mui-palette-success-mainChannel));
+  --color-success-light: rgb(var(--mui-palette-success-lightChannel));
+  --color-success-dark: rgb(var(--mui-palette-success-darkChannel));
+  --color-success-contrast: rgb(var(--mui-palette-success-contrastTextChannel));
+
+  --color-warning: rgb(var(--mui-palette-warning-mainChannel));
+  --color-warning-light: rgb(var(--mui-palette-warning-lightChannel));
+  --color-warning-dark: rgb(var(--mui-palette-warning-darkChannel));
+  --color-warning-contrast: rgb(var(--mui-palette-warning-contrastTextChannel));
+
+  /* Material UI text & common colors */
+  --color-text-primary: rgb(var(--mui-palette-text-primaryChannel));
+  --color-text-secondary: rgb(var(--mui-palette-text-secondaryChannel));
+  --color-text-disabled: var(--mui-palette-text-disabled);
+  --color-common-background: var(--mui-palette-common-background);
+  --color-common-onBackground: var(--mui-palette-common-onBackground);
+  --color-divider: var(--mui-palette-divider);
+
+  /* Material UI background colors */
+  --color-background-default: rgb(var(--mui-palette-background-defaultChannel));
+  --color-background-paper: rgb(var(--mui-palette-background-paperChannel));
+
+  /* Material UI action colors */
+  --color-action-active: var(--mui-palette-action-active);
+  --color-action-hover: var(--mui-palette-action-hover);
+  --color-action-selected: var(--mui-palette-action-selected);
+  --color-action-disabled: var(--mui-palette-action-disabled);
+  --color-action-focus: var(--mui-palette-action-focus);
+
+  /* Material UI gray scale */
+  --color-gray-50: var(--mui-palette-grey-50);
+  --color-gray-100: var(--mui-palette-grey-100);
+  --color-gray-200: var(--mui-palette-grey-200);
+  --color-gray-300: var(--mui-palette-grey-300);
+  --color-gray-400: var(--mui-palette-grey-400);
+  --color-gray-500: var(--mui-palette-grey-500);
+  --color-gray-600: var(--mui-palette-grey-600);
+  --color-gray-700: var(--mui-palette-grey-700);
+  --color-gray-800: var(--mui-palette-grey-800);
+  --color-gray-900: var(--mui-palette-grey-900);
+  --color-gray-A100: var(--mui-palette-grey-A100);
+  --color-gray-A200: var(--mui-palette-grey-A200);
+  --color-gray-A400: var(--mui-palette-grey-A400);
+  --color-gray-A700: var(--mui-palette-grey-A700);
+
+  /* Material UI Component Colors */
+  /* Alert */
+  --color-Alert-error: var(--mui-palette-Alert-errorColor);
+  --color-Alert-info: var(--mui-palette-Alert-infoColor);
+  --color-Alert-success: var(--mui-palette-Alert-successColor);
+  --color-Alert-warning: var(--mui-palette-Alert-warningColor);
+  --color-Alert-errorFilled: var(--mui-palette-Alert-errorFilledBg);
+  --color-Alert-infoFilled: var(--mui-palette-Alert-infoFilledBg);
+  --color-Alert-successFilled: var(--mui-palette-Alert-successFilledBg);
+  --color-Alert-warningFilled: var(--mui-palette-Alert-warningFilledBg);
+  --color-Alert-errorFilledColor: var(--mui-palette-Alert-errorFilledColor);
+  --color-Alert-infoFilledColor: var(--mui-palette-Alert-infoFilledColor);
+  --color-Alert-successFilledColor: var(--mui-palette-Alert-successFilledColor);
+  --color-Alert-warningFilledColor: var(--mui-palette-Alert-warningFilledColor);
+  --color-Alert-errorStandard: var(--mui-palette-Alert-errorStandardBg);
+  --color-Alert-infoStandard: var(--mui-palette-Alert-infoStandardBg);
+  --color-Alert-successStandard: var(--mui-palette-Alert-successStandardBg);
+  --color-Alert-warningStandard: var(--mui-palette-Alert-warningStandardBg);
+  --color-Alert-errorIcon: var(--mui-palette-Alert-errorIconColor);
+  --color-Alert-infoIcon: var(--mui-palette-Alert-infoIconColor);
+  --color-Alert-successIcon: var(--mui-palette-Alert-successIconColor);
+  --color-Alert-warningIcon: var(--mui-palette-Alert-warningIconColor);
+
+  /* AppBar */
+  --color-AppBar-default: var(--mui-palette-AppBar-defaultBg);
+
+  /* Avatar */
+  --color-Avatar-default: var(--mui-palette-Avatar-defaultBg);
+
+  /* Button */
+  --color-Button-inheritContained: var(--mui-palette-Button-inheritContainedBg);
+  --color-Button-inheritContainedHover: var(
+    --mui-palette-Button-inheritContainedHoverBg
+  );
+
+  /* Chip */
+  --color-Chip-defaultBorder: var(--mui-palette-Chip-defaultBorder);
+  --color-Chip-defaultAvatar: var(--mui-palette-Chip-defaultAvatarColor);
+  --color-Chip-defaultIcon: var(--mui-palette-Chip-defaultIconColor);
+
+  /* FilledInput */
+  --color-FilledInput-bg: var(--mui-palette-FilledInput-bg);
+  --color-FilledInput-hover: var(--mui-palette-FilledInput-hoverBg);
+  --color-FilledInput-disabled: var(--mui-palette-FilledInput-disabledBg);
+
+  /* LinearProgress */
+  --color-LinearProgress-primary: var(--mui-palette-LinearProgress-primaryBg);
+  --color-LinearProgress-secondary: var(--mui-palette-LinearProgress-secondaryBg);
+  --color-LinearProgress-error: var(--mui-palette-LinearProgress-errorBg);
+  --color-LinearProgress-info: var(--mui-palette-LinearProgress-infoBg);
+  --color-LinearProgress-success: var(--mui-palette-LinearProgress-successBg);
+  --color-LinearProgress-warning: var(--mui-palette-LinearProgress-warningBg);
+
+  /* Skeleton */
+  --color-Skeleton-bg: var(--mui-palette-Skeleton-bg);
+
+  /* Slider */
+  --color-Slider-primary: var(--mui-palette-Slider-primaryTrack);
+  --color-Slider-secondary: var(--mui-palette-Slider-secondaryTrack);
+  --color-Slider-error: var(--mui-palette-Slider-errorTrack);
+  --color-Slider-info: var(--mui-palette-Slider-infoTrack);
+  --color-Slider-success: var(--mui-palette-Slider-successTrack);
+  --color-Slider-warning: var(--mui-palette-Slider-warningTrack);
+
+  /* SnackbarContent */
+  --color-SnackbarContent-bg: var(--mui-palette-SnackbarContent-bg);
+  --color-SnackbarContent-text: var(--mui-palette-SnackbarContent-color);
+
+  /* SpeedDialAction */
+  --color-SpeedDialAction-fabHover: var(--mui-palette-SpeedDialAction-fabHoverBg);
+
+  /* StepConnector & StepContent */
+  --color-StepConnector-border: var(--mui-palette-StepConnector-border);
+  --color-StepContent-border: var(--mui-palette-StepContent-border);
+
+  /* Switch */
+  --color-Switch-default: var(--mui-palette-Switch-defaultColor);
+  --color-Switch-defaultDisabled: var(--mui-palette-Switch-defaultDisabledColor);
+  --color-Switch-primaryDisabled: var(--mui-palette-Switch-primaryDisabledColor);
+  --color-Switch-secondaryDisabled: var(--mui-palette-Switch-secondaryDisabledColor);
+  --color-Switch-errorDisabled: var(--mui-palette-Switch-errorDisabledColor);
+  --color-Switch-infoDisabled: var(--mui-palette-Switch-infoDisabledColor);
+  --color-Switch-successDisabled: var(--mui-palette-Switch-successDisabledColor);
+  --color-Switch-warningDisabled: var(--mui-palette-Switch-warningDisabledColor);
+
+  /* TableCell */
+  --color-TableCell-border: var(--mui-palette-TableCell-border);
+
+  /* Tooltip */
+  --color-Tooltip-bg: var(--mui-palette-Tooltip-bg);
+
+  /* Material UI shadows */
+  --shadow-1: var(--mui-shadows-1);
+  --shadow-2: var(--mui-shadows-2);
+  --shadow-3: var(--mui-shadows-3);
+  --shadow-4: var(--mui-shadows-4);
+  --shadow-5: var(--mui-shadows-5);
+  --shadow-6: var(--mui-shadows-6);
+  --shadow-7: var(--mui-shadows-7);
+  --shadow-8: var(--mui-shadows-8);
+  --shadow-9: var(--mui-shadows-9);
+  --shadow-10: var(--mui-shadows-10);
+  --shadow-11: var(--mui-shadows-11);
+  --shadow-12: var(--mui-shadows-12);
+  --shadow-13: var(--mui-shadows-13);
+  --shadow-14: var(--mui-shadows-14);
+  --shadow-15: var(--mui-shadows-15);
+  --shadow-16: var(--mui-shadows-16);
+  --shadow-17: var(--mui-shadows-17);
+  --shadow-18: var(--mui-shadows-18);
+  --shadow-19: var(--mui-shadows-19);
+  --shadow-20: var(--mui-shadows-20);
+  --shadow-21: var(--mui-shadows-21);
+  --shadow-22: var(--mui-shadows-22);
+  --shadow-23: var(--mui-shadows-23);
+  --shadow-24: var(--mui-shadows-24);
+
+  /* Material UI opacity */
+  --opacity-activated: calc(100% * var(--mui-palette-action-activatedOpacity));
+  --opacity-disabled: calc(100% * var(--mui-palette-action-disabledOpacity));
+  --opacity-focus: calc(100% * var(--mui-palette-action-focusOpacity));
+  --opacity-hover: calc(100% * var(--mui-palette-action-hoverOpacity));
+  --opacity-selected: calc(100% * var(--mui-palette-action-selectedOpacity));
+
+  /* Material UI overlays */
+  --overlay-1: var(--mui-overlays-1);
+  --overlay-2: var(--mui-overlays-2);
+  --overlay-3: var(--mui-overlays-3);
+  --overlay-4: var(--mui-overlays-4);
+  --overlay-5: var(--mui-overlays-5);
+  --overlay-6: var(--mui-overlays-6);
+  --overlay-7: var(--mui-overlays-7);
+  --overlay-8: var(--mui-overlays-8);
+  --overlay-9: var(--mui-overlays-9);
+  --overlay-10: var(--mui-overlays-10);
+  --overlay-11: var(--mui-overlays-11);
+  --overlay-12: var(--mui-overlays-12);
+  --overlay-13: var(--mui-overlays-13);
+  --overlay-14: var(--mui-overlays-14);
+  --overlay-15: var(--mui-overlays-15);
+  --overlay-16: var(--mui-overlays-16);
+  --overlay-17: var(--mui-overlays-17);
+  --overlay-18: var(--mui-overlays-18);
+  --overlay-19: var(--mui-overlays-19);
+  --overlay-20: var(--mui-overlays-20);
+  --overlay-21: var(--mui-overlays-21);
+  --overlay-22: var(--mui-overlays-22);
+  --overlay-23: var(--mui-overlays-23);
+  --overlay-24: var(--mui-overlays-24);
+}
+
+/* Material UI base styles */
+@layer base {
+  h1 {
+    font: var(--mui-font-h1);
+    letter-spacing: -0.01562em;
+  }
+  h2 {
+    font: var(--mui-font-h2);
+    letter-spacing: -0.00833em;
+  }
+  h3 {
+    font: var(--mui-font-h3);
+  }
+  h4 {
+    font: var(--mui-font-h4);
+    letter-spacing: 0.00735em;
+  }
+  h5 {
+    font: var(--mui-font-h5);
+  }
+  h6 {
+    font: var(--mui-font-h6);
+    letter-spacing: 0.0075em;
+  }
+  p {
+    font: var(--mui-font-body1);
+    letter-spacing: 0.00938em;
+  }
+  span {
+    font: var(--mui-font-body2);
+    letter-spacing: 0.01071em;
+  }
+}
+
+/* Material UI typography utilities */
+@utility typography-* {
+  font: --value(--font-*);
+}
+
+/* Material UI overlay utilities */
+@utility overlay-* {
+  background-image: --value(--overlay-*);
+}
+
+/* Material UI elevation utilities */
+@utility elevation-* {
+  background-image: --value(--overlay-*);
+  box-shadow: --value(--shadow-*);
+}
+```
+
+Then you can start using the new classes—for example:
+
+- The class `typography-h1` produces `font: var(--mui-font-h1);`
+- The class `text-primary` produces `color: rgb(var(--mui-palette-primary-mainChannel));`
+
+So when you add these classes to an element…
+
+```js title="App.tsx"
+<div className="typography-h1 text-primary">Hello world</div>
+```
+
+…the CSS looks like this:
+
+```css
+@layer utilities {
+  .typography-h1 {
+    font: var(--mui-font-h1);
+    letter-spacing: -0.01562em;
+  }
+  .text-primary {
+    color: rgb(var(--mui-palette-primary-mainChannel));
+  }
+}
+```
+
+### Playground
+
+Visit the [Tailwind CSS Playground](https://play.tailwindcss.com/f1ZIr0qSNG) to explore the classes from Material UI theme tokens.
+
+## Troubleshooting
+
+If the Tailwind CSS classes are not overriding Material UI components, make sure that:
+
+- You are using Tailwind CSS >= v4.
+- You have configured the layer order correctly by checking the [DevTools styles tab](https://developer.chrome.com/docs/devtools/css/reference#cascade-layers). The `mui` layer should come before the `utilities` layer.
