@@ -21,8 +21,8 @@ DB_PATH = os.environ.get("COSMO_DB_PATH", str(PROJECT_ROOT / "chroma_db"))
 # File upload directory (created at startup)
 UPLOAD_DIR = Path(os.environ.get("COSMO_UPLOAD_DIR", str(PROJECT_ROOT / "uploads")))
 
-# Quiz JSON directory (created at startup)
-QUIZ_DIR = Path(os.environ.get("COSMO_QUIZ_DIR", str(PROJECT_ROOT / "quizzes")))
+# DECK JSON directory (created at startup)
+DECK_DIR = Path(os.environ.get("COSMO_DECK_DIR", str(PROJECT_ROOT / "decks")))
 
 # User study documents
 DOCS_DIR = PROJECT_ROOT / "docs"

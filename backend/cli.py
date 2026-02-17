@@ -7,9 +7,9 @@ Usage:
     python -m backend.cli ingest --path docs/handbook.pdf --top-level-only
     python -m backend.cli ask -q "How do I type a useState hook?"
     python -m backend.cli interactive
-    python -m backend.cli quiz --input quizzes/w13.json
-    python -m backend.cli quiz --input quizzes/w13.json --sections tf,mc --limit 10
-    python -m backend.cli benchmark --input quizzes/w13.json --sections tf --limit 15
+    python -m backend.cli quiz --input decks/w13.json
+    python -m backend.cli quiz --input decks/w13.json --sections tf,mc --limit 10
+    python -m backend.cli benchmark --input decks/w13.json --sections tf --limit 15
     python -m backend.cli convert --path docs/effective-typescript.pdf -o converted/
     python -m backend.cli list
 """
@@ -259,76 +259,68 @@ def quiz_command(args) -> int:
         stats = processor.get_stats()
         if stats["total_chunks"] == 0:
             print("Warning: No documents indexed. Running without RAG context.")
-            use_rag = False
             processor = None
-    else:
-        _get_processor(args)  # just verify Ollama is up
+            use_rag = False
 
-    output_path = args.output or f"results/{input_path.stem}-results.md"
+    if is_json:
+        try:
+            from backend.quiz_processor import run_json_quiz
+            output_path = args.output or f"results/{input_path.stem}-results.md"
 
-    print(f"\n{'=' * 60}")
-    print(f"  Cosmo Quiz Runner")
-    print(f"{'=' * 60}")
-    print(f"  Input:    {input_path}")
-    print(f"  Mode:     {args.mode}")
-    print(f"  RAG:      {'yes' if use_rag else 'no'}")
-    print(f"  Grounded: {'yes (docs only)' if grounded else 'no (broad)'}")
-    if sections:
-        print(f"  Sections: {','.join(sorted(sections))}")
-    if limit:
-        print(f"  Limit:    {limit} questions")
-    if is_json and args.quiz_id:
-        print(f"  Quiz ID:  {args.quiz_id}")
-    print(f"{'=' * 60}\n")
-
-    try:
-        if is_json:
             result_path = run_json_quiz(
                 quiz_path=str(input_path),
                 output_path=output_path,
-                quiz_id=args.quiz_id,
-                processor=processor,
                 mode=args.mode,
                 use_rag=use_rag,
-                n_results=args.results,
                 grounded=grounded,
+                processor=processor,
+                n_results=args.results,
+                quiz_id=args.quiz_id,
                 sections=sections,
                 limit=limit,
             )
-        else:
+            print(f"\nResults written to: {result_path}")
+            return 0
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+    else:
+        try:
+            output_path = args.output or f"results/{input_path.stem}-results.md"
             result_path = run_quiz(
                 quiz_path=str(input_path),
                 output_path=output_path,
-                processor=processor,
                 mode=args.mode,
                 use_rag=use_rag,
-                n_results=args.results,
                 grounded=grounded,
-                sections=sections,
-                limit=limit,
+                processor=processor,
+                n_results=args.results,
             )
-        print(f"\nDone. Results at: {result_path}")
-        return 0
-    except (FileNotFoundError, ValueError) as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-    except Exception as e:
-        print(f"Error during quiz: {e}", file=sys.stderr)
-        return 1
+            print(f"\nResults written to: {result_path}")
+            return 0
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
 
 
 def benchmark_command(args) -> int:
-    from backend.quiz_processor import run_benchmark, run_multi_benchmark, BenchmarkConfig
+    from backend.quiz_processor import run_benchmark, run_multi_benchmark
     from pathlib import Path
 
     sections = _parse_sections(args.sections)
     limit = args.limit
 
-    # Always need the processor for RAG configs
-    processor = _get_processor(args)
-    stats = processor.get_stats()
-    if stats["total_chunks"] == 0:
-        print("Warning: No documents indexed. RAG configs will run without context.")
+    # Set up RAG processor (optional — benchmarks can run with no-rag configs)
+    processor = None
+    try:
+        processor = _get_processor(args)
+        stats = processor.get_stats()
+        if stats["total_chunks"] == 0:
+            print("Warning: No documents indexed. "
+                  "RAG configs will run without context.")
+    except SystemExit:
+        print("Warning: Ollama not available. "
+              "RAG configs will run without context.")
 
     # Build config list: either from --configs or use defaults
     configs = None
@@ -533,18 +525,18 @@ Examples:
   python -m backend.cli convert --path docs/ -o converted/
 
   # Quiz with section filter and question limit
-  python -m backend.cli quiz -i quizzes/w13.json --sections tf,mc --limit 10
-  python -m backend.cli quiz -i quizzes/w13.json --quiz-id week13 --broad
-  python -m backend.cli quiz -i quizzes/w13.json --sections sa
-  python -m backend.cli quiz -i quizzes/w13.json --list
+  python -m backend.cli quiz -i decks/w13.json --sections tf,mc --limit 10
+  python -m backend.cli quiz -i decks/w13.json --quiz-id week13 --broad
+  python -m backend.cli quiz -i decks/w13.json --sections sa
+  python -m backend.cli quiz -i decks/w13.json --list
 
   # Benchmark across all model/rag combos (8 configs)
-  python -m backend.cli benchmark -i quizzes/w13.json --sections tf --limit 15
-  python -m backend.cli benchmark -i quizzes/w13.json --configs "qwen-7b:rag,qwen-14b:rag,mistral:no-rag"
+  python -m backend.cli benchmark -i decks/w13.json --sections tf --limit 15
+  python -m backend.cli benchmark -i decks/w13.json --configs "qwen-7b:rag,qwen-14b:rag,mistral:no-rag"
 
-  # Benchmark across all quiz files in a directory
-  python -m backend.cli benchmark --dir quizzes/ --sections tf,mc
-  python -m backend.cli benchmark --dir quizzes/ --configs "qwen-7b:rag,qwen-14b:rag" --limit 20
+  # Benchmark across all deck files in a directory
+  python -m backend.cli benchmark --dir decks/ --sections tf,mc
+  python -m backend.cli benchmark --dir decks/ --configs "qwen-7b:rag,qwen-14b:rag" --limit 20
 
   python -m backend.cli interactive
   python -m backend.cli list
