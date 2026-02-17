@@ -10,7 +10,7 @@ frontend/tsconfig.tsbuildinfo
 artifacts/*
 !artifacts/docs/
 !artifacts/docs/**
-quizzes/
+quizzes/exclude_sa/
 quizzes_legacy/
 results/
 
