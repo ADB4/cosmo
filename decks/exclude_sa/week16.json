@@ -1,0 +1,1460 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week16",
+      "title": "Week 16: Test Architecture, Patterns, and Coverage",
+      "scope": "Integration testing patterns, custom render functions with providers, testing forms (validation, submission, error display), testing accessibility with `vitest-axe`, test organization and file structure, code coverage configuration and interpretation, the Testing Trophy revisited, when NOT to test, refactoring tests for maintainability.",
+      "readings": [
+        "KCD: \"AHA Testing\" (Avoid Hasty Abstractions)",
+        "KCD: \"Avoid Nesting When You're Testing\"",
+        "KCD: \"Making Your UI Tests Resilient to Change\"",
+        "RTL: \"Setup\" (wrapper option, custom render)",
+        "Vitest: \"Coverage\" (v8/istanbul providers, thresholds)",
+        "RTL: FAQ (modals/portals, router, useEffect)",
+        "Article: Deque axe-core / vitest-axe README",
+        "Review: KCD \"Common Mistakes with React Testing Library\""
+      ],
+      "scoring_note": "Wrong answers on T/F and MC are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness — do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "count": 72,
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "An integration test renders multiple components together and tests how they interact, more closely mirroring how users experience the application.",
+              "answer": true,
+              "explanation": "Integration tests exercise multiple components together, catching issues that unit tests miss.",
+              "tags": [
+                "integration-testing"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "Integration tests provide higher confidence than unit tests because they verify that components work correctly together, not just in isolation.",
+              "answer": true,
+              "explanation": "Integration tests verify that components compose correctly, providing higher confidence than isolated unit tests.",
+              "tags": [
+                "integration-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "Integration tests are always slower and harder to maintain than unit tests.",
+              "answer": false,
+              "explanation": "Integration tests can be just as fast as unit tests with RTL. They are not inherently slower. The overhead is marginal because there is no real network or database.",
+              "tags": [
+                "integration-testing"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "The Testing Trophy recommends that integration tests should make up the majority of your test suite.",
+              "answer": true,
+              "explanation": "The Testing Trophy places integration tests as the largest layer — the best confidence-to-cost ratio.",
+              "tags": [
+                "integration-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "A custom `renderWithProviders` function wraps the component under test in all required providers (theme, router, Context, query client), reducing boilerplate across tests.",
+              "answer": true,
+              "explanation": "A custom render function eliminates repeated provider boilerplate across tests.",
+              "tags": [
+                "custom-render"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The `wrapper` option in RTL's `render` function is the standard way to inject providers for testing.",
+              "answer": true,
+              "explanation": "The `wrapper` option is RTL's built-in mechanism for wrapping components in providers.",
+              "tags": [
+                "custom-render"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "A custom render function should be exported from a test utility file and imported in every test that needs providers.",
+              "answer": true,
+              "explanation": "A shared `test-utils.ts` that exports a custom `render` is a standard pattern in RTL projects.",
+              "tags": [
+                "custom-render",
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "It is acceptable to have different custom render functions for different parts of the app if they require different provider configurations.",
+              "answer": true,
+              "explanation": "Different parts of the app may need different providers. Multiple custom renders or configurable ones are valid.",
+              "tags": [
+                "custom-render"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "\"AHA Testing\" stands for \"Always Have Abstractions\" — you should extract shared logic into helper functions as aggressively as possible.",
+              "answer": false,
+              "explanation": "AHA stands for \"Avoid Hasty Abstractions.\" It warns against premature extraction of shared test logic.",
+              "tags": [
+                "aha-testing"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "\"AHA Testing\" stands for \"Avoid Hasty Abstractions\" — duplication in test code is often better than premature shared utilities.",
+              "answer": true,
+              "explanation": "AHA Testing says duplication in tests is often better than wrong or premature abstractions.",
+              "tags": [
+                "aha-testing"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "KCD argues that some duplication in tests is acceptable because it makes each test self-contained and easier to understand in isolation.",
+              "answer": true,
+              "explanation": "Self-contained tests are easier to understand. Each test should tell its own complete story.",
+              "tags": [
+                "aha-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Extracting shared setup logic into utility functions always makes tests more maintainable.",
+              "answer": false,
+              "explanation": "Overly aggressive extraction can make individual tests opaque. The reader must trace through shared code to understand what the test does.",
+              "tags": [
+                "aha-testing"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "\"Avoid Nesting When You're Testing\" argues that deeply nested `describe` blocks make tests harder to understand and maintain.",
+              "answer": true,
+              "explanation": "Deep nesting creates indirection. Readers must mentally track the nesting context to understand each test.",
+              "tags": [
+                "test-nesting"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "KCD recommends a flat test structure with descriptive test names rather than deeply nested `describe` blocks.",
+              "answer": true,
+              "explanation": "Flat test structure with descriptive names is KCD's recommendation.",
+              "tags": [
+                "test-nesting",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "Nesting `describe` blocks is never appropriate — you should always use a completely flat structure.",
+              "answer": false,
+              "explanation": "KCD is not against all nesting. One or two levels of `describe` is fine. The warning is against deeply nested structures.",
+              "tags": [
+                "test-nesting",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "A descriptive test name like `it(\"shows an error message when the email field is empty and the user clicks submit\")` is preferable to `describe(\"Form\") > describe(\"validation\") > describe(\"email\") > it(\"shows error\")`.",
+              "answer": true,
+              "explanation": "A long descriptive test name is more readable than tracing through nested `describe` blocks to assemble the same information.",
+              "tags": [
+                "test-nesting",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "\"Making Your UI Tests Resilient to Change\" argues that query choice directly affects how brittle a test is.",
+              "answer": true,
+              "explanation": "Query choice is the primary factor in test resilience. Queries tied to implementation details (class names, test IDs) are brittle.",
+              "tags": [
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "Tests that query by CSS class name are more resilient to change than tests that query by ARIA role.",
+              "answer": false,
+              "explanation": "CSS class names are implementation details. They can change during refactoring without affecting behavior, breaking the test.",
+              "tags": [
+                "test-resilience",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "Tests that query by `getByRole` survive implementation refactors because the ARIA role is part of the component's accessible interface, not its internal structure.",
+              "answer": true,
+              "explanation": "ARIA roles are part of the accessible interface. They change only when the component's semantic purpose changes.",
+              "tags": [
+                "test-resilience",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "Tests that query by `getByTestId` are resilient to change because `data-testid` attributes are stable.",
+              "answer": false,
+              "explanation": "False. While `data-testid` attributes are unlikely to change accidentally (unlike CSS classes), they are not truly resilient — they are invisible to users and assistive technology, provide no confidence about accessibility, and create an artificial coupling between tests and markup. `getByRole` is genuinely resilient because it reflects the component's semantic interface.",
+              "tags": [
+                "integration-testing",
+                "test-resilience",
+                "accessibility-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "`data-testid` attributes are part of the user-facing interface and contribute to the user experience.",
+              "answer": false,
+              "explanation": "`data-testid` attributes are invisible to users and assistive technology. They are purely a testing concern.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "Code coverage measures which lines, branches, statements, and functions were executed during the test run.",
+              "answer": true,
+              "explanation": "Coverage tools track execution at the line, branch, statement, and function levels.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "100% code coverage guarantees that the software is free of bugs.",
+              "answer": false,
+              "explanation": "100% coverage means all code was executed, not that all behavior is correct. Tests can execute code without asserting anything meaningful.",
+              "tags": [
+                "test-resilience",
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "Code coverage measures whether your code was executed, not whether it was tested correctly.",
+              "answer": true,
+              "explanation": "Coverage measures execution, not correctness. A line is \"covered\" if it ran, regardless of whether the test verified the result.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "A test that calls a function without asserting anything about the result still contributes to code coverage.",
+              "answer": true,
+              "explanation": "Executing a function increases coverage. Assertions are irrelevant to coverage measurement.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "Branch coverage measures whether each possible branch of a conditional (`if`/`else`, `switch`, ternary) was executed.",
+              "answer": true,
+              "explanation": "Branch coverage tracks whether each branch of a conditional was taken during testing.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "Statement coverage is always equal to branch coverage.",
+              "answer": false,
+              "explanation": "Statement coverage can be 100% even if some branches were not taken (e.g., if the code has no `else` clause, the branch where the `if` is false might not be counted as a separate branch).",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "Vitest supports two coverage providers: `v8` and `istanbul`.",
+              "answer": true,
+              "explanation": "Vitest supports `v8` (V8 engine's built-in coverage) and `istanbul` (source instrumentation) as coverage providers.",
+              "tags": [
+                "custom-render",
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "The `v8` coverage provider uses V8's built-in coverage tracking and is generally faster than `istanbul`.",
+              "answer": true,
+              "explanation": "`v8` uses the engine's native coverage tracking, avoiding source instrumentation overhead.",
+              "tags": [
+                "custom-render",
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "`istanbul` instruments the source code to track coverage, which can be slower but provides more detailed reporting.",
+              "answer": true,
+              "explanation": "`istanbul` modifies the source code to insert tracking counters. It is slower but can provide more detailed coverage data.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "You can set coverage thresholds in Vitest that cause the test run to fail if coverage drops below a minimum percentage.",
+              "answer": true,
+              "explanation": "Coverage thresholds cause the test command to exit with a failure code if minimums are not met.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "Coverage thresholds are configured under `test.coverage.thresholds` in Vitest configuration.",
+              "answer": true,
+              "explanation": "Thresholds are configured under `test.coverage.thresholds` (or `coverage.thresholds` in `vitest.config.ts`).",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "The `coverage.include` option specifies which files are included in the coverage report.",
+              "answer": true,
+              "explanation": "`coverage.include` specifies glob patterns for files to include in coverage measurement.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "The `coverage.exclude` option lets you exclude files from coverage, such as test files, type declarations, and configuration files.",
+              "answer": true,
+              "explanation": "`coverage.exclude` filters out files like test files and declarations that should not count toward coverage.",
+              "tags": [
+                "code-coverage",
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "You should set coverage thresholds as high as possible to enforce maximum coverage.",
+              "answer": false,
+              "explanation": "Excessively high thresholds incentivize writing tests for coverage rather than confidence. Set thresholds to reasonable levels for critical paths.",
+              "tags": [
+                "integration-testing",
+                "code-coverage",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "Coverage is a useful tool for finding untested code, but should not be used as a target to optimize for.",
+              "answer": true,
+              "explanation": "Coverage is a diagnostic tool, not a goal. Use it to discover gaps, not as a number to maximize.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "When testing a form, you should test the validation behavior (error messages appearing/disappearing) rather than the validation function's internal logic.",
+              "answer": true,
+              "explanation": "Testing the user-visible validation behavior (error messages appearing) tests what the user experiences.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "To test form submission, you should fill in fields with `user.type`, click the submit button with `user.click`, and assert on the resulting behavior (success message, redirect, API call).",
+              "answer": true,
+              "explanation": "This tests the form from the user's perspective: fill fields, submit, observe result.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "Testing that a specific validation function was called with specific arguments is testing behavior.",
+              "answer": false,
+              "explanation": "Asserting that a specific internal function was called with specific arguments is testing implementation details.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "Testing that an error message appears below the email field when the user submits an empty email is testing behavior.",
+              "answer": true,
+              "explanation": "The error message appearing is what the user sees. This is behavior testing.",
+              "tags": [
+                "test-resilience",
+                "form-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "Accessibility testing with `vitest-axe` can catch all accessibility issues in your application.",
+              "answer": false,
+              "explanation": "Automated tools catch 30-50% of issues. They miss context-dependent problems like logical reading order, meaningful content, and some ARIA misuse patterns.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "Automated accessibility testing catches approximately 30-50% of accessibility issues. Manual testing and user testing are still necessary.",
+              "answer": true,
+              "explanation": "This is a widely cited statistic. Manual testing, keyboard testing, and screen reader testing are still necessary.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "`expect(container).toHaveNoViolations()` from `vitest-axe` runs the axe-core accessibility engine on the rendered DOM and fails if any violations are found.",
+              "answer": false,
+              "explanation": "False. The correct pattern is `const results = await axe(container); expect(results).toHaveNoViolations();`. You must first run `axe()` on the container to produce an accessibility results object, then assert on that object. Passing the container directly to `expect` does not work — the matcher expects axe results, not a DOM node.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "`vitest-axe` checks things like missing alt text, insufficient color contrast, missing form labels, and invalid ARIA attributes.",
+              "answer": true,
+              "explanation": "True. axe-core includes rules for missing alt text, color contrast, form labels, and ARIA validity. However, in jsdom-based tests, color contrast checks may be unreliable because jsdom does not fully compute CSS styles. For reliable contrast testing, consider browser-based testing (e.g., Playwright with @axe-core/playwright).",
+              "tags": [
+                "form-testing",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "You should only run accessibility tests on the final production build, not in your regular test suite.",
+              "answer": false,
+              "explanation": "Accessibility tests should run in your regular test suite to catch regressions early, not only at the end.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "Adding accessibility checks to your component tests catches accessibility regressions early in development.",
+              "answer": true,
+              "explanation": "Early detection through automated tests prevents accessibility regressions from accumulating.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "Colocating test files next to the components they test (e.g., `Button.test.tsx` next to `Button.tsx`) is a common and recommended file organization pattern.",
+              "answer": true,
+              "explanation": "Colocated test files are a popular convention. They make it easy to find the test for any component.",
+              "tags": [
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "Placing all test files in a separate `__tests__` directory at the project root is the only correct approach.",
+              "answer": false,
+              "explanation": "Both colocated and centralized approaches are valid. The syllabus does not prescribe a specific one.",
+              "tags": [
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "Test file organization should match your team's conventions. Both colocated files and centralized test directories are valid.",
+              "answer": true,
+              "explanation": "File organization is a team convention, not a technical requirement. Consistency matters more than the specific approach.",
+              "tags": [
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "A `test-utils.ts` file that exports a custom `render` function with providers is a good practice for reducing test boilerplate.",
+              "answer": true,
+              "explanation": "A shared `test-utils.ts` with a custom render function is a widely recommended pattern.",
+              "tags": [
+                "custom-render",
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "You should write tests for every component in your application, regardless of its complexity.",
+              "answer": false,
+              "explanation": "Not every component warrants its own tests. Simple wrappers and layout components may be adequately covered by integration tests.",
+              "tags": [
+                "integration-testing",
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "Some components are not worth testing directly — simple wrappers, layout components, or components whose behavior is fully covered by integration tests of their parent.",
+              "answer": true,
+              "explanation": "Testing should focus on code with meaningful behavior. Trivial components are covered by tests of their parents.",
+              "tags": [
+                "integration-testing",
+                "test-resilience",
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "A component that only passes props through to MUI components with no additional logic is a good candidate for direct unit testing.",
+              "answer": false,
+              "explanation": "A pure pass-through component has no logic to test. Its behavior is MUI's behavior. Testing it directly tests the library, not your code.",
+              "tags": [
+                "test-resilience",
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "Third-party library internals (e.g., MUI's DataGrid sorting logic) should be tested in your application's test suite.",
+              "answer": false,
+              "explanation": "You should not re-test third-party library behavior. Trust that MUI's DataGrid sorts correctly. Test your configuration and integration of it.",
+              "tags": [
+                "test-resilience",
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "Your tests should verify your application's behavior, not re-test the behavior of third-party libraries.",
+              "answer": true,
+              "explanation": "Your tests verify your code. Third-party libraries have their own test suites.",
+              "tags": [
+                "test-resilience",
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "When testing a modal, you may need to query the portal container rather than the component's direct parent because modals often render via React portals.",
+              "answer": true,
+              "explanation": "Modals using React portals render into a different DOM subtree. Queries on the rendering component's container may miss portal content.",
+              "tags": [
+                "portals-routing"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "RTL's `screen` object queries the entire `document.body`, which includes portal content, so modals rendered in portals are found by `screen` queries.",
+              "answer": true,
+              "explanation": "`screen` queries `document.body`, which includes all portal containers. Portals are found by `screen` queries.",
+              "tags": [
+                "portals-routing"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "When testing components that depend on a router, you should provide a router context via the `wrapper` option in `render` or your custom render function.",
+              "answer": true,
+              "explanation": "Router-dependent components need a router context. Provide it via the `wrapper` option in `render`.",
+              "tags": [
+                "custom-render",
+                "portals-routing"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "If a test would pass even when you break the behavior it is supposed to verify, the test has no value — it is a false negative.",
+              "answer": true,
+              "explanation": "A test that passes when behavior is broken provides no value — it is a false negative.",
+              "tags": [
+                "test-resilience",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "A test that breaks every time you refactor the component's internals (even when behavior is unchanged) is a high-quality test.",
+              "answer": false,
+              "explanation": "A test that breaks on every internal refactor is brittle and tests implementation details. High-quality tests survive refactors.",
+              "tags": [
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "The question \"Would this test still pass if I changed the implementation but kept the behavior?\" is the key heuristic for evaluating test quality.",
+              "answer": true,
+              "explanation": "This is the defining question for test quality. Tests should be sensitive to behavior changes and resilient to implementation changes.",
+              "tags": [
+                "test-resilience",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "Integration tests should render the component tree as close to the real application structure as possible, including real child components rather than mocked ones.",
+              "answer": true,
+              "explanation": "Integration tests should use real children when practical. This tests the real composition the user experiences.",
+              "tags": [
+                "integration-testing"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "You should always mock every child component to ensure true unit isolation.",
+              "answer": false,
+              "explanation": "Mocking all children creates artificial isolation. RTL encourages testing components as they are composed in the real app.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "Mocking child components makes tests more brittle because you must update mocks whenever child component interfaces change.",
+              "answer": true,
+              "explanation": "Mocked children must be updated when interfaces change, adding maintenance burden. Real children are inherently up-to-date.",
+              "tags": [
+                "integration-testing",
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "`vitest-axe` is a Vitest-compatible adapter for the axe-core accessibility testing engine.",
+              "answer": true,
+              "explanation": "`vitest-axe` wraps axe-core for use with Vitest, providing custom matchers like `toHaveNoViolations()`.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "To use `vitest-axe`, you import `axe` and pass the rendered container's DOM node to it.",
+              "answer": true,
+              "explanation": "True. You call `axe(container)` and assert on the result. Passing the DOM element directly (not `.innerHTML`) is preferred because it preserves the full DOM context for axe-core's analysis.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "Accessibility tests can be added to existing component tests — they do not require separate test files.",
+              "answer": true,
+              "explanation": "Accessibility checks can be added to any existing component test. No separate file needed.",
+              "tags": [
+                "accessibility-testing",
+                "test-organization"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "The `render` function returns a `container` property that references the DOM element wrapping the rendered component.",
+              "answer": true,
+              "explanation": "`render` returns `{ container, ... }` where `container` is the wrapping DOM element.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "Coverage reports generated by Vitest can be output in multiple formats, including `text`, `lcov`, `html`, and `json`.",
+              "answer": true,
+              "explanation": "Vitest coverage supports multiple output formats. `html` is especially useful for interactive exploration.",
+              "tags": [
+                "code-coverage",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "Viewing an HTML coverage report lets you see exactly which lines and branches were not executed during testing.",
+              "answer": true,
+              "explanation": "HTML coverage reports highlight executed and un-executed lines, branches, and functions visually.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "If a critical user flow has low coverage, you should prioritize writing tests for that flow over reaching a global coverage number.",
+              "answer": true,
+              "explanation": "Coverage should guide effort, not drive it. Focus on testing critical user flows rather than chasing a number.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "The end-of-module assessment asks: \"If the implementation changed but the behavior stayed the same, would this test still pass?\" Tests that fail this check should be refactored.",
+              "answer": true,
+              "explanation": "This is the module's key heuristic. Tests that fail this check are coupled to implementation and should be refactored to test behavior.",
+              "tags": [
+                "test-resilience"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "count": 48,
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "An integration test in the RTL context typically:",
+              "options": [
+                "Tests a single function in isolation",
+                "Renders multiple components together and tests user-facing behavior across them",
+                "Tests the database connection",
+                "Tests only the styling"
+              ],
+              "answer": 1,
+              "explanation": "Integration tests in RTL render multiple components and test user-facing behavior across them.",
+              "tags": [
+                "integration-testing",
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "A custom `renderWithProviders` function is useful because:",
+              "options": [
+                "It makes tests run faster",
+                "It reduces boilerplate by wrapping every component in the same set of required providers",
+                "It replaces RTL's `render` entirely",
+                "It eliminates the need for any mocks"
+              ],
+              "answer": 1,
+              "explanation": "A custom render function encapsulates the provider setup needed by all components, reducing repetition.",
+              "tags": [
+                "custom-render"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "The `wrapper` option in RTL's `render` function:",
+              "options": [
+                "Wraps the test file in a module",
+                "Wraps the component in a provider component (e.g., ThemeProvider, Router, QueryClientProvider)",
+                "Wraps the assertion in a try-catch",
+                "Wraps the test output in HTML"
+              ],
+              "answer": 1,
+              "explanation": "The `wrapper` option wraps the component in providers like ThemeProvider and QueryClientProvider.",
+              "tags": [
+                "custom-render"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "\"AHA Testing\" recommends:",
+              "options": [
+                "Always abstract shared test logic into utility functions",
+                "Avoid hasty abstractions — prefer duplication over wrong abstraction in tests",
+                "Never share any code between tests",
+                "Use inheritance for test organization"
+              ],
+              "answer": 1,
+              "explanation": "AHA Testing says to avoid hasty abstractions. Prefer duplication over wrong abstraction in tests.",
+              "tags": [
+                "aha-testing"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "According to KCD, some duplication in test code is acceptable because:",
+              "options": [
+                "It makes each test self-contained and independently readable",
+                "It reduces the total number of test files",
+                "It increases code coverage",
+                "It is required by Vitest"
+              ],
+              "answer": 0,
+              "explanation": "Duplication makes each test self-contained. The reader can understand one test without reading anything else.",
+              "tags": [
+                "aha-testing",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "The risk of extracting too much shared logic from tests is:",
+              "options": [
+                "Tests run slower",
+                "Individual tests become harder to understand because the reader must trace through shared utilities to see what the test actually does",
+                "TypeScript cannot type shared utilities",
+                "Vitest does not support shared utilities"
+              ],
+              "answer": 1,
+              "explanation": "Over-extraction makes individual tests opaque. The reader must trace through shared code to understand the test.",
+              "tags": [
+                "aha-testing"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "\"Avoid Nesting When You're Testing\" recommends:",
+              "options": [
+                "Never using `describe` blocks",
+                "Preferring flat test structure with descriptive names over deeply nested `describe` blocks",
+                "Nesting `describe` blocks at least 5 levels deep",
+                "Using only `beforeAll` instead of `beforeEach`"
+              ],
+              "answer": 1,
+              "explanation": "KCD prefers flat structures with descriptive names over deep nesting. Some nesting is fine; deep nesting is not.",
+              "tags": [
+                "test-nesting",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "Which test name is preferred under KCD's guidance?",
+              "options": [
+                "`describe(\"Form\") > describe(\"submit\") > it(\"works\")`",
+                "`it(\"submits the form and shows a success message when all fields are valid\")`",
+                "`it(\"test 1\")`",
+                "`describe(\"test suite\") > it(\"passes\")`"
+              ],
+              "answer": 1,
+              "explanation": "A descriptive, flat test name is self-documenting. No need to trace through nested context.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "A test that queries elements by CSS class name is:",
+              "options": [
+                "Resilient to change — CSS classes are stable",
+                "Brittle — CSS classes are implementation details that can change during refactoring",
+                "The recommended approach",
+                "An accessibility best practice"
+              ],
+              "answer": 1,
+              "explanation": "CSS classes are implementation details. They change during refactoring, breaking tests unnecessarily.",
+              "tags": [
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "A test that queries elements by `getByRole` is resilient because:",
+              "options": [
+                "Roles never change",
+                "ARIA roles are part of the component's accessible interface, which is less likely to change during internal refactors",
+                "`getByRole` is faster than other queries",
+                "Roles are generated automatically"
+              ],
+              "answer": 1,
+              "explanation": "ARIA roles are semantic — they represent the component's purpose, not its styling or structure.",
+              "tags": [
+                "test-resilience",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "Code coverage measures:",
+              "options": [
+                "How well your tests verify correct behavior",
+                "Which lines, branches, statements, and functions were executed during testing",
+                "How many bugs were found",
+                "Test run performance"
+              ],
+              "answer": 1,
+              "explanation": "Coverage tracks which code was executed. It does not assess whether assertions are correct.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "A test that calls a function but asserts nothing about the result:",
+              "options": [
+                "Contributes to code coverage but provides no confidence",
+                "Is a high-quality test",
+                "Is impossible to write",
+                "Provides maximum confidence"
+              ],
+              "answer": 0,
+              "explanation": "Calling a function increases coverage. Without assertions, the test provides no confidence.",
+              "tags": [
+                "integration-testing",
+                "code-coverage",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "100% code coverage means:",
+              "options": [
+                "The software is bug-free",
+                "Every line was executed during tests, but not necessarily tested correctly",
+                "All edge cases are covered",
+                "No more tests are needed"
+              ],
+              "answer": 1,
+              "explanation": "100% coverage means every line ran. It says nothing about correctness.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "Branch coverage ensures:",
+              "options": [
+                "Every line was executed",
+                "Every possible path through conditionals (`if`/`else`, ternary, `switch`) was executed",
+                "Every function was called",
+                "Every file was imported"
+              ],
+              "answer": 1,
+              "explanation": "Branch coverage tracks whether every conditional path was taken.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Vitest's coverage can be configured with which providers?",
+              "options": [
+                "`v8` only",
+                "`istanbul` only",
+                "`v8` or `istanbul`",
+                "`jest` or `c8`"
+              ],
+              "answer": 2,
+              "explanation": "Vitest supports both `v8` and `istanbul` as coverage providers.",
+              "tags": [
+                "custom-render",
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "The `v8` coverage provider:",
+              "options": [
+                "Instruments source code at build time",
+                "Uses V8's built-in coverage tracking, which is generally faster",
+                "Only works with JavaScript, not TypeScript",
+                "Requires a separate installation of Chrome"
+              ],
+              "answer": 1,
+              "explanation": "`v8` uses the engine's native coverage tracking, avoiding instrumentation overhead.",
+              "tags": [
+                "custom-render",
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "Coverage thresholds in Vitest:",
+              "options": [
+                "Set minimum coverage percentages — the test run fails if coverage drops below",
+                "Set maximum coverage to prevent over-testing",
+                "Only apply to branch coverage",
+                "Are not configurable"
+              ],
+              "answer": 0,
+              "explanation": "Thresholds set minimums. Dropping below triggers a test failure.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "Coverage is best used as:",
+              "options": [
+                "A strict target to maximize",
+                "A tool for finding untested code, not as a target to optimize for",
+                "A replacement for integration tests",
+                "A way to measure test speed"
+              ],
+              "answer": 1,
+              "explanation": "Coverage is a diagnostic tool for finding gaps, not a number to optimize.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "When testing form validation, you should:",
+              "options": [
+                "Unit test the validation function directly and skip UI testing",
+                "Test that error messages appear and disappear correctly in the rendered component",
+                "Only test that the form submits successfully",
+                "Mock the form entirely"
+              ],
+              "answer": 1,
+              "explanation": "Testing that error messages appear correctly is testing behavior — what the user sees.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "Testing that a specific validation function was called with certain arguments is:",
+              "options": [
+                "Testing behavior",
+                "Testing implementation details",
+                "An integration test",
+                "An accessibility test"
+              ],
+              "answer": 1,
+              "explanation": "Asserting a specific function was called is testing how, not what. This is implementation detail testing.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "Testing that an error message appears when a required field is empty is:",
+              "options": [
+                "Testing implementation details",
+                "Testing behavior",
+                "Testing coverage",
+                "Not a valid test"
+              ],
+              "answer": 1,
+              "explanation": "Error messages appearing are user-visible behavior.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "`vitest-axe` is used for:",
+              "options": [
+                "Testing API performance",
+                "Automated accessibility testing using the axe-core engine",
+                "Testing CSS animations",
+                "Measuring code coverage"
+              ],
+              "answer": 1,
+              "explanation": "`vitest-axe` runs the axe-core accessibility engine on rendered DOM.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "Automated accessibility testing catches approximately:",
+              "options": [
+                "100% of accessibility issues",
+                "30-50% of accessibility issues",
+                "0% of accessibility issues",
+                "90% of accessibility issues"
+              ],
+              "answer": 1,
+              "explanation": "Automated tools catch roughly 30-50% of issues. Manual testing is still required.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "`expect(container).toHaveNoViolations()` checks:",
+              "options": [
+                "That the container has no child elements",
+                "That the axe-core engine found no accessibility violations in the rendered DOM",
+                "That no errors were thrown during rendering",
+                "That the container matches a snapshot"
+              ],
+              "answer": 1,
+              "explanation": "`toHaveNoViolations()` checks that axe-core found zero WCAG violations.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "Accessibility tests should be:",
+              "options": [
+                "Run only before releases",
+                "Integrated into your regular component test suite for early regression detection",
+                "Run only manually",
+                "Separate from all other tests"
+              ],
+              "answer": 1,
+              "explanation": "Accessibility tests should be integrated into the regular test suite for early regression detection.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "Test file organization — which approach is recommended?",
+              "options": [
+                "Only colocated files (`Button.test.tsx` next to `Button.tsx`)",
+                "Only centralized `__tests__` directories",
+                "Either approach works; follow team conventions",
+                "Tests should not be in separate files"
+              ],
+              "answer": 2,
+              "explanation": "Both colocated and centralized approaches are valid. Team consistency matters most.",
+              "tags": [
+                "test-organization"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "A `test-utils.ts` file typically exports:",
+              "options": [
+                "All test data",
+                "A custom `render` function with providers, shared test helpers, and re-exports of RTL utilities",
+                "Mock implementations for all components",
+                "Coverage configuration"
+              ],
+              "answer": 1,
+              "explanation": "A `test-utils.ts` exports custom render, helpers, and re-exports of RTL utilities.",
+              "tags": [
+                "custom-render",
+                "test-organization"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "Which of these components is least worth testing directly?",
+              "options": [
+                "A component that renders a form with complex validation",
+                "A component that renders user data fetched from an API",
+                "A layout component that only passes `children` through to a div with a CSS class",
+                "A component with a complex state machine"
+              ],
+              "answer": 2,
+              "explanation": "A layout component with no logic is not worth testing directly. It is covered by parent tests.",
+              "tags": [
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "You should NOT test:",
+              "options": [
+                "Critical user flows",
+                "Third-party library internals",
+                "Form validation behavior",
+                "Accessibility"
+              ],
+              "answer": 1,
+              "explanation": "Third-party library internals should not be in your test suite. They are tested by the library.",
+              "tags": [
+                "what-not-to-test"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "When testing a modal that renders via a React portal:",
+              "options": [
+                "You cannot test it with RTL",
+                "`screen` queries work because they search the entire `document.body`, which includes portal content",
+                "You must mock the portal",
+                "You must use `within` on the portal container"
+              ],
+              "answer": 1,
+              "explanation": "`screen` queries `document.body`, which includes portal content. Modals in portals are found normally.",
+              "tags": [
+                "portals-routing"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "To test a component that reads URL parameters, you need to:",
+              "options": [
+                "Mock `window.location` directly",
+                "Wrap the component in a router context (via `wrapper`) with the desired URL state",
+                "Use fake timers",
+                "Test it without any routing context"
+              ],
+              "answer": 1,
+              "explanation": "Router-dependent components need a router context via the `wrapper` option.",
+              "tags": [
+                "portals-routing"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "A test that only asserts on internal state values (not rendered output) is:",
+              "options": [
+                "An integration test",
+                "Testing implementation details — it should assert on what the user sees",
+                "The highest-quality test",
+                "An accessibility test"
+              ],
+              "answer": 1,
+              "explanation": "Asserting on internal state tests implementation. Assert on rendered output instead.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "The question \"Would this test still pass if I changed the implementation but kept the behavior?\" helps you identify:",
+              "options": [
+                "Performance issues",
+                "Tests that are coupled to implementation details and should be refactored",
+                "Missing test coverage",
+                "Accessibility violations"
+              ],
+              "answer": 1,
+              "explanation": "This question identifies tests coupled to implementation that should be refactored to test behavior.",
+              "tags": [
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "A test that asserts `document.querySelector('.error-text')` exists is brittle because:",
+              "options": [
+                "`querySelector` is slow",
+                "The CSS class `.error-text` is an implementation detail that can change without affecting behavior",
+                "`querySelector` does not work in tests",
+                "It checks accessibility"
+              ],
+              "answer": 1,
+              "explanation": "CSS classes are implementation details. Renaming `.error-text` to `.validation-error` breaks the test.",
+              "tags": [
+                "test-resilience",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "The same test rewritten as `screen.getByRole('alert')` is more resilient because:",
+              "options": [
+                "Roles are faster to query",
+                "The ARIA role `alert` is part of the accessible interface and less likely to change during CSS refactors",
+                "`getByRole` always finds elements",
+                "It is shorter to type"
+              ],
+              "answer": 1,
+              "explanation": "The ARIA role `alert` is semantic. CSS class changes do not affect it.",
+              "tags": [
+                "test-resilience",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "When refactoring a test for resilience, priority order for replacing queries is:",
+              "options": [
+                "`getByTestId` → `getByClassName` → `getByRole`",
+                "`getByRole` → `getByLabelText` → `getByText` → `getByTestId`",
+                "`getByText` → `getByTestId` → `getByRole`",
+                "`querySelector` → `getByTestId` → `getByText`"
+              ],
+              "answer": 1,
+              "explanation": "This is RTL's query priority: role → label → text → test ID. Higher-priority queries are more resilient.",
+              "tags": [
+                "test-resilience"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "In an integration test for a todo list, you should:",
+              "options": [
+                "Mock the list item component",
+                "Render the full `TodoList` with real child components and test the add/complete/delete user flows",
+                "Only test the individual `TodoItem` component",
+                "Skip testing and rely on coverage"
+              ],
+              "answer": 1,
+              "explanation": "An integration test should render the full component tree and test real user flows.",
+              "tags": [
+                "integration-testing"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "Testing a component with `act(() => { ... })` explicitly is:",
+              "options": [
+                "Always required in RTL tests",
+                "Usually unnecessary because RTL handles `act()` internally",
+                "Required for every `user-event` call",
+                "A best practice recommended by KCD"
+              ],
+              "answer": 1,
+              "explanation": "RTL handles `act()` internally. Manual `act()` is usually unnecessary.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "MC-39",
+              "question": "Coverage reports are most useful for:",
+              "options": [
+                "Replacing all other test quality metrics",
+                "Identifying untested code paths that may need tests",
+                "Proving the code has no bugs",
+                "Measuring test execution speed"
+              ],
+              "answer": 1,
+              "explanation": "Coverage reports identify untested code paths that may need tests.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-40",
+              "question": "A project has 95% line coverage but all tests use `getByTestId` and none assert on accessibility. This test suite:",
+              "options": [
+                "Is excellent because coverage is high",
+                "Has high coverage but may be brittle and misses accessibility entirely",
+                "Cannot be improved",
+                "Has perfect test quality"
+              ],
+              "answer": 1,
+              "explanation": "High coverage with brittle queries and no accessibility testing leaves significant gaps.",
+              "tags": [
+                "test-resilience",
+                "code-coverage",
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "The `vitest-axe` `toHaveNoViolations` matcher should be used in:",
+              "options": [
+                "Only the final e2e test",
+                "Component tests, ideally for key components that render user-facing content",
+                "Coverage configuration",
+                "Build scripts"
+              ],
+              "answer": 1,
+              "explanation": "Accessibility checks should be in regular component tests, not just one final e2e test.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "When using `vitest-axe`, the `axe` function is called with:",
+              "options": [
+                "The component's props",
+                "The rendered DOM container",
+                "The test file name",
+                "The coverage report"
+              ],
+              "answer": 1,
+              "explanation": "`axe()` receives the rendered DOM container and analyzes it for accessibility violations.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "A developer has `coverage.thresholds.branches: 90` in their config. A PR drops branch coverage to 88%. What happens?",
+              "options": [
+                "Nothing — thresholds are only warnings",
+                "The test run fails, blocking the PR until branch coverage is restored",
+                "Only the coverage report is updated",
+                "The threshold is automatically lowered"
+              ],
+              "answer": 1,
+              "explanation": "The threshold causes the test command to fail, blocking the PR.",
+              "tags": [
+                "code-coverage"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "Which is better: a test suite with 80% coverage where every test asserts on behavior, or a test suite with 100% coverage where many tests only assert on implementation details?",
+              "options": [
+                "The 100% coverage suite — coverage is the best metric",
+                "The 80% coverage suite — testing behavior provides more confidence even at lower coverage",
+                "They are equivalent",
+                "Neither is acceptable"
+              ],
+              "answer": 1,
+              "explanation": "Behavior tests at 80% coverage provide more real confidence than implementation-detail tests at 100%.",
+              "tags": [
+                "integration-testing",
+                "test-resilience",
+                "code-coverage",
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "When re-reading \"Common Mistakes with React Testing Library\" after hands-on experience, you are likely to catch:",
+              "options": [
+                "Nothing new — the article is only useful once",
+                "Mistakes you are actually making in your own tests that you did not recognize before",
+                "Advanced TypeScript errors",
+                "CSS styling issues"
+              ],
+              "answer": 1,
+              "explanation": "Re-reading after hands-on experience helps you recognize mistakes you are making in your own tests.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "An integration test for a multi-step form should:",
+              "options": [
+                "Test each step in a separate test file with mocked previous steps",
+                "Render the full form, fill in each step, navigate between steps, and verify the final submission",
+                "Only test the last step",
+                "Skip form testing entirely"
+              ],
+              "answer": 1,
+              "explanation": "A multi-step form test should exercise the full flow: fill, navigate, submit, verify.",
+              "tags": [
+                "integration-testing",
+                "form-testing"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "The `render` function's `container` return value is useful for:",
+              "options": [
+                "Modifying the DOM directly",
+                "Passing to `axe()` for accessibility testing, or scoping queries with `within`",
+                "Replacing `screen`",
+                "Nothing — always use `screen`"
+              ],
+              "answer": 1,
+              "explanation": "`container` is passed to `axe()` for accessibility testing and can be used with `within`.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "The end-of-module assessment asks you to run `vitest-axe` on at least 3 components. This is because:",
+              "options": [
+                "3 is the maximum number of components you can test",
+                "Automated accessibility testing should be part of your regular test workflow, not a one-time check",
+                "`vitest-axe` can only scan 3 components at a time",
+                "Accessibility only matters for 3 types of components"
+              ],
+              "answer": 1,
+              "explanation": "Accessibility testing should be a regular part of the workflow, not a one-time event.",
+              "tags": [
+                "accessibility-testing"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

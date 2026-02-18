@@ -1,0 +1,1513 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week14",
+      "title": "Week 14: React Testing Library — Rendering, Queries, and user-event",
+      "scope": "RTL philosophy, `render` and `screen`, query variants (`getBy`, `queryBy`, `findBy`, `getAllBy`), query priority (`getByRole` > `getByLabelText` > `getByText` > `getByTestId`), accessible queries and ARIA roles, `user-event` vs. `fireEvent`, `waitFor` and async utilities, `within`, `cleanup`, debugging with `screen.debug()` and `logRoles`.",
+      "readings": [
+        "RTL: \"Introduction\" and \"Guiding Principles\"",
+        "TL: \"About Queries\" (full query priority table)",
+        "TL: \"ByRole\" query page",
+        "UE: \"Introduction,\" \"Setup,\" and API pages (`click`, `type`, `clear`, `selectOptions`, `keyboard`, `tab`)",
+        "KCD: \"Common Mistakes with React Testing Library\"",
+        "RTL: \"API\" reference (`render`, `wrapper`, `cleanup`)"
+      ],
+      "scoring_note": "Wrong answers on T/F and MC are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness — do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "count": 72,
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "React Testing Library's guiding principle is: \"The more your tests resemble the way your software is used, the more confidence they can give you.\"",
+              "answer": true,
+              "explanation": "This is RTL's stated guiding principle. Tests should mirror real user interactions.",
+              "tags": [
+                "rtl-philosophy"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "React Testing Library exposes component instance methods and internal state so you can test them directly.",
+              "answer": false,
+              "explanation": "RTL intentionally does NOT expose component instances or internal state. This is by design — it forces you to test behavior, not implementation.",
+              "tags": [
+                "rtl-philosophy"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "RTL encourages testing components the way a user would interact with them: finding elements by visible text, labels, or roles, then simulating user actions.",
+              "answer": true,
+              "explanation": "RTL's API is built around finding elements the way users do (by visible text, roles, labels) and interacting with them (clicking, typing).",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "The `render` function from RTL renders a React component into a DOM container and returns utility functions for querying the rendered output.",
+              "answer": true,
+              "explanation": "`render()` renders the component into `jsdom`'s document and returns utilities for interacting with the rendered output.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "The `screen` object is the recommended way to query the rendered output. It references the `document.body` and provides all query methods.",
+              "answer": true,
+              "explanation": "`screen` queries against `document.body` and provides all query variants. It is the recommended way to access queries.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "Using `screen` instead of destructuring query methods from `render` is a common best practice because it keeps the test code more consistent and readable.",
+              "answer": true,
+              "explanation": "Using `screen` avoids destructuring and keeps all queries accessed the same way across tests. KCD lists destructuring from `render` as a common mistake.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "The `render` function requires a DOM environment (like `jsdom`) because it renders the component into an actual DOM tree.",
+              "answer": true,
+              "explanation": "`render` creates real DOM elements. Without a DOM environment, DOM APIs like `document.createElement` are unavailable.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "RTL's `cleanup` function unmounts the rendered component and removes it from the DOM. In Vitest with RTL, cleanup runs automatically after each test.",
+              "answer": true,
+              "explanation": "`cleanup` unmounts components and clears the DOM. RTL with Vitest auto-cleans after each test via a setup hook.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "You need to manually call `cleanup()` in an `afterEach` block in every test file when using Vitest with RTL.",
+              "answer": false,
+              "explanation": "False. RTL automatically calls `cleanup` after each test when it detects a supported framework. With Vitest, this works out of the box with no manual cleanup required. (`setupFiles` are typically used for other global setup like importing `@testing-library/jest-dom` matchers, not for cleanup.)",
+              "tags": [
+                "rtl-utilities",
+                "jest-dom"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "`getByRole` is the highest-priority query in RTL's recommended query hierarchy because it queries elements the way assistive technology sees them.",
+              "answer": true,
+              "explanation": "`getByRole` queries by ARIA role, which is how assistive technologies (and therefore many users) interact with the page. It is the highest-priority query.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "`getByTestId` is the preferred query method because it is the most stable and never breaks.",
+              "answer": false,
+              "explanation": "`getByTestId` is the lowest-priority query. It tests nothing about accessibility and should only be used as a last resort.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "The recommended query priority order is: `getByRole` > `getByLabelText` > `getByText` > `getByTestId`.",
+              "answer": true,
+              "explanation": "This is RTL's recommended priority: role-based → label-based → text-based → test ID. The hierarchy prioritizes queries accessible to all users.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "`getByRole('button', { name: /submit/i })` finds a button whose accessible name matches the regex `/submit/i`.",
+              "answer": true,
+              "explanation": "The `name` option in `getByRole` filters by accessible name. The regex `/submit/i` performs a case-insensitive match.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "The `name` option in `getByRole` matches against the element's accessible name, which can come from text content, `aria-label`, `aria-labelledby`, or an associated `<label>`.",
+              "answer": true,
+              "explanation": "Accessible name can come from multiple sources: text content, `aria-label`, `aria-labelledby`, or associated `<label>` elements.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "HTML `<button>` elements have an implicit ARIA role of `\"button\"` without needing an explicit `role` attribute.",
+              "answer": true,
+              "explanation": "`<button>` has the implicit ARIA role `button` per the HTML specification.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "An `<input type=\"text\">` has an implicit ARIA role of `\"textbox\"`.",
+              "answer": true,
+              "explanation": "`<input type=\"text\">` maps to the ARIA role `textbox`.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "An `<a href=\"...\">` element has an implicit ARIA role of `\"link\"`.",
+              "answer": true,
+              "explanation": "`<a href=\"...\">` has the implicit role `link`. (Note: `<a>` without `href` has no implicit role.)",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "An `<h1>` element has an implicit ARIA role of `\"heading\"` with `level: 1`.",
+              "answer": true,
+              "explanation": "`<h1>` has role `heading` with `aria-level` of `1`. You can query it with `getByRole('heading', { level: 1 })`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "You can query a specific heading level with `getByRole('heading', { level: 2 })` to find an `<h2>`.",
+              "answer": true,
+              "explanation": "The `level` option in `getByRole('heading', { level: 2 })` matches heading elements of that specific level.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "A `<select>` element without a `multiple` attribute and without a `size` attribute greater than 1 has an implicit ARIA role of `\"combobox\"`.",
+              "answer": true,
+              "explanation": "True. Per the HTML Accessibility API Mappings spec, a single-select `<select>` (no `multiple`, no `size > 1`) maps to the `combobox` role. A `<select>` with `multiple` or `size > 1` maps to `listbox` instead.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "An `<input type=\"checkbox\">` has an implicit ARIA role of `\"checkbox\"`.",
+              "answer": true,
+              "explanation": "`<input type=\"checkbox\">` has the implicit ARIA role `checkbox`.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "`getByLabelText` is the preferred query for form fields because it mimics how users identify form controls — by their labels.",
+              "answer": true,
+              "explanation": "`getByLabelText` mimics how sighted users (via label text) and assistive technology users (via label association) identify form controls.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "`getByLabelText(\"Email\")` finds an input that has an associated `<label>` with the text \"Email\", either via `htmlFor`/`id` pairing or by wrapping.",
+              "answer": true,
+              "explanation": "`getByLabelText` follows the label-input association, whether via `htmlFor`/`id`, wrapping `<label>`, or `aria-labelledby`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "`getByText` finds elements by their visible text content and is the best choice for non-interactive content like paragraphs and headings.",
+              "answer": true,
+              "explanation": "`getByText` is good for non-interactive elements where the visible text is the most natural identifier. For interactive elements, `getByRole` is preferred.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "`getByPlaceholderText` is a higher-priority query than `getByLabelText` because placeholder text is always visible.",
+              "answer": false,
+              "explanation": "`getByPlaceholderText` is lower priority than `getByLabelText`. Labels are more accessible than placeholders, which disappear when the user starts typing.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "`getByDisplayValue` finds form elements by their current value and is useful for finding inputs that already have a value filled in.",
+              "answer": true,
+              "explanation": "`getByDisplayValue` is useful for finding pre-filled form fields by their current value.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "`getByAltText` is used to find elements (typically images) by their `alt` attribute text.",
+              "answer": true,
+              "explanation": "`getByAltText` targets the `alt` attribute, primarily used for images.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "`getByTitle` queries elements by their `title` attribute and is a higher-priority query than `getByRole`.",
+              "answer": false,
+              "explanation": "`getByTitle` is a lower-priority semantic query. `getByRole` is always the highest priority.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "`getByTestId` queries elements by their `data-testid` attribute and should be used as a last resort when no semantic query works.",
+              "answer": true,
+              "explanation": "`getByTestId` is the last resort. It has no semantic meaning and is invisible to users.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "`getBy` queries throw an error if no matching element is found.",
+              "answer": true,
+              "explanation": "`getBy` throws immediately if no match is found, which causes the test to fail with a descriptive error.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "`getBy` queries throw an error if more than one matching element is found.",
+              "answer": true,
+              "explanation": "`getBy` also throws if multiple matches are found. It expects exactly one matching element.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "`queryBy` returns `null` if no matching element is found, rather than throwing.",
+              "answer": true,
+              "explanation": "`queryBy` returns `null` on no match instead of throwing, making it safe for negative assertions.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "`queryBy` is the correct choice when you want to assert that an element does NOT exist in the DOM.",
+              "answer": true,
+              "explanation": "`queryBy` + `.not.toBeInTheDocument()` is the correct pattern for asserting absence. `getBy` would throw before the assertion runs.",
+              "tags": [
+                "rtl-queries",
+                "jest-dom"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "`findBy` queries return a Promise that resolves when the element appears in the DOM, making them suitable for elements that appear asynchronously.",
+              "answer": true,
+              "explanation": "`findBy` returns a Promise that resolves when the element appears, which is how you handle elements that render asynchronously.",
+              "tags": [
+                "rtl-queries",
+                "async-testing",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "`findBy` is equivalent to calling `waitFor` with a `getBy` query inside it.",
+              "answer": true,
+              "explanation": "`findBy` is syntactic sugar for `waitFor(() => getBy(...))`.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "`getAllBy` returns an array of all matching elements and throws if no elements are found.",
+              "answer": true,
+              "explanation": "`getAllBy` returns an array of matching elements and throws if the array would be empty.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "`queryAllBy` returns an empty array if no matching elements are found, rather than throwing.",
+              "answer": true,
+              "explanation": "`queryAllBy` returns an empty array `[]` when no matches are found, rather than throwing.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "If you want to assert that exactly 3 items are rendered in a list, you should use `getAllByRole('listitem')` and assert on the array length.",
+              "answer": true,
+              "explanation": "`getAllByRole('listitem')` returns all matching elements, and you can assert `expect(items).toHaveLength(3)`.",
+              "tags": [
+                "rtl-queries",
+                "aria-roles",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "`user-event` simulates user interactions more realistically than `fireEvent` because it fires all the intermediate events that a real browser would (focus, keydown, keypress, input, keyup, etc.).",
+              "answer": true,
+              "explanation": "`user-event` dispatches the full event sequence that a real browser would, including focus, pointer, mouse, keyboard, and input events.",
+              "tags": [
+                "user-event",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "`fireEvent.click(element)` fires only the `click` event. `user.click(element)` fires the full sequence: `pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`, and potentially `focus`.",
+              "answer": true,
+              "explanation": "`fireEvent.click` dispatches only the synthetic `click` event. `user.click` fires the realistic sequence: pointer events, mouse events, focus, and click.",
+              "tags": [
+                "user-event",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "`user-event` is always preferred over `fireEvent` because it better simulates actual user behavior.",
+              "answer": false,
+              "explanation": "False. `user-event` is preferred for simulating user interactions (clicks, typing, tabbing), but `fireEvent` remains appropriate for non-user events like `resize`, `scroll`, or custom DOM events, and for cases where you need to dispatch a specific synthetic event. For the vast majority of component tests, `user-event` is the right choice.",
+              "tags": [
+                "user-event",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "The recommended setup for `user-event` in a test is `const user = userEvent.setup()`, which returns a user instance for the test.",
+              "answer": true,
+              "explanation": "`userEvent.setup()` creates a configured user instance. This pattern is recommended over calling `userEvent.click()` directly.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "`user.type(element, \"hello\")` simulates a user typing \"hello\" character by character, firing all keyboard events for each character.",
+              "answer": true,
+              "explanation": "`user.type` simulates character-by-character input, including `keydown`, `keypress`, `input`, and `keyup` for each character.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "`user.clear(element)` clears the current value of a text input by selecting all text and deleting it.",
+              "answer": true,
+              "explanation": "`user.clear` selects all text in the input and deletes it, simulating Ctrl+A followed by Delete.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "`user.click(element)` is synchronous and does not need to be awaited.",
+              "answer": false,
+              "explanation": "All `user-event` methods are async and return Promises. You must `await` them.",
+              "tags": [
+                "user-event",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "All `user-event` methods return Promises and should be awaited.",
+              "answer": true,
+              "explanation": "Every `user-event` interaction method returns a Promise. Always `await` them to ensure all events have been processed.",
+              "tags": [
+                "user-event",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "`user.selectOptions(selectElement, ['option1'])` simulates selecting an option from a `<select>` dropdown.",
+              "answer": true,
+              "explanation": "`user.selectOptions` simulates selecting one or more options from a `<select>` or listbox element.",
+              "tags": [
+                "aria-roles",
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "`user.tab()` simulates pressing the Tab key, moving focus to the next focusable element.",
+              "answer": true,
+              "explanation": "`user.tab()` moves focus to the next focusable element, simulating the Tab key press.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "`user.keyboard('{Enter}')` simulates pressing the Enter key.",
+              "answer": true,
+              "explanation": "Special keys are specified with curly braces: `{Enter}`, `{Escape}`, `{Tab}`, `{Backspace}`, etc.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "`waitFor` repeatedly calls the provided callback until it stops throwing or the timeout is reached.",
+              "answer": true,
+              "explanation": "`waitFor` polls the callback at intervals until it succeeds (no throw) or the timeout expires, at which point it throws the last error.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "`waitFor` is the only way to test async behavior in RTL.",
+              "answer": false,
+              "explanation": "`findBy` queries also handle async elements. `waitFor` is for more complex async scenarios; `findBy` is preferred for simply waiting for an element to appear.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "`waitForElementToBeRemoved` waits until the queried element is no longer in the DOM, useful for testing loading states that disappear.",
+              "answer": true,
+              "explanation": "`waitForElementToBeRemoved` waits for the element to be removed from the DOM. It is useful for verifying that loading indicators disappear.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "You should prefer `findBy` over the `waitFor` + `getBy` combination for waiting for an element to appear.",
+              "answer": true,
+              "explanation": "`findBy` is a cleaner, more readable API for the common case of waiting for an element to appear. KCD recommends it over `waitFor` + `getBy`.",
+              "tags": [
+                "rtl-queries",
+                "async-testing",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "Wrapping `render()` calls inside `act()` manually is necessary in RTL tests to avoid state update warnings.",
+              "answer": false,
+              "explanation": "RTL already wraps `render` and `fireEvent` in `act()`. Manually adding `act()` is unnecessary and is listed as a common mistake by KCD.",
+              "tags": [
+                "user-event",
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "RTL's `render` and `user-event` methods already handle `act()` internally, so you should not manually wrap calls in `act()` in most cases.",
+              "answer": true,
+              "explanation": "RTL handles `act()` internally. Adding it manually creates noise and indicates a misunderstanding of the library.",
+              "tags": [
+                "user-event",
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "`screen.debug()` prints the current DOM tree to the console, which is useful for debugging test failures.",
+              "answer": true,
+              "explanation": "`screen.debug()` pretty-prints the current DOM to the console, helping you see what the test \"sees.\"",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "`screen.debug()` takes an optional element argument: `screen.debug(element)` prints only that element's subtree.",
+              "answer": true,
+              "explanation": "`screen.debug(element)` narrows the output to just the subtree of the specified element.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "`logRoles` is an RTL utility that prints all the ARIA roles found in the rendered DOM, helping you discover which roles to use in `getByRole`.",
+              "answer": true,
+              "explanation": "`logRoles` lists all ARIA roles in the container, which helps you write correct `getByRole` queries.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "The `within` function from RTL lets you scope queries to a specific container element, creating a \"mini screen\" for a subtree.",
+              "answer": true,
+              "explanation": "`within` scopes all queries to a specific container, useful when the same text or role appears in multiple parts of the page.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "`within(container).getByText(\"hello\")` searches for \"hello\" only inside `container`, not the entire document.",
+              "answer": true,
+              "explanation": "`within(container)` returns a bound set of query methods that only search inside `container`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "The `render` function's `wrapper` option lets you specify a component that wraps the rendered component, useful for providing Context, ThemeProvider, or other required providers.",
+              "answer": true,
+              "explanation": "The `wrapper` option in `render` wraps the component in a provider. This avoids repeating provider boilerplate in every test.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "RTL tests should always test components in complete isolation, never with their child components.",
+              "answer": false,
+              "explanation": "RTL encourages rendering components with their real children when practical. Full isolation (mocking all children) tests implementation details rather than behavior.",
+              "tags": [
+                "rtl-philosophy",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "RTL encourages testing components as users experience them, which often means rendering a component with its real children rather than mocking everything.",
+              "answer": true,
+              "explanation": "RTL's philosophy favors testing components as users experience them, which means rendering with real children unless there is a specific reason to mock.",
+              "tags": [
+                "rtl-philosophy",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "`getByRole('textbox')` can find both `<input type=\"text\">` and `<textarea>` elements because both have the `textbox` role.",
+              "answer": true,
+              "explanation": "Both `<input type=\"text\">` and `<textarea>` have the `textbox` role, so `getByRole('textbox')` can match either.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "Regex matchers passed to query methods (e.g., `getByText(/submit/i)`) are useful for case-insensitive matching and partial text matching.",
+              "answer": true,
+              "explanation": "Regex matchers are useful for flexible matching. `/submit/i` matches \"Submit\", \"SUBMIT\", \"submit\", or any element containing \"submit\" as a substring.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "`getByText(\"Submit\")` performs an exact string match by default and will not match \"Submit Form\".",
+              "answer": true,
+              "explanation": "By default, `getByText(\"Submit\")` is an exact, full-content match. \"Submit Form\" would not match.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "You can pass `{ exact: false }` as an option to `getByText` to enable substring matching.",
+              "answer": true,
+              "explanation": "`{ exact: false }` enables substring matching for text queries.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "`getByRole('button', { name: \"Submit\" })` performs an exact string match on the accessible name by default.",
+              "answer": true,
+              "explanation": "The `name` option in `getByRole` performs an exact string match by default. Use regex for flexible matching.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "`screen.getByRole('dialog')` can find elements with `role=\"dialog\"` or native `<dialog>` elements.",
+              "answer": true,
+              "explanation": "Both explicit `role=\"dialog\"` and native `<dialog>` elements have the `dialog` role and can be found with `getByRole('dialog')`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "Using `data-testid` attributes creates a coupling between tests and the DOM that is invisible to users and should be minimized.",
+              "answer": true,
+              "explanation": "`data-testid` attributes are meaningless to users and assistive technology. They are a testing-only concern and create test-to-DOM coupling.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "`user.type(input, \"abc{backspace}\")` types \"abc\" and then simulates pressing Backspace, resulting in \"ab\" in the input.",
+              "answer": true,
+              "explanation": "`user.type` interprets `{backspace}` as a special key. After typing \"abc\", Backspace deletes \"c\", leaving \"ab\".",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "`findByRole` and other `findBy` queries accept a `timeout` option that controls how long to wait before giving up.",
+              "answer": true,
+              "explanation": "`findBy` queries accept options including `timeout` (default 1000ms) and `interval` to customize waiting behavior.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "count": 48,
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "RTL's guiding principle is:",
+              "options": [
+                "\"Test internals to catch bugs early\"",
+                "\"The more your tests resemble the way your software is used, the more confidence they can give you\"",
+                "\"Always mock child components for isolation\"",
+                "\"Maximize code coverage for confidence\""
+              ],
+              "answer": 1,
+              "explanation": "This is RTL's stated guiding principle: tests that resemble real usage give the most confidence.",
+              "tags": [
+                "rtl-philosophy"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "What is the recommended way to access queries in RTL tests?",
+              "options": [
+                "Destructure queries from `render()`: `const { getByText } = render(<App />)`",
+                "Use the `screen` object: `screen.getByText(\"hello\")`",
+                "Use `document.querySelector`",
+                "Access the component instance directly"
+              ],
+              "answer": 1,
+              "explanation": "`screen` is the recommended way to access queries. Destructuring from `render` is listed by KCD as a common mistake.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "Which query should you try first when looking for a button?",
+              "options": [
+                "`getByText(\"Submit\")`",
+                "`getByTestId(\"submit-button\")`",
+                "`getByRole('button', { name: /submit/i })`",
+                "`document.querySelector('button')`"
+              ],
+              "answer": 2,
+              "explanation": "`getByRole` is the highest-priority query. `getByRole('button', { name: /submit/i })` queries by role and accessible name.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "Which query is best for finding a text input with a visible label \"Email Address\"?",
+              "options": [
+                "`getByTestId(\"email-input\")`",
+                "`getByPlaceholderText(\"Email Address\")`",
+                "`getByLabelText(\"Email Address\")`",
+                "`getByRole('input')`"
+              ],
+              "answer": 2,
+              "explanation": "`getByLabelText` is the best query for form fields with visible labels. It mimics how users find form controls.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "`getByTestId` should be used:",
+              "options": [
+                "As the default query for all elements",
+                "For interactive elements like buttons",
+                "As a last resort when no semantic query works",
+                "For all form inputs"
+              ],
+              "answer": 2,
+              "explanation": "`getByTestId` is a last resort when no accessible or semantic query works. It has no meaning to users.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "What does `getByRole('heading', { level: 2 })` match?",
+              "options": [
+                "Any element with `role=\"heading\"`",
+                "An `<h2>` element",
+                "Any heading element (`<h1>` through `<h6>`)",
+                "An element with `aria-level=\"2\"`"
+              ],
+              "answer": 1,
+              "explanation": "`getByRole('heading', { level: 2 })` specifically matches `<h2>` elements (role `heading`, level 2).",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "What is the implicit ARIA role of a single-select `<select>` element?",
+              "options": [
+                "`select`",
+                "`dropdown`",
+                "`combobox`",
+                "`listbox`"
+              ],
+              "answer": 2,
+              "explanation": "A single-select `<select>` element (no `multiple` attribute, no `size > 1`) has the implicit ARIA role `combobox`. A `<select>` with `multiple` or `size > 1` has the role `listbox`.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "What does `getBy` do when no matching element is found?",
+              "options": [
+                "Returns `null`",
+                "Returns an empty array",
+                "Throws an error",
+                "Returns `undefined`"
+              ],
+              "answer": 2,
+              "explanation": "`getBy` throws an error when no match is found, causing the test to fail with a descriptive message.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "What does `queryBy` do when no matching element is found?",
+              "options": [
+                "Throws an error",
+                "Returns `null`",
+                "Returns `undefined`",
+                "Returns `false`"
+              ],
+              "answer": 1,
+              "explanation": "`queryBy` returns `null` when no match is found, which is safe for negative assertions.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "When should you use `queryBy` instead of `getBy`?",
+              "options": [
+                "When the element might appear asynchronously",
+                "When asserting that an element does NOT exist in the DOM",
+                "When querying multiple elements",
+                "When the element has no accessible name"
+              ],
+              "answer": 1,
+              "explanation": "`queryBy` is used when asserting absence: `expect(screen.queryByText(\"X\")).not.toBeInTheDocument()`.",
+              "tags": [
+                "rtl-queries",
+                "jest-dom"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "`findBy` queries are most useful when:",
+              "options": [
+                "The element is already in the DOM",
+                "The element will appear asynchronously after some state change or data fetch",
+                "You want to find multiple elements",
+                "You want to assert the element does not exist"
+              ],
+              "answer": 1,
+              "explanation": "`findBy` is for elements that appear asynchronously. It returns a Promise that resolves when the element appears.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "`findBy` returns:",
+              "options": [
+                "The element immediately",
+                "`null` if not found",
+                "A Promise that resolves when the element appears",
+                "An array of elements"
+              ],
+              "answer": 2,
+              "explanation": "`findBy` returns a Promise. You must `await` it.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "What does `getAllByRole('listitem')` return?",
+              "options": [
+                "The first `<li>` element found",
+                "An array of all elements with the `listitem` role",
+                "A Promise resolving to an array",
+                "`null` if no items are found"
+              ],
+              "answer": 1,
+              "explanation": "`getAllBy` returns an array of all matching elements.",
+              "tags": [
+                "rtl-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "What happens when `getAllBy` finds no matching elements?",
+              "options": [
+                "Returns an empty array",
+                "Returns `null`",
+                "Throws an error",
+                "Returns `undefined`"
+              ],
+              "answer": 2,
+              "explanation": "`getAllBy` throws if no elements are found. Use `queryAllBy` if an empty array is acceptable.",
+              "tags": [
+                "rtl-queries"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "What is the difference between `fireEvent.click(element)` and `user.click(element)`?",
+              "options": [
+                "They are identical",
+                "`fireEvent.click` dispatches only the `click` event; `user.click` fires the full pointer/mouse/click sequence",
+                "`user.click` is synchronous; `fireEvent.click` is async",
+                "`fireEvent.click` works on all elements; `user.click` only works on buttons"
+              ],
+              "answer": 1,
+              "explanation": "`fireEvent.click` dispatches only `click`. `user.click` fires the full pointer/mouse/focus/click sequence.",
+              "tags": [
+                "user-event",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "How do you set up `user-event` in a test?",
+              "options": [
+                "`import user from '@testing-library/user-event'`",
+                "`const user = userEvent.setup()` at the beginning of the test or `beforeEach`",
+                "`const user = new UserEvent()`",
+                "`fireEvent.enableUserEvents()`"
+              ],
+              "answer": 1,
+              "explanation": "`const user = userEvent.setup()` creates a user instance with proper event coordination. This is the recommended pattern.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "`user.type(element, \"hello\")` simulates:",
+              "options": [
+                "Setting the input's value property directly to \"hello\"",
+                "Typing \"hello\" character by character, firing keyboard events for each character",
+                "Pasting \"hello\" into the input",
+                "Calling `element.setAttribute(\"value\", \"hello\")`"
+              ],
+              "answer": 1,
+              "explanation": "`user.type` simulates character-by-character input with all associated keyboard events.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "Which `user-event` method clears the current value of an input field?",
+              "options": [
+                "`user.delete(element)`",
+                "`user.clear(element)`",
+                "`user.reset(element)`",
+                "`user.empty(element)`"
+              ],
+              "answer": 1,
+              "explanation": "`user.clear(element)` clears the input's value.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "`user-event` methods are:",
+              "options": [
+                "Synchronous — they resolve immediately",
+                "Asynchronous — they return Promises and should be awaited",
+                "Some are sync and some are async",
+                "Only async in strict mode"
+              ],
+              "answer": 1,
+              "explanation": "All `user-event` methods return Promises and should be awaited.",
+              "tags": [
+                "user-event",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "`user.tab()` simulates:",
+              "options": [
+                "Opening a new browser tab",
+                "Inserting a tab character",
+                "Pressing the Tab key to move focus to the next focusable element",
+                "Indenting text"
+              ],
+              "answer": 2,
+              "explanation": "`user.tab()` simulates pressing the Tab key to move focus.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "`user.selectOptions(select, ['value1'])` is used for:",
+              "options": [
+                "Selecting text in an input",
+                "Selecting an option from a `<select>` dropdown or listbox",
+                "Checking checkboxes",
+                "Choosing radio buttons"
+              ],
+              "answer": 1,
+              "explanation": "`user.selectOptions` simulates selecting options from a `<select>` or listbox.",
+              "tags": [
+                "aria-roles",
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "What does `waitFor` do?",
+              "options": [
+                "Waits for a specified number of milliseconds",
+                "Repeatedly calls the provided callback until it stops throwing or the timeout is reached",
+                "Pauses the test execution",
+                "Waits for all Promises to resolve"
+              ],
+              "answer": 1,
+              "explanation": "`waitFor` repeatedly invokes the callback on an interval until it stops throwing or times out.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "What is the advantage of using `findBy` over `waitFor` + `getBy`?",
+              "options": [
+                "`findBy` is faster",
+                "`findBy` combines the wait-and-query into a single, more readable call",
+                "`findBy` works without a DOM",
+                "`findBy` never times out"
+              ],
+              "answer": 1,
+              "explanation": "`findBy` is a single, readable call that combines waiting and querying. It is preferred over the more verbose `waitFor` + `getBy`.",
+              "tags": [
+                "rtl-queries",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "`waitForElementToBeRemoved` is used to:",
+              "options": [
+                "Remove an element from the DOM",
+                "Wait until a queried element is no longer present in the DOM",
+                "Delete a component from memory",
+                "Unmount a component"
+              ],
+              "answer": 1,
+              "explanation": "`waitForElementToBeRemoved` waits until the element is gone from the DOM.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "Should you manually wrap RTL calls in `act()`?",
+              "options": [
+                "Yes, always",
+                "No — `render` and `user-event` already handle `act()` internally",
+                "Only for async operations",
+                "Only for class components"
+              ],
+              "answer": 1,
+              "explanation": "RTL handles `act()` internally. Manual `act()` is unnecessary and is a common mistake per KCD.",
+              "tags": [
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "`screen.debug()` prints:",
+              "options": [
+                "The component's props and state",
+                "The current DOM tree to the console",
+                "A list of all available queries",
+                "The React fiber tree"
+              ],
+              "answer": 1,
+              "explanation": "`screen.debug()` prints the DOM tree to the console for debugging.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "`logRoles(container)` is useful for:",
+              "options": [
+                "Logging all event handlers on an element",
+                "Discovering which ARIA roles are present in the rendered DOM, helping you write `getByRole` queries",
+                "Printing the component hierarchy",
+                "Listing all CSS classes"
+              ],
+              "answer": 1,
+              "explanation": "`logRoles` prints all ARIA roles in the container, helping you discover correct roles for `getByRole`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles",
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "The `within` function:",
+              "options": [
+                "Limits a test to a specific time window",
+                "Scopes queries to a specific container element",
+                "Creates a new `describe` block",
+                "Filters test files"
+              ],
+              "answer": 1,
+              "explanation": "`within` scopes queries to a specific container element.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "What does the `wrapper` option in `render` do?",
+              "options": [
+                "Wraps the test function in a try/catch",
+                "Wraps the rendered component in a specified provider component (e.g., ThemeProvider)",
+                "Wraps the DOM in a shadow root",
+                "Wraps the component in React.StrictMode"
+              ],
+              "answer": 1,
+              "explanation": "The `wrapper` option wraps the rendered component in a provider (e.g., ThemeProvider, Router).",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "Which of the following is a \"Common Mistake\" identified by KCD?",
+              "options": [
+                "Using `screen` to access queries",
+                "Using `getByRole` as the primary query",
+                "Destructuring queries from `render` instead of using `screen`",
+                "Using `user-event` instead of `fireEvent`"
+              ],
+              "answer": 2,
+              "explanation": "KCD identifies destructuring from `render` instead of using `screen` as a common mistake.",
+              "tags": [
+                "rtl-queries",
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "Another common mistake identified by KCD is:",
+              "options": [
+                "Using `findBy` for async elements",
+                "Unnecessarily wrapping things in `act()`",
+                "Using `getByLabelText` for form inputs",
+                "Awaiting `user-event` methods"
+              ],
+              "answer": 1,
+              "explanation": "Unnecessarily wrapping things in `act()` is another mistake KCD identifies. RTL handles `act()` for you.",
+              "tags": [
+                "rtl-utilities",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "KCD recommends using `findBy` instead of:",
+              "options": [
+                "`getBy`",
+                "`queryBy`",
+                "`waitFor` + `getBy` for waiting for elements to appear",
+                "`getAllBy`"
+              ],
+              "answer": 2,
+              "explanation": "KCD recommends `findBy` over the `waitFor` + `getBy` pattern for waiting for elements to appear.",
+              "tags": [
+                "rtl-queries",
+                "async-testing",
+                "common-mistakes"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "What is the correct way to assert that an element is NOT in the DOM?",
+              "options": [
+                "`expect(screen.getByText(\"Error\")).not.toBeInTheDocument()`",
+                "`expect(screen.queryByText(\"Error\")).not.toBeInTheDocument()`",
+                "`expect(screen.findByText(\"Error\")).not.toBeInTheDocument()`",
+                "`expect(screen.getByText(\"Error\")).toBeNull()`"
+              ],
+              "answer": 1,
+              "explanation": "`queryByText` returns `null` when not found, allowing `.not.toBeInTheDocument()`. `getByText` would throw first.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "jest-dom"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "Where does `.toBeInTheDocument()` come from?",
+              "options": [
+                "It is built into Vitest",
+                "It is built into RTL",
+                "It comes from `@testing-library/jest-dom`, which must be imported in a setup file",
+                "It comes from `jsdom`"
+              ],
+              "answer": 2,
+              "explanation": "`.toBeInTheDocument()` is a custom matcher from `@testing-library/jest-dom`. It must be imported (usually via `setupFiles`).",
+              "tags": [
+                "jest-dom"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "`getByText(/submit/i)` uses the `i` flag in the regex to:",
+              "options": [
+                "Make the match case-sensitive",
+                "Make the match case-insensitive",
+                "Enable multiline matching",
+                "Match only the first character"
+              ],
+              "answer": 1,
+              "explanation": "The `i` flag in regex makes the match case-insensitive.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "`getByText(\"Submit\")` with default options will match:",
+              "options": [
+                "Any element containing \"Submit\" as a substring",
+                "Only an element whose entire text content is exactly \"Submit\"",
+                "Any element with \"Submit\" in its `value` attribute",
+                "Only `<button>` elements with \"Submit\" text"
+              ],
+              "answer": 1,
+              "explanation": "`getByText(\"Submit\")` does an exact, full-content match by default. Substring matches require `{ exact: false }` or regex.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "To make `getByText` perform a substring match, you can:",
+              "options": [
+                "Pass `{ exact: false }` as the second argument",
+                "Pass `{ partial: true }`",
+                "Use `getByTextContaining` instead",
+                "You cannot; use regex instead"
+              ],
+              "answer": 0,
+              "explanation": "`{ exact: false }` enables substring matching. Alternatively, you can use regex: `getByText(/Submit/)`.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "What is the accessible name of this button?",
+              "options": [
+                "`\"button\"`",
+                "`\"Save Changes\"`",
+                "`\"save-changes\"`",
+                "It has no accessible name"
+              ],
+              "answer": 1,
+              "explanation": "The accessible name of a `<button>` is derived from its text content: `\"Save Changes\"`.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ],
+              "code": "```tsx\n<button>Save Changes</button>\n```"
+            },
+            {
+              "id": "MC-39",
+              "question": "What is the accessible name of this input?",
+              "options": [
+                "`\"email\"`",
+                "`\"Email Address\"`",
+                "`\"text\"`",
+                "`\"textbox\"`"
+              ],
+              "answer": 1,
+              "explanation": "The `<label htmlFor=\"email\">Email Address</label>` associates with the input, giving it the accessible name `\"Email Address\"`.",
+              "tags": [
+                "accessible-queries"
+              ],
+              "code": "```tsx\n<label htmlFor=\"email\">Email Address</label>\n<input id=\"email\" type=\"text\" />\n```"
+            },
+            {
+              "id": "MC-40",
+              "question": "Which query finds the input in MC-39?",
+              "options": [
+                "`getByRole('textbox', { name: /email address/i })`",
+                "`getByRole('input', { name: /email/i })`",
+                "`getByTestId(\"email\")`",
+                "`getByRole('textbox', { id: 'email' })`"
+              ],
+              "answer": 0,
+              "explanation": "The input has role `textbox` and accessible name `\"Email Address\"` from its label. `getByRole('textbox', { name: /email address/i })` matches.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "`user.keyboard('{Enter}')` simulates:",
+              "options": [
+                "Typing the literal text \"{Enter}\"",
+                "Pressing the Enter key",
+                "Submitting a form",
+                "Creating a new line"
+              ],
+              "answer": 1,
+              "explanation": "`{Enter}` in `user.keyboard` is a special key notation that simulates pressing the Enter key.",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "`user.type(input, \"abc{backspace}\")` results in:",
+              "options": [
+                "`\"abc{backspace}\"` as the input value",
+                "`\"ab\"` as the input value (types \"abc\" then deletes the last character)",
+                "`\"abcBackspace\"` as the input value",
+                "An error because `{backspace}` is not valid"
+              ],
+              "answer": 1,
+              "explanation": "`user.type` processes `{backspace}` as a special key. After typing \"abc\", Backspace deletes \"c\", leaving \"ab\".",
+              "tags": [
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "RTL automatically cleans up after each test by:",
+              "options": [
+                "Deleting all test files",
+                "Unmounting rendered components and clearing the DOM",
+                "Resetting the JavaScript runtime",
+                "Restarting the test environment"
+              ],
+              "answer": 1,
+              "explanation": "RTL auto-cleanup unmounts rendered components and clears the DOM after each test.",
+              "tags": [
+                "rtl-utilities"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "A test needs to check that a tooltip appears when hovering over a button. Which `user-event` method should be used?",
+              "options": [
+                "`user.click(button)`",
+                "`user.hover(button)`",
+                "`user.mouseOver(button)`",
+                "`user.focus(button)`"
+              ],
+              "answer": 1,
+              "explanation": "`user.hover(button)` simulates mouse hover, which would trigger tooltip display.",
+              "tags": [
+                "aria-roles",
+                "user-event"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "The `<img alt=\"User avatar\">` element can be found with:",
+              "options": [
+                "`getByRole('img', { name: /user avatar/i })`",
+                "`getByAltText(/user avatar/i)`",
+                "Both (a) and (b)",
+                "Neither — images cannot be queried"
+              ],
+              "answer": 2,
+              "explanation": "Both work. `<img>` has role `img` and the `alt` text provides the accessible name. `getByAltText` also targets `alt` text.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "A `<nav>` element has the implicit ARIA role:",
+              "options": [
+                "`navigation`",
+                "`nav`",
+                "`menu`",
+                "`region`"
+              ],
+              "answer": 0,
+              "explanation": "`<nav>` has the implicit ARIA role `navigation`.",
+              "tags": [
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "Which query would you use to find a `<textarea>` with a label \"Description\"?",
+              "options": [
+                "`getByRole('textarea', { name: /description/i })`",
+                "`getByRole('textbox', { name: /description/i })`",
+                "`getByLabelText(/description/i)`",
+                "Both (b) and (c) work"
+              ],
+              "answer": 3,
+              "explanation": "Both work. `<textarea>` has role `textbox`, so `getByRole('textbox', { name: /description/i })` works. `getByLabelText(/description/i)` also finds it via label.",
+              "tags": [
+                "rtl-queries",
+                "accessible-queries",
+                "aria-roles"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "`queryAllByRole('listitem')` returns what when there are no `<li>` elements?",
+              "options": [
+                "Throws an error",
+                "Returns `null`",
+                "Returns an empty array `[]`",
+                "Returns `undefined`"
+              ],
+              "answer": 2,
+              "explanation": "`queryAllBy` returns an empty array `[]` when no matches are found, rather than throwing.",
+              "tags": [
+                "rtl-queries",
+                "aria-roles"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

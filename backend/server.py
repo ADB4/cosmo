@@ -22,7 +22,7 @@ from backend.config import (
     DEFAULT_HISTORY_TURNS,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
-    QUIZ_DIR,
+    DECK_DIR,
     SERVER_HOST,
     SERVER_PORT,
     UPLOAD_DIR,
@@ -48,7 +48,7 @@ _processor: DocumentProcessor | None = None
 _history = ChatHistory(max_turns=DEFAULT_HISTORY_TURNS)
 
 UPLOAD_DIR.mkdir(exist_ok=True)
-QUIZ_DIR.mkdir(exist_ok=True)
+DECK_DIR.mkdir(exist_ok=True)
 
 
 def get_processor() -> DocumentProcessor:
@@ -228,7 +228,7 @@ def _validate_quiz_json(data: dict) -> str | None:
 @app.route("/api/quizzes", methods=["GET"])
 def list_quizzes():
     results = []
-    for fp in sorted(QUIZ_DIR.glob("*.json")):
+    for fp in sorted(DECK_DIR.glob("*.json")):
         try:
             with open(fp) as f:
                 data = json.load(f)
@@ -255,7 +255,7 @@ def list_quizzes():
 
 @app.route("/api/quizzes/<quiz_id>", methods=["GET"])
 def get_quiz(quiz_id: str):
-    for fp in QUIZ_DIR.glob("*.json"):
+    for fp in DECK_DIR.glob("*.json"):
         try:
             with open(fp) as f:
                 data = json.load(f)
@@ -277,7 +277,7 @@ def ingest_quiz():
         safe_name = secure_filename(file.filename)
         if not safe_name.endswith(".json"):
             return jsonify({"error": "Only .json files accepted"}), 400
-        dest = QUIZ_DIR / safe_name
+        dest = DECK_DIR / safe_name
         file.save(str(dest))
     else:
         # Handle path-based ingest
@@ -289,7 +289,7 @@ def ingest_quiz():
         if not src_path.exists():
             return jsonify({"error": f"File not found: {src}"}), 404
         safe_name = secure_filename(src_path.name)
-        dest = QUIZ_DIR / safe_name
+        dest = DECK_DIR / safe_name
         import shutil
         shutil.copy2(str(src_path), str(dest))
 
@@ -433,7 +433,7 @@ def delete_questions(quiz_id: str):
     target_data = None
     target_quiz_idx = None
 
-    for fp in QUIZ_DIR.glob("*.json"):
+    for fp in DECK_DIR.glob("*.json"):
         try:
             with open(fp) as f:
                 file_data = json.load(f)

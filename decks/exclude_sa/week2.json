@@ -1,0 +1,1730 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week2",
+      "title": "Week 2: Advanced TypeScript",
+      "scope": "Generics, utility types (Partial, Pick, Omit, Record, Required, ReturnType), `satisfies` operator, discriminated unions, type guards, conditional types (intro), mapped types, `typeof` type operator, indexed access types, template literal types (awareness).",
+      "readings": [
+        "TS-HB: \"Generics\" (through \"Generic Constraints\")",
+        "TS-HB: \"Typeof Type Operator\" and \"Indexed Access Types\"",
+        "TS-HB: \"Conditional Types\"",
+        "TS-HB: \"Mapped Types\"",
+        "TS-HB: \"Template Literal Types\" (skim)",
+        "TypeScript docs: \"Utility Types\" reference (Partial, Required, Pick, Omit, Record, ReturnType)",
+        "Article: \"The satisfies operator\" (TS 4.9 release notes)"
+      ],
+      "scoring_note": "Wrong answers on T/F and MC are subtracted from right answers. Do not guess.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "A generic function allows you to write a single function that works with multiple types while preserving type information about the specific type used at each call site.",
+              "answer": true,
+              "explanation": "Generics preserve type information across a function call, unlike `any` which discards it.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "Generic type parameters are preserved at runtime and can be inspected using `typeof` at execution time.",
+              "answer": false,
+              "explanation": "Generic type parameters are fully erased at compile time. There is no runtime representation.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "In `function identity<T>(value: T): T`, the type `T` is inferred from the argument passed at the call site.",
+              "answer": true,
+              "explanation": "TypeScript infers `T` from the argument: `identity(\"hello\")` infers `T` as `\"hello\"`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "You can explicitly provide a type argument to a generic function: `identity<string>(\"hello\")`.",
+              "answer": true,
+              "explanation": "Explicit type arguments override inference: `identity<string>(\"hello\")` forces `T` to `string`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "A generic constraint `T extends string` means `T` can only be `string` exactly — no subtypes or string literal types are allowed.",
+              "answer": false,
+              "explanation": "`T extends string` allows `string` and any subtype, including string literal types like `\"hello\"`.",
+              "tags": [
+                "generics",
+                "generic-constraints"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The constraint `T extends { length: number }` allows `T` to be any type that has at least a `length` property of type `number`, including `string` and arrays.",
+              "answer": true,
+              "explanation": "Any type with a `length: number` property satisfies the constraint: strings, arrays, tuples, custom objects.",
+              "tags": [
+                "primitive-types",
+                "tuple-types"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "You can use one type parameter as a constraint for another: `<T, K extends keyof T>` ensures `K` is a valid key of `T`.",
+              "answer": true,
+              "explanation": "This is the standard pattern for type-safe property access: `<T, K extends keyof T>`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "`keyof T` produces a union of string literal types representing the property names of `T`.",
+              "answer": true,
+              "explanation": "`keyof { name: string; age: number }` produces `\"name\"",
+              "tags": [
+                "keyof"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "Indexed access types (`T[K]`) let you look up the type of a specific property on another type.",
+              "answer": true,
+              "explanation": "`User[\"name\"]` resolves to `string` — the type of the `name` property on `User`.",
+              "tags": [
+                "indexed-access"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "`typeof` in a type position extracts the TypeScript type of a runtime variable, which is different from the JavaScript `typeof` operator.",
+              "answer": true,
+              "explanation": "`typeof x` in a type position extracts the compile-time type. The runtime `typeof` returns strings like `\"string\"`.",
+              "tags": [
+                "typeof-operator"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "A generic function that takes `arg: T` where `T` is unconstrained can safely access `arg.toString()` because `toString()` exists on all JavaScript values.",
+              "answer": false,
+              "explanation": "While `toString()` exists on all JS values, TypeScript does not assume anything about an unconstrained `T`. You'd get a type error because `T` could be `null` or `undefined` (under strict), or more precisely, TypeScript only allows operations known for all possible `T`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "When calling `identity(\"hello\")` without an explicit type argument, TypeScript infers `T` as the literal type `\"hello\"`, not `string`.",
+              "answer": true,
+              "explanation": "Without explicit annotation, TypeScript infers the most specific type: the literal `\"hello\"`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "Multiple type parameters can be used in a single generic function: `function pair<A, B>(a: A, b: B): [A, B]`.",
+              "answer": true,
+              "explanation": "Multiple type parameters are common: `function pair<A, B>(a: A, b: B): [A, B]`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "A generic constraint `T extends string | number` allows `T` to be `string`, `number`, any string literal type, or any numeric literal type.",
+              "answer": true,
+              "explanation": "The constraint allows `string`, `number`, and their literal subtypes like `\"hello\"` and `42`.",
+              "tags": [
+                "generics",
+                "generic-constraints"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "`keyof any` evaluates to `string | number | symbol` — the set of all possible property key types.",
+              "answer": true,
+              "explanation": "`keyof any` is `string",
+              "tags": [
+                "keyof"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "Indexed access types can use union keys: `T[\"a\" | \"b\"]` produces the union of `T[\"a\"] | T[\"b\"]`.",
+              "answer": true,
+              "explanation": "`T[\"a\"",
+              "tags": [
+                "indexed-access"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "`keyof` on an array type like `string[]` includes `number` and all the array method names (`push`, `map`, etc.).",
+              "answer": true,
+              "explanation": "`keyof string[]` includes `number` (for indices) plus all array method names like `\"push\"`, `\"map\"`, `\"length\"`, etc.",
+              "tags": [
+                "keyof"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "You cannot provide default type parameters for generic functions — defaults only work on generic type aliases and interfaces.",
+              "answer": false,
+              "explanation": "Generic functions can have default type parameters: `function f<T = string>(x: T): T`. Defaults work on functions, types, interfaces, and classes.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "A generic interface (e.g., `interface Box<T> { value: T }`) requires a type argument when used: `Box<string>`.",
+              "answer": true,
+              "explanation": "Generic interfaces need type arguments when used unless they have defaults. `Box<string>` specifies `T = string`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "TypeScript can infer generic type arguments for classes in the same way it does for functions — from constructor arguments.",
+              "answer": true,
+              "explanation": "`class Box<T> { constructor(value: T) {} }` allows `new Box(\"hello\")` to infer `T = \"hello\"`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "A generic function can have its type parameter constrained by another type parameter: `<T, K extends keyof T>(obj: T, key: K): T[K]`.",
+              "answer": true,
+              "explanation": "This is the standard `getProperty` pattern for type-safe object access.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "The return type `T[K]` in `function get<T, K extends keyof T>(obj: T, key: K): T[K]` is an indexed access type that resolves based on the actual key used.",
+              "answer": true,
+              "explanation": "`T[K]` is an indexed access type. If `T = { name: string }` and `K = \"name\"`, the return is `string`.",
+              "tags": [
+                "indexed-access"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "Generic type parameters can have default values, like `<T = string>`, which are used when the type cannot be inferred.",
+              "answer": true,
+              "explanation": "Defaults are used when inference fails and no explicit argument is provided.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "You can constrain a generic type to be a function: `T extends (...args: any[]) => any`.",
+              "answer": true,
+              "explanation": "`T extends (...args: any[]) => any` constrains `T` to function types. This is used by `ReturnType` and `Parameters`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "A generic class can use its type parameter in static methods and static properties.",
+              "answer": false,
+              "explanation": "Static members belong to the class constructor, not instances. There is only one copy shared across all `Box<T>`, so `T` has no resolved type.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "`Array<T>` and `T[]` are identical types — they are interchangeable syntax.",
+              "answer": true,
+              "explanation": "`Array<T>` and `T[]` are syntactically different but semantically identical.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "`Partial<T>` makes every property of `T` optional.",
+              "answer": true,
+              "explanation": "`Partial<T>` uses a mapped type to add `?` to every property.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "`Required<T>` makes every property of `T` optional.",
+              "answer": false,
+              "explanation": "`Required<T>` makes every property required (removes `?`). It is the opposite of `Partial`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "`Pick<T, K>` creates a type containing only the properties of `T` whose keys are in `K`.",
+              "answer": true,
+              "explanation": "`Pick<User, \"name\">` produces `{ name: string }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "`Omit<T, K>` creates a type containing all properties of `T` except those whose keys are in `K`.",
+              "answer": true,
+              "explanation": "`Omit<User, \"name\">` produces `{ age: number; email: string }` (everything except `name`).",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "`Record<\"a\" | \"b\", number>` produces the type `{ a: number; b: number }`.",
+              "answer": true,
+              "explanation": "`Record<K, V>` maps each key in `K` to value type `V`. With a literal union for keys, you get an object with exactly those keys.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "`ReturnType<T>` extracts the return type of a function type.",
+              "answer": true,
+              "explanation": "`ReturnType<typeof fn>` extracts the return type of `fn`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "`Partial<T>` is implemented as a mapped type: `{ [K in keyof T]?: T[K] }`.",
+              "answer": true,
+              "explanation": "`Partial` is literally defined as `type Partial<T> = { [P in keyof T]?: T[P] }`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "`Required<T>` removes optional modifiers by using the `-?` syntax: `{ [K in keyof T]-?: T[K] }`.",
+              "answer": true,
+              "explanation": "`-?` removes the optional modifier. `Required<T> = { [P in keyof T]-?: T[P] }`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "`Readonly<T>` is a mapped type that adds `readonly` to every property: `{ readonly [K in keyof T]: T[K] }`.",
+              "answer": true,
+              "explanation": "`Readonly<T> = { readonly [P in keyof T]: T[P] }`.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "`Pick<User, \"name\">` produces a type with only the `name` property from `User`.",
+              "answer": true,
+              "explanation": "`Pick` selects only the specified keys.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "`Omit` is implemented using `Pick` and `Exclude`: `Omit<T, K> = Pick<T, Exclude<keyof T, K>>`.",
+              "answer": true,
+              "explanation": "`Omit<T, K> = Pick<T, Exclude<keyof T, K>>`. It excludes the keys first, then picks the rest.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "`Record<string, unknown>` is a common type for representing any object whose values are unknown.",
+              "answer": true,
+              "explanation": "`Record<string, unknown>` is a common, type-safe alternative to `object` for arbitrary objects.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "`NonNullable<T>` removes `null` and `undefined` from a type. `NonNullable<string | null>` is `string`.",
+              "answer": true,
+              "explanation": "`NonNullable` strips `null` and `undefined` using a conditional type.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "`Parameters<T>` extracts the parameter types of a function type as a tuple. `Parameters<(a: string, b: number) => void>` is `[string, number]`.",
+              "answer": true,
+              "explanation": "`Parameters` uses `infer` to extract parameter types as a tuple.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "`ReturnType` can only be applied to function types. Applying it to a non-function type (e.g., `ReturnType<string>`) is a compile error.",
+              "answer": true,
+              "explanation": "`ReturnType` has a constraint `T extends (...args: any) => any`. Non-function types cause a compile error.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "`Awaited<T>` unwraps the resolved type of a `Promise`. `Awaited<Promise<string>>` is `string`.",
+              "answer": true,
+              "explanation": "`Awaited` recursively unwraps `Promise` types. Nested promises are fully unwrapped.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "Utility types are part of TypeScript's standard library — they are defined in `lib.es5.d.ts` and do not need to be imported.",
+              "answer": true,
+              "explanation": "Utility types are built-in. No imports needed.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "`Partial` makes properties optional only one level deep — it is shallow, not recursive.",
+              "answer": true,
+              "explanation": "`Partial<{ a: { b: number } }>` makes `a` optional, but `b` inside the nested object is still required.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "You can nest utility types: `Required<Pick<User, \"name\" | \"email\">>` makes those picked properties required.",
+              "answer": true,
+              "explanation": "Utility types compose freely. Nesting produces the expected combined effect.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "`Record<K, V>` is equivalent to the mapped type `{ [P in K]: V }`.",
+              "answer": true,
+              "explanation": "`Record<K, V>` is defined as `{ [P in K]: V }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "`Omit` is type-safe in that it errors if you try to omit a key that doesn't exist on the type.",
+              "answer": false,
+              "explanation": "`Omit` does NOT error on non-existent keys. `Omit<{ a: number }, \"z\">` is valid and just returns `{ a: number }`. This is a common surprise.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "`Extract<T, U>` and `Exclude<T, U>` are complementary: for any union `T`, `Extract<T, U> | Exclude<T, U>` reconstructs `T`.",
+              "answer": true,
+              "explanation": "Together they partition a union: `Extract` keeps the matching members, `Exclude` keeps the rest.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "Mapped types use the syntax `[K in keyof T]` to iterate over the keys of a type and produce a new type with transformed properties.",
+              "answer": true,
+              "explanation": "Mapped types iterate over keys with `in keyof` and produce new property types.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "`Partial`, `Required`, and `Readonly` are all implemented as mapped types internally.",
+              "answer": true,
+              "explanation": "All three are defined as mapped types in TypeScript's `lib.es5.d.ts`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "Conditional types (`T extends U ? X : Y`) are evaluated at runtime to choose between `X` and `Y`.",
+              "answer": false,
+              "explanation": "Conditional types are resolved entirely at compile time within the type system.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "When a conditional type is applied to a union type, it distributes over each member of the union individually.",
+              "answer": true,
+              "explanation": "Distributive conditional types apply the condition to each member of a union separately.",
+              "tags": [
+                "union-types"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "`Exclude<T, U>` removes from union `T` all members that are assignable to `U`.",
+              "answer": true,
+              "explanation": "`Exclude<\"a\"",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "`Extract<T, U>` removes from union `T` all members that are assignable to `U`.",
+              "answer": false,
+              "explanation": "`Extract` keeps members assignable to `U` (the opposite of `Exclude`). `Extract<\"a\"",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "Mapped types can add or remove `readonly` using `+readonly` or `-readonly` modifiers.",
+              "answer": true,
+              "explanation": "`+readonly` adds readonly, `-readonly` removes it. Similarly for `?`.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "Mapped types can add or remove optional (`?`) modifiers using `+?` or `-?`.",
+              "answer": true,
+              "explanation": "`+?` and `-?` are the modifier operators for optional properties in mapped types.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "A mapped type can remap keys using the `as` clause: `[K in keyof T as NewKey]: T[K]`.",
+              "answer": true,
+              "explanation": "Key remapping with `as` was introduced in TypeScript 4.1 and allows renaming or filtering keys.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "Key remapping with `as never` in a mapped type effectively filters out that key from the result.",
+              "answer": true,
+              "explanation": "Mapping a key to `never` via `as` removes it from the output type. This is how you filter properties in mapped types.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "Conditional types can only be used at the top level of a type alias; they cannot be nested inside other types.",
+              "answer": false,
+              "explanation": "Conditional types can appear anywhere a type is expected: inside other types, as generic arguments, in return types, etc.",
+              "tags": [
+                "type-aliases"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "Distributive conditional types distribute automatically when `T` is a naked type parameter applied to a union.",
+              "answer": true,
+              "explanation": "Distribution occurs when the checked type is a naked (unwrapped) type parameter. Each union member is checked individually.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "Wrapping `T` in `[T]` prevents distribution in a conditional type: `[T] extends [U] ? X : Y` does not distribute over union members.",
+              "answer": true,
+              "explanation": "Wrapping in a tuple `[T]` prevents distribution because `T` is no longer \"naked.\"",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "The `infer` keyword in conditional types allows you to declare a type variable to be inferred from a pattern match.",
+              "answer": true,
+              "explanation": "`infer` declares a type variable within the `extends` clause of a conditional type.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "TF-73",
+              "question": "`T extends Array<infer U> ? U : never` extracts the element type of an array.",
+              "answer": true,
+              "explanation": "If `T` is an array type, `infer U` captures the element type. Otherwise, the result is `never`.",
+              "tags": [
+                "array-types",
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-74",
+              "question": "`infer` can only be used in the `extends` clause of a conditional type, not in regular type positions.",
+              "answer": true,
+              "explanation": "`infer` is only valid within the `extends` clause of a conditional type.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "TF-75",
+              "question": "Conditional types are resolved entirely at compile time; they produce no runtime code.",
+              "answer": true,
+              "explanation": "Conditional types are pure type-level computation. No runtime code is emitted.",
+              "tags": [
+                "compilation"
+              ]
+            },
+            {
+              "id": "TF-76",
+              "question": "A mapped type `{ [K in \"a\" | \"b\"]: number }` produces `{ a: number; b: number }`, identical to `Record<\"a\" | \"b\", number>`.",
+              "answer": true,
+              "explanation": "Both produce `{ a: number; b: number }`. The mapped type iterates over the literal union.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "TF-77",
+              "question": "You can use template literal types in mapped type key remapping: `` [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K] ``.",
+              "answer": true,
+              "explanation": "Template literal types combined with mapped type key remapping can produce getter/setter patterns.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-78",
+              "question": "`Exclude<\"a\" | \"b\" | \"c\", \"a\" | \"b\">` produces `\"c\"`.",
+              "answer": true,
+              "explanation": "`Exclude` removes `\"a\"` and `\"b\"` from the union, leaving `\"c\"`.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-79",
+              "question": "`Extract<\"a\" | \"b\" | \"c\", \"a\" | \"b\">` produces `\"a\" | \"b\"`.",
+              "answer": true,
+              "explanation": "`Extract` keeps `\"a\"` and `\"b\"` from the union.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-80",
+              "question": "Conditional types can be recursive: a conditional type can reference itself in its true or false branches.",
+              "answer": true,
+              "explanation": "Recursive conditional types are allowed (with some depth limits). They're used for deep operations like `DeepReadonly`.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "The `satisfies` operator changes the type of the variable to the target type, widening it.",
+              "answer": false,
+              "explanation": "`satisfies` does not change the type. It validates without widening.",
+              "tags": [
+                "satisfies"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "`satisfies` validates that a value matches a type while preserving the narrower inferred type of the value.",
+              "answer": true,
+              "explanation": "This is the key benefit: validation plus narrow type preservation.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "In a discriminated union, the discriminant property must be a literal type that is unique to each member of the union.",
+              "answer": true,
+              "explanation": "The discriminant must be a literal type unique to each union member for narrowing to work.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "TypeScript can narrow a discriminated union in a `switch` statement by switching on the discriminant property.",
+              "answer": true,
+              "explanation": "`switch (shape.kind)` narrows `shape` to the specific member in each `case`.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "The exhaustive check pattern (`const _: never = value` in a `default` branch) produces a compile-time error if a new variant is added to a union without being handled.",
+              "answer": true,
+              "explanation": "If an unhandled member reaches the `default` branch, it cannot be assigned to `never`, producing a compile error.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "A custom type guard function uses the syntax `value is Type` in its return type position to tell TypeScript to narrow the type when the function returns `true`.",
+              "answer": true,
+              "explanation": "The `value is Type` syntax is a type predicate. When the function returns `true`, TypeScript narrows accordingly.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "Template literal types allow you to construct string types using backtick syntax at the type level, such as `` type Route = `/api/${string}` ``.",
+              "answer": true,
+              "explanation": "Template literal types use backtick syntax at the type level to construct string types.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "A generic class can reference its type parameter in static members.",
+              "answer": false,
+              "explanation": "Static members cannot reference instance type parameters. Same as TF-47.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Generic default parameters (e.g., `<T = string>`) provide a fallback type when no type argument is provided and one cannot be inferred.",
+              "answer": true,
+              "explanation": "`<T = string>` provides a default when no argument is given and inference has nothing to work with.",
+              "tags": [
+                "optional-parameters",
+                "functions"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "The `infer` keyword in conditional types allows you to declare a type variable to be inferred from a pattern match, such as extracting the element type of an array.",
+              "answer": true,
+              "explanation": "`infer` declares a type variable within a conditional type for pattern matching.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-81",
+              "question": "`satisfies` can be combined with `as const`: `const x = { a: 1 } as const satisfies Record<string, number>` both preserves literal types and validates the shape.",
+              "answer": true,
+              "explanation": "`as const satisfies Type` is a valid and useful combination. `as const` narrows literals; `satisfies` validates shape.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-82",
+              "question": "`satisfies` performs the same type widening as a type annotation — the only difference is syntax.",
+              "answer": false,
+              "explanation": "`satisfies` does NOT widen. That's the whole point. A type annotation widens; `satisfies` preserves the inferred type.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-83",
+              "question": "A discriminated union can have more than one discriminant property, though a single discriminant is most common.",
+              "answer": true,
+              "explanation": "You can have multiple discriminants, though it's less common. TypeScript can narrow on any of them.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-84",
+              "question": "The discriminant property in a discriminated union must be a string literal type. Number literals and boolean literals are not valid discriminants.",
+              "answer": false,
+              "explanation": "Number literals (`0`, `1`) and boolean literals (`true`, `false`) are also valid discriminants.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-85",
+              "question": "TypeScript narrows discriminated unions in both `switch` statements and `if/else` chains that check the discriminant.",
+              "answer": true,
+              "explanation": "Both `switch` and `if/else` on the discriminant property narrow the union.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-86",
+              "question": "A custom type guard function can return `false` to narrow a type. If `isString(x)` returns `false`, TypeScript narrows `x` to exclude `string` in the `else` branch.",
+              "answer": true,
+              "explanation": "In the `else` branch after a type guard, TypeScript narrows to the complement.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "TF-87",
+              "question": "An assertion function uses the syntax `asserts value is Type` as its return type. If the function returns normally (without throwing), TypeScript narrows the value.",
+              "answer": true,
+              "explanation": "Assertion functions narrow the type after the call site if they return normally (without throwing).",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-88",
+              "question": "Template literal types can use the built-in `Uppercase`, `Lowercase`, `Capitalize`, and `Uncapitalize` intrinsic string manipulation types.",
+              "answer": true,
+              "explanation": "`Uppercase<\"hello\">` = `\"HELLO\"`, `Capitalize<\"hello\">` = `\"Hello\"`, etc. These are built-in intrinsic types.",
+              "tags": [
+                "template-literal-types"
+              ]
+            },
+            {
+              "id": "TF-89",
+              "question": "Template literal types can create a union of all possible combinations when composed with union types: `` `${\"a\" | \"b\"}-${\"x\" | \"y\"}` `` produces `\"a-x\" | \"a-y\" | \"b-x\" | \"b-y\"`.",
+              "answer": true,
+              "explanation": "Template literal types with union inputs produce the Cartesian product of all combinations.",
+              "tags": [
+                "union-types"
+              ]
+            },
+            {
+              "id": "TF-90",
+              "question": "`satisfies` can be used on any expression, including function arguments — not just variable declarations.",
+              "answer": false,
+              "explanation": "`satisfies` can only be used on expressions in specific positions (variable initializers, return statements). It cannot be used on arbitrary function arguments directly.",
+              "tags": [
+                "satisfies"
+              ]
+            },
+            {
+              "id": "TF-91",
+              "question": "A type guard function must perform an actual runtime check; the `is` return type does not add any runtime behavior by itself.",
+              "answer": true,
+              "explanation": "The `is` type predicate only tells TypeScript what to narrow. The runtime check is the developer's responsibility.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "TF-92",
+              "question": "If a type guard function is implemented incorrectly (e.g., always returns `true`), TypeScript will detect the mismatch and report an error.",
+              "answer": false,
+              "explanation": "TypeScript does NOT validate the implementation of type guard functions. If you always return `true`, TypeScript trusts you. Incorrect type guards lead to runtime errors.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "TF-93",
+              "question": "An exhaustive `switch` that handles all discriminated union members and has no `default` branch will cause TypeScript to infer the function's return type correctly without a `default: never` check.",
+              "answer": true,
+              "explanation": "If all cases return and the switch is exhaustive, TypeScript infers the return type correctly. The `never` check in `default` is an extra safety net but not strictly required if the return type is annotated or inferred.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-94",
+              "question": "The `never` type in the exhaustive check pattern works because `never` is the bottom type — no value is assignable to it, so an unhandled case produces a type error.",
+              "answer": true,
+              "explanation": "`never` is the bottom type. No value is assignable to `never`, so an unhandled case produces a type error.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-95",
+              "question": "Discriminated unions are especially useful for modeling state machines (e.g., `{ status: \"idle\" } | { status: \"loading\" } | { status: \"error\"; error: string } | { status: \"success\"; data: T }`).",
+              "answer": true,
+              "explanation": "State machines are a classic use case for discriminated unions. Each state has its own associated data.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "TF-96",
+              "question": "`satisfies` was introduced in TypeScript 4.9 and solves the problem of wanting type validation without losing inferred literal types.",
+              "answer": true,
+              "explanation": "TypeScript 4.9 (November 2022) introduced `satisfies` for this exact purpose.",
+              "tags": [
+                "satisfies"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What is the inferred return type of `identity(\"hello\")`?",
+              "options": [
+                "`string`",
+                "`\"hello\"`",
+                "`T`",
+                "`any`"
+              ],
+              "code": "function identity<T>(value: T): T {\n  return value;\n}\nconst result = identity(\"hello\");",
+              "answer": 1,
+              "explanation": "TypeScript infers `T` as the literal type `\"hello\"` from the argument, so the return type is `\"hello\"`.",
+              "tags": [
+                "any-type",
+                "functions",
+                "generics",
+                "literal-types",
+                "object-types",
+                "primitive-types",
+                "return-types"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "Why does the following code produce an error?",
+              "options": [
+                "`T` could be any type, and not all types have a `length` property",
+                "Generic functions cannot access properties",
+                "`console.log` does not accept generic arguments",
+                "`T` is always `never`"
+              ],
+              "code": "function loggingIdentity<T>(arg: T): T {\n  console.log(arg.length); // Error\n  return arg;\n}",
+              "answer": 0,
+              "explanation": "`T` is unconstrained, so it could be `number`, `boolean`, or any type without `length`. TypeScript correctly rejects the property access.",
+              "tags": [
+                "functions",
+                "generics",
+                "never-type",
+                "object-types",
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "Which version correctly constrains `T` so the function compiles?",
+              "options": [
+                "`function loggingIdentity<T extends object>(arg: T): T`",
+                "`function loggingIdentity<T extends { length: number }>(arg: T): T`",
+                "`function loggingIdentity<T = { length: number }>(arg: T): T`",
+                "`function loggingIdentity<T extends any>(arg: T): T`"
+              ],
+              "answer": 1,
+              "explanation": "`T extends { length: number }` constrains `T` to types that have `length`. Option (a) constrains to `object` but not all objects have `length`. Option (c) provides a default, not a constraint. Option (d) `extends any` is no constraint at all.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "What is the type of `result`?",
+              "options": [
+                "`{ name: string; age: number }`",
+                "`{ email: string }`",
+                "`{ name: string; age: number; email: string }`",
+                "`{ name: string }`"
+              ],
+              "code": "type User = { name: string; age: number; email: string };\ntype Result = Omit<User, \"email\">;",
+              "answer": 0,
+              "explanation": "`Omit<User, \"email\">` removes `email`, leaving `{ name: string; age: number }`.",
+              "tags": [
+                "object-types",
+                "type-inference",
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "What does this mapped type produce?",
+              "options": [
+                "`{ name: boolean; active: boolean }`",
+                "`{ name: string; active: boolean }`",
+                "`boolean`",
+                "`{ [key: string]: boolean }`"
+              ],
+              "code": "type Flags<T> = {\n  [K in keyof T]: boolean;\n};\ntype Result = Flags<{ name: string; active: boolean }>;",
+              "answer": 0,
+              "explanation": "The mapped type replaces every property's type with `boolean`, producing `{ name: boolean; active: boolean }`.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "What does the `satisfies` keyword do in this code?",
+              "options": [
+                "Changes the type of `palette` to `Record<string, string | number[]>`",
+                "Validates the value matches the target type while keeping the narrower inferred type (so `palette.red` is `number[]`, not `string | number[]`)",
+                "Makes `palette` immutable",
+                "Is identical to using `as const`"
+              ],
+              "code": "const palette = {\n  red: [255, 0, 0],\n  green: \"#00ff00\",\n} satisfies Record<string, string | number[]>;",
+              "answer": 1,
+              "explanation": "`satisfies` validates structure without widening. `palette.red` keeps type `number[]` instead of becoming `string",
+              "tags": [
+                "satisfies"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "What is the type of `shape` inside `case \"circle\"`?",
+              "options": [
+                "`Shape`",
+                "`{ kind: \"circle\"; radius: number }`",
+                "`{ kind: \"square\"; side: number }`",
+                "`never`"
+              ],
+              "code": "type Shape =\n  | { kind: \"circle\"; radius: number }\n  | { kind: \"square\"; side: number };\n\nfunction describe(shape: Shape) {\n  switch (shape.kind) {\n    case \"circle\":\n      // what is shape's type here?\n  }\n}",
+              "answer": 1,
+              "explanation": "The `switch` narrows on `kind`. In the `\"circle\"` case, `shape` is narrowed to `{ kind: \"circle\"; radius: number }`.",
+              "tags": [
+                "functions",
+                "never-type",
+                "object-types",
+                "type-guards",
+                "type-inference",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "If a third variant `{ kind: \"triangle\"; base: number; height: number }` is added to `Shape` but the `switch` is not updated, and the `default` branch contains `const _: never = shape`, what happens?",
+              "options": [
+                "No error; the default branch handles all remaining cases",
+                "A runtime error when a triangle is passed",
+                "A compile-time error because the triangle variant is not assignable to `never`",
+                "TypeScript silently ignores the new variant"
+              ],
+              "answer": 2,
+              "explanation": "The triangle variant is not handled by any `case`, so it reaches `default` where it cannot be assigned to `never`. This is a compile-time error.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "What is `keyof { a: number; b: string; c: boolean }`?",
+              "options": [
+                "`string`",
+                "`\"a\" | \"b\" | \"c\"`",
+                "`number`",
+                "`[\"a\", \"b\", \"c\"]`"
+              ],
+              "answer": 1,
+              "explanation": "`keyof` produces the union of literal key names: `\"a\"",
+              "tags": [
+                "keyof",
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "What does the indexed access type `User[\"name\"]` resolve to?",
+              "options": [
+                "`\"name\"`",
+                "`string`",
+                "`User`",
+                "`{ name: string }`"
+              ],
+              "code": "type User = { name: string; age: number };",
+              "answer": 1,
+              "explanation": "`User[\"name\"]` is an indexed access type that resolves to the type of the `name` property: `string`.",
+              "tags": [
+                "indexed-access"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "What does this conditional type evaluate to?",
+              "options": [
+                "`A` is `\"yes\"`, `B` is `\"no\"`",
+                "`A` is `\"no\"`, `B` is `\"yes\"`",
+                "Both are `\"yes\"`",
+                "Both are `boolean`"
+              ],
+              "code": "type IsNumber<T> = T extends number ? \"yes\" : \"no\";\ntype A = IsNumber<42>;\ntype B = IsNumber<string>;",
+              "answer": 0,
+              "explanation": "`42 extends number` is true, so `A` is `\"yes\"`. `string extends number` is false, so `B` is `\"no\"`.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "What does `Exclude<\"a\" | \"b\" | \"c\", \"a\" | \"c\">` produce?",
+              "options": [
+                "`\"a\" | \"c\"`",
+                "`\"b\"`",
+                "`\"a\" | \"b\" | \"c\"`",
+                "`never`"
+              ],
+              "answer": 1,
+              "explanation": "`Exclude` removes members assignable to the second argument. `\"a\"` and `\"c\"` are removed, leaving `\"b\"`.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "What does `Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">` produce?",
+              "options": [
+                "`\"b\"`",
+                "`\"a\" | \"c\"`",
+                "`\"a\" | \"b\" | \"c\"`",
+                "`never`"
+              ],
+              "answer": 1,
+              "explanation": "`Extract` keeps members assignable to the second argument. `\"a\"` and `\"c\"` are kept.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "What does this code produce for the type of `settings`?",
+              "options": [
+                "`{ theme: string; fontSize: number; debug: boolean }`",
+                "`{ theme: \"dark\"; fontSize: 14; debug: false }`",
+                "`object`",
+                "`any`"
+              ],
+              "code": "const defaults = {\n  theme: \"dark\",\n  fontSize: 14,\n  debug: false,\n};\ntype Settings = typeof defaults;",
+              "answer": 0,
+              "explanation": "`defaults` is declared with `const` but without `as const`, so properties are widened: `theme` is `string`, not `\"dark\"`. `typeof` extracts this widened type.",
+              "tags": [
+                "any-type",
+                "literal-types",
+                "object-types",
+                "primitive-types",
+                "type-narrowing",
+                "typeof-operator"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "A type guard function has this signature: `function isFish(pet: Fish | Bird): pet is Fish`. What does `pet is Fish` mean?",
+              "options": [
+                "The function converts `pet` to `Fish` at runtime",
+                "If the function returns `true`, TypeScript narrows `pet` to `Fish` in the calling scope",
+                "The function throws if `pet` is not `Fish`",
+                "`pet` is always `Fish` after calling this function, regardless of return value"
+              ],
+              "answer": 1,
+              "explanation": "The `pet is Fish` return type is a type predicate. When the function returns `true`, TypeScript narrows `pet` to `Fish` in the calling scope.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "Why can't a generic class use its type parameter in `static` members?",
+              "options": [
+                "Static members belong to the class constructor, not instances, and there is only one copy shared across all instantiations — so `T` has no single resolved type",
+                "TypeScript does not support static members",
+                "Generic classes cannot have static members at all",
+                "The `T` parameter must be explicitly provided for static members"
+              ],
+              "code": "class Box<T> {\n  static defaultValue: T; // Error\n}",
+              "answer": 0,
+              "explanation": "Static members belong to the class constructor, not instances. There is only one `Box.defaultValue` slot shared across all `Box<T>` instantiations, so there is no single `T` to resolve to.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "What is the type of `result`?",
+              "options": [
+                "`{ wrapped: number }`",
+                "`{ wrapped: 42 }`",
+                "`{ wrapped: any }`",
+                "`object`"
+              ],
+              "code": "function wrap<T>(value: T): { wrapped: T } {\n  return { wrapped: value };\n}\nconst result = wrap(42);",
+              "answer": 1,
+              "explanation": "TypeScript infers `T` as `42` (literal type), so the return is `{ wrapped: 42 }`.",
+              "tags": [
+                "functions",
+                "generics",
+                "literal-types",
+                "object-types",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "What constraint would you add to this function so it compiles?",
+              "options": [
+                "`T extends object, U extends object`",
+                "`T extends string, U extends string`",
+                "`T extends any, U extends any`",
+                "No constraint is needed"
+              ],
+              "code": "function merge<T, U>(a: T, b: U): T & U {\n  return { ...a, ...b }; // Error without constraint\n}",
+              "answer": 0,
+              "explanation": "The spread operator works on objects. Constraining to `object` ensures `T` and `U` can be spread.",
+              "tags": [
+                "functions",
+                "generics",
+                "intersection-types",
+                "object-types",
+                "rest-parameters"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "What is `Partial<{ name: string; age: number }>`?",
+              "options": [
+                "`{ name: string; age: number }`",
+                "`{ name?: string; age?: number }`",
+                "`{ name: string | undefined; age: number | undefined }`",
+                "`{}`"
+              ],
+              "answer": 1,
+              "explanation": "`Partial` adds `?` to every property: `{ name?: string; age?: number }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "What is `Required<{ name?: string; age?: number }>`?",
+              "options": [
+                "`{ name?: string; age?: number }`",
+                "`{ name: string; age: number }`",
+                "`{ name: string | undefined; age: number | undefined }`",
+                "`{}`"
+              ],
+              "answer": 1,
+              "explanation": "`Required` removes `?`: `{ name: string; age: number }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "What is `Pick<{ a: number; b: string; c: boolean }, \"a\" | \"b\">`?",
+              "options": [
+                "`{ a: number; b: string; c: boolean }`",
+                "`{ a: number; b: string }`",
+                "`{ c: boolean }`",
+                "`number | string`"
+              ],
+              "answer": 1,
+              "explanation": "`Pick` keeps only the specified keys: `{ a: number; b: string }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "What is `Record<\"x\" | \"y\", number>`?",
+              "options": [
+                "`{ x: number } | { y: number }`",
+                "`{ x: number; y: number }`",
+                "`{ [key: string]: number }`",
+                "`number[]`"
+              ],
+              "answer": 1,
+              "explanation": "`Record<\"x\"",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "What does `ReturnType<(x: string) => number>` produce?",
+              "options": [
+                "`string`",
+                "`number`",
+                "`(x: string) => number`",
+                "`void`"
+              ],
+              "answer": 1,
+              "explanation": "`ReturnType` extracts the return type: `number`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "What does `Parameters<(a: string, b: number) => void>` produce?",
+              "options": [
+                "`string | number`",
+                "`[string, number]`",
+                "`{ a: string; b: number }`",
+                "`void`"
+              ],
+              "answer": 1,
+              "explanation": "`Parameters` extracts parameter types as a tuple: `[string, number]`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "What does `NonNullable<string | null | undefined>` produce?",
+              "options": [
+                "`string | null | undefined`",
+                "`string`",
+                "`null | undefined`",
+                "`never`"
+              ],
+              "answer": 1,
+              "explanation": "`NonNullable` removes `null` and `undefined`: `string`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "What is the result of this mapped type?",
+              "options": [
+                "`{ x: number; y: string }`",
+                "`{ readonly x: number; readonly y: string }`",
+                "`{ x: readonly number; y: readonly string }`",
+                "`never`"
+              ],
+              "code": "type ReadonlyAll<T> = { readonly [K in keyof T]: T[K] };\ntype Result = ReadonlyAll<{ x: number; y: string }>;",
+              "answer": 1,
+              "explanation": "The mapped type adds `readonly` to every property.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "What does this mapped type with key remapping produce?",
+              "options": [
+                "`{ name: () => string; age: () => number }`",
+                "`{ getName: () => string; getAge: () => number }`",
+                "`{ get_name: () => string; get_age: () => number }`",
+                "Compile error"
+              ],
+              "code": "type Getters<T> = {\n  [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];\n};\ntype Result = Getters<{ name: string; age: number }>;",
+              "answer": 1,
+              "explanation": "Key remapping with `Capitalize` transforms `\"name\"` to `\"Name\"` and prepends `\"get\"`: `getName`, `getAge`.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "What does `Omit<{ a: number; b: string; c: boolean }, \"b\" | \"c\">` produce?",
+              "options": [
+                "`{ b: string; c: boolean }`",
+                "`{ a: number }`",
+                "`{ a: number; b: string; c: boolean }`",
+                "`never`"
+              ],
+              "answer": 1,
+              "explanation": "`Omit` removes `\"b\"` and `\"c\"`, leaving `{ a: number }`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "What is the type of `val` with this code?",
+              "options": [
+                "`string`",
+                "`\"/\"`",
+                "`Record<string, string>`",
+                "`any`"
+              ],
+              "code": "const routes = {\n  home: \"/\",\n  about: \"/about\",\n  contact: \"/contact\",\n} satisfies Record<string, string>;\n\nconst val = routes.home;",
+              "answer": 1,
+              "explanation": "`satisfies` validates without widening. `routes.home` retains the literal type `\"/\"`.",
+              "tags": [
+                "any-type",
+                "literal-types",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "What does `Awaited<Promise<Promise<number>>>` resolve to?",
+              "options": [
+                "`Promise<number>`",
+                "`Promise<Promise<number>>`",
+                "`number`",
+                "`never`"
+              ],
+              "answer": 2,
+              "explanation": "`Awaited` recursively unwraps nested `Promise` types down to the final resolved value: `number`.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "What is the type of `result`?",
+              "options": [
+                "`number`",
+                "`number | undefined`",
+                "`1`",
+                "`any`"
+              ],
+              "code": "function first<T>(arr: T[]): T | undefined {\n  return arr[0];\n}\nconst result = first([1, 2, 3]);",
+              "answer": 1,
+              "explanation": "`T` is inferred as `number`, return type is `number",
+              "tags": [
+                "any-type",
+                "functions",
+                "generics",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "What does this conditional type produce?",
+              "options": [
+                "`A` is `string[]`, `B` is `number`",
+                "`A` is `string`, `B` is `number`",
+                "`A` is `string`, `B` is `never`",
+                "Both are `never`"
+              ],
+              "code": "type Flatten<T> = T extends Array<infer U> ? U : T;\ntype A = Flatten<string[]>;\ntype B = Flatten<number>;",
+              "answer": 1,
+              "explanation": "`Flatten<string[]>` matches `Array<infer U>` with `U = string`. `Flatten<number>` doesn't match, returns `number`.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "Which property makes this a discriminated union?",
+              "options": [
+                "`data`",
+                "`error`",
+                "`success` — it has unique literal types (`true` / `false`) in each member",
+                "None — this is not a discriminated union"
+              ],
+              "code": "type Result =\n  | { success: true; data: string }\n  | { success: false; error: Error };",
+              "answer": 2,
+              "explanation": "`success` has unique literal types (`true` / `false`) in each member, making it the discriminant.",
+              "tags": [
+                "discriminated-unions"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "What is the type of `r.data` inside the `if` block?",
+              "options": [
+                "`string | undefined`",
+                "`string`",
+                "`Error`",
+                "`unknown`"
+              ],
+              "code": "type Result =\n  | { success: true; data: string }\n  | { success: false; error: Error };\n\nfunction handle(r: Result) {\n  if (r.success) {\n    return r.data; // type?\n  }\n}",
+              "answer": 1,
+              "explanation": "`r.success` is `true` narrows to the first member, so `r.data` is `string`.",
+              "tags": [
+                "functions",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "type-narrowing",
+                "union-types",
+                "unknown-type"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "What does the following assertion function signature mean?",
+              "options": [
+                "The function returns `T`",
+                "After calling this function, TypeScript narrows `val` to `T` (removing `undefined`) if the function returns normally",
+                "The function converts `undefined` to `T` at runtime",
+                "The function always throws"
+              ],
+              "code": "function assertDefined<T>(val: T | undefined): asserts val is T {\n  if (val === undefined) throw new Error(\"undefined!\");\n}",
+              "answer": 1,
+              "explanation": "Assertion functions narrow after the call if they return normally.",
+              "tags": [
+                "equality-narrowing",
+                "functions",
+                "generics",
+                "null-undefined",
+                "object-types",
+                "type-guards",
+                "type-narrowing",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "What does `ToArray<string | number>` produce?",
+              "options": [
+                "`(string | number)[]`",
+                "`string[] | number[]`",
+                "`never`",
+                "`any[]`"
+              ],
+              "code": "type ToArray<T> = T extends any ? T[] : never;",
+              "answer": 1,
+              "explanation": "Distributive: `ToArray<string>",
+              "tags": [
+                "array-types",
+                "conditional-types",
+                "generics",
+                "never-type"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "How do you prevent distribution in the conditional type above?",
+              "options": [
+                "`type ToArray<T> = [T] extends [any] ? T[] : never`",
+                "`type ToArray<T> = T extends never ? T[] : never`",
+                "You cannot prevent distribution",
+                "Add `as const` to `T`"
+              ],
+              "answer": 0,
+              "explanation": "Wrapping `T` in `[T]` prevents distribution.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "What does this template literal type produce?",
+              "options": [
+                "`\"margin-top\" | \"margin-bottom\" | \"margin-left\" | \"margin-right\"`",
+                "`string`",
+                "`\"margin-Direction\" | \"margin-Side\"`",
+                "Compile error"
+              ],
+              "code": "type Direction = \"top\" | \"bottom\";\ntype Side = \"left\" | \"right\";\ntype Margin = `margin-${Direction | Side}`;",
+              "answer": 0,
+              "explanation": "Template literal types with unions produce the Cartesian product of all combinations.",
+              "tags": [
+                "template-literal-types"
+              ]
+            },
+            {
+              "id": "MC-39",
+              "question": "What does `Capitalize<\"hello\">` produce?",
+              "options": [
+                "`\"HELLO\"`",
+                "`\"Hello\"`",
+                "`\"hello\"`",
+                "`string`"
+              ],
+              "answer": 1,
+              "explanation": "`Capitalize` uppercases the first character: `\"Hello\"`.",
+              "tags": [
+                "template-literal-types"
+              ]
+            },
+            {
+              "id": "MC-40",
+              "question": "What is the type of `x` after the type guard?",
+              "options": [
+                "`string | null`",
+                "`string`",
+                "`null`",
+                "`unknown`"
+              ],
+              "code": "function isNonNull<T>(val: T | null): val is T {\n  return val !== null;\n}\n\nconst x: string | null = getInput();\nif (isNonNull(x)) {\n  // x is?\n}",
+              "answer": 1,
+              "explanation": "The type guard narrows `x` from `string",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "What does `Readonly<{ items: string[] }>` produce?",
+              "options": [
+                "`{ readonly items: readonly string[] }`",
+                "`{ readonly items: string[] }`",
+                "`{ items: readonly string[] }`",
+                "`{ items: string[] }`"
+              ],
+              "answer": 1,
+              "explanation": "`Readonly` is shallow: `items` property is readonly but the array inside is still mutable.",
+              "tags": [
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "Why is answer (b) in MC-41 a potential surprise?",
+              "options": [
+                "It's not surprising; `Readonly` is deep",
+                "in MC-41 a potential surprise?",
+                "`Readonly` doesn't work on arrays",
+                "`Readonly` makes everything immutable"
+              ],
+              "answer": 1,
+              "explanation": "`Readonly` prevents reassigning `items` but `items.push(...)` still works.",
+              "tags": [
+                "readonly"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "What is the type of `result`?",
+              "options": [
+                "`{ name?: string; email?: string }`",
+                "`{ name: string; email: string }`",
+                "`User`",
+                "Error: cannot nest utility types"
+              ],
+              "code": "type User = { name: string; age: number; email: string };\ntype NameAndEmail = Pick<User, \"name\" | \"email\">;\ntype RequiredNameAndEmail = Required<NameAndEmail>;\nconst result: RequiredNameAndEmail = { name: \"Alice\", email: \"a@b.com\" };",
+              "answer": 1,
+              "explanation": "`Pick` selects `name` and `email`, `Required` makes them required: `{ name: string; email: string }`.",
+              "tags": [
+                "object-types",
+                "type-inference",
+                "union-types",
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "What does the `as` keyword do in this mapped type?",
+              "options": [
+                "Asserts the key type",
+                "Remaps keys, filtering out the `\"kind\"` property (because `Exclude` maps it to `never`, which removes it)",
+                "Renames `kind` to something else",
+                "Has no effect"
+              ],
+              "code": "type RemoveKind<T> = {\n  [K in keyof T as Exclude<K, \"kind\">]: T[K];\n};",
+              "answer": 1,
+              "explanation": "`as Exclude<K, \"kind\">` remaps keys, and since `Exclude<\"kind\", \"kind\">` is `never`, the `kind` property is removed.",
+              "tags": [
+                "mapped-types"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "What does this conditional type with `infer` produce?",
+              "options": [
+                "`A` is `Promise<string>`, `B` is `number`",
+                "`A` is `string`, `B` is `number`",
+                "`A` is `string`, `B` is `never`",
+                "Both are `string`"
+              ],
+              "code": "type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;\ntype A = UnwrapPromise<Promise<string>>;\ntype B = UnwrapPromise<number>;",
+              "answer": 1,
+              "explanation": "`UnwrapPromise<Promise<string>>` matches and infers `U = string`. `UnwrapPromise<number>` doesn't match, returns `number`.",
+              "tags": [
+                "conditional-types"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "A function is typed as returning `string` but the developer also wants to handle an error state. Which discriminated union approach is best?",
+              "options": [
+                "Return `string | Error`",
+                "Return `{ ok: true; value: string } | { ok: false; error: Error }`",
+                "Throw an exception and don't use a union",
+                "Return `any`"
+              ],
+              "answer": 1,
+              "explanation": "A discriminated union with `ok: true/false` is type-safe, exhaustive, and self-documenting.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "What does `keyof (A & B)` produce when `A = { x: number }` and `B = { y: string }`?",
+              "options": [
+                "`\"x\" | \"y\"`",
+                "`\"x\"`",
+                "`\"y\"`",
+                "`never`"
+              ],
+              "answer": 0,
+              "explanation": "`keyof (A & B) = keyof A",
+              "tags": [
+                "keyof",
+                "never-type"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "What is the type of `config.port`?",
+              "options": [
+                "`number`",
+                "`3000`",
+                "`string`",
+                "`any`"
+              ],
+              "code": "const config = {\n  host: \"localhost\",\n  port: 3000,\n} satisfies { host: string; port: number };",
+              "answer": 1,
+              "explanation": "`satisfies` validates without widening. `port` retains the literal type `3000`.",
+              "tags": [
+                "any-type",
+                "literal-types",
+                "object-types",
+                "primitive-types",
+                "type-inference"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "JSON quiz format for React/TypeScript/MUI study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

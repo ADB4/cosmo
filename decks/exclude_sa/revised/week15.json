@@ -1,0 +1,1453 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week15",
+      "title": "Week 15: Mocking, Async Testing, and Hook Testing",
+      "scope": "`vi.fn()`, `vi.spyOn()`, `vi.mock()`, mock lifecycle (`mockClear`/`mockReset`/`mockRestore`), mocking modules and API calls, fake timers (`vi.useFakeTimers`), testing async behavior (`findBy`, `waitFor`, `waitForElementToBeRemoved`), testing custom hooks with `renderHook`, mocking Context providers, mocking `fetch` or API layers.",
+      "readings": [
+        "Vitest: \"Mocking\" guide",
+        "Vitest: \"Mock Functions\" API reference",
+        "Vitest: \"Vi\" API reference (`vi.fn`, `vi.spyOn`, `vi.mock`, `vi.mocked`, `vi.hoisted`, `vi.useFakeTimers`)",
+        "Vitest: \"Mocking Modules\" guide (hoisting, factory pattern, automocking, `importOriginal`)",
+        "RTL: \"renderHook\" API reference",
+        "TL: \"Async Utilities\" (`waitFor`, `waitForElementToBeRemoved`, `findBy`)",
+        "Vitest: \"Fake Timers\" guide",
+        "KCD: \"How to Test Custom React Hooks\""
+      ],
+      "scoring_note": "Wrong answers on T/F and MC are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "count": 72,
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "`vi.fn()` creates a mock function that wraps an existing function \u2014 you must pass the original function as an argument.",
+              "answer": false,
+              "explanation": "`vi.fn()` creates a standalone mock function WITHOUT wrapping any existing function. It tracks calls, arguments, and return values independently. To wrap an existing function, you use `vi.spyOn()`. You CAN pass an implementation to `vi.fn(impl)`, but it is optional.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "A mock function created with `vi.fn()` throws an error by default if called without providing an implementation first.",
+              "answer": false,
+              "explanation": "A mock function created with `vi.fn()` has no implementation by default and returns `undefined` when called \u2014 it does NOT throw. This is by design: mocks are meant to be safe no-ops unless you configure specific behavior.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "`vi.fn(() => 42)` creates a mock function with a default implementation that returns `42`.",
+              "answer": true,
+              "explanation": "Passing a function to `vi.fn()` sets it as the default implementation.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "`vi.spyOn(object, 'method')` replaces the original method's implementation with an empty mock by default.",
+              "answer": false,
+              "explanation": "`vi.spyOn` preserves the original implementation by default. It only tracks calls \u2014 it does not replace the method with an empty function.",
+              "tags": [
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "`vi.spyOn(object, 'method')` replaces the original method with a no-op by default \u2014 the original implementation is not called unless you explicitly restore it.",
+              "answer": false,
+              "explanation": "`vi.spyOn` preserves the original implementation by default \u2014 the real method runs normally while calls are tracked. This is the key difference from `vi.fn()`. You can override with `.mockImplementation()` if needed, and restore with `.mockRestore()`.",
+              "tags": [
+                "vi-fn",
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "After calling `vi.spyOn(obj, 'method')`, the original implementation is replaced with a no-op and `obj.method()` returns `undefined`.",
+              "answer": false,
+              "explanation": "By default, `vi.spyOn` calls through to the ORIGINAL implementation. The spy adds tracking without changing behavior. `obj.method()` still executes the real code. You must explicitly call `.mockImplementation()` to override the behavior.",
+              "tags": [
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "`vi.mock('./module')` only affects the current test file \u2014 other test files that import the same module will receive the real implementation.",
+              "answer": false,
+              "explanation": "`vi.mock()` replaces the module for the current test file. However, the statement is misleading about the mechanism \u2014 `vi.mock()` is hoisted and affects all imports within that file. Each test file has its own module scope, so other test files are indeed independent, but this is because of module isolation, not a special feature of `vi.mock()`.",
+              "tags": [
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "`vi.mock()` calls are executed in the order they appear in the file, just like regular JavaScript statements.",
+              "answer": false,
+              "explanation": "`vi.mock()` calls are hoisted to the top of the file, before imports. They do not execute in their written order.",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "`vi.mock()` calls run in the order they appear in the source code, after all `import` statements have been evaluated.",
+              "answer": false,
+              "explanation": "`vi.mock()` calls are HOISTED to the top of the file before imports, regardless of where you write them in the code. This hoisting ensures the mock is in place when the module is first imported by any `import` statement.",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "Because `vi.mock()` is hoisted, you can freely reference `const` and `let` variables declared in the test file inside the `vi.mock()` factory function.",
+              "answer": false,
+              "explanation": "Because hoisting moves the `vi.mock()` call above `const`/`let` declarations, those variables are in the temporal dead zone and cannot be referenced. This is the main limitation of hoisting. To work around it, use `vi.hoisted()` to declare variables that are also hoisted.",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "`vi.hoisted()` allows you to declare variables that are accessible inside `vi.mock()` factory functions by placing the declaration before the hoisted mock.",
+              "answer": true,
+              "explanation": "`vi.hoisted()` declares variables that are placed above the hoisted `vi.mock()`, making them accessible inside factory functions.",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "When `vi.mock('./module')` is called without a factory function, Vitest automatically replaces all exported functions with `vi.fn()` (automocking).",
+              "answer": true,
+              "explanation": "Without a factory, `vi.mock()` auto-mocks: each exported function becomes `vi.fn()`, other values are preserved.",
+              "tags": [
+                "vi-fn",
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "The factory function passed to `vi.mock('./module', () => ({ ... }))` must return an object whose shape matches the module's exports.",
+              "answer": true,
+              "explanation": "The factory function returns an object whose properties replace the module's exports. The shape should match what consumers expect.",
+              "tags": [
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "`vi.mocked(fn)` changes the runtime behavior of `fn`. It makes the function a mock at runtime.",
+              "answer": false,
+              "explanation": "`vi.mocked()` is purely a TypeScript type helper. It does not change runtime behavior.",
+              "tags": [
+                "vi-mocked"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "`vi.mocked(fn)` adds runtime mock tracking to a function \u2014 it converts a real function into a mock at runtime.",
+              "answer": false,
+              "explanation": "`vi.mocked(fn)` is a TYPE HELPER only. It tells TypeScript to treat `fn` as a mock type, giving access to properties like `.mockReturnValue` and `.mock.calls` without type errors. It does NOT change the function's runtime behavior.",
+              "tags": [
+                "vi-fn",
+                "vi-mocked"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "`mockFn.mockReturnValue(42)` makes the mock return `42` for all subsequent calls.",
+              "answer": true,
+              "explanation": "`mockReturnValue` sets the persistent return value for all subsequent calls.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "`mockFn.mockReturnValueOnce(42)` makes the mock return `42` only for the next call. After that, it reverts to its default return value (or `undefined`).",
+              "answer": true,
+              "explanation": "`mockReturnValueOnce` applies to only the next call. After that call, the mock reverts to its default.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "`mockFn.mockResolvedValue(data)` is shorthand for `mockFn.mockReturnValue(data)` \u2014 both return the raw value, not a Promise.",
+              "answer": false,
+              "explanation": "`mockResolvedValue(data)` is shorthand for `mockReturnValue(Promise.resolve(data))`, NOT `mockReturnValue(data)`. It returns a resolved Promise, not the raw value. This is specifically designed for mocking async functions that return Promises.",
+              "tags": [
+                "vi-fn",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "`mockFn.mockResolvedValueOnce(data)` makes the mock permanently return a resolved Promise with `data` for all future calls.",
+              "answer": false,
+              "explanation": "`mockResolvedValueOnce(data)` makes the mock return a resolved Promise for the NEXT call only, not permanently. After that one call, the mock reverts to its default behavior (or the next queued value). For permanent behavior, use `mockResolvedValue(data)` (without `Once`).",
+              "tags": [
+                "vi-fn",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "`mockFn.mockRejectedValue(error)` makes the mock return a rejected Promise with the given error.",
+              "answer": true,
+              "explanation": "`mockRejectedValue(error)` is sugar for `mockReturnValue(Promise.reject(error))`.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "`mockFn.mockImplementation(fn)` replaces the mock's implementation with the provided function.",
+              "answer": true,
+              "explanation": "`mockImplementation` replaces the mock's body with the given function, allowing complex behavior.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "`mockFn.mock.calls` is an array of arrays, where each inner array contains the arguments from one call to the mock.",
+              "answer": true,
+              "explanation": "`mock.calls` is a nested array: `mock.calls[0]` is the arguments array from the first call.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "`mockFn.mock.results` contains the return value of each call to the mock.",
+              "answer": true,
+              "explanation": "`mock.results` tracks each call's outcome: `{ type: 'return', value: ... }` or `{ type: 'throw', value: ... }`.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "`expect(mockFn).toHaveBeenCalledWith(arg1, arg2)` asserts that the mock was called at least once with exactly those arguments.",
+              "answer": true,
+              "explanation": "`toHaveBeenCalledWith` checks that at least one call matched the given arguments.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "`expect(mockFn).toHaveBeenCalledTimes(3)` asserts the mock was called exactly 3 times.",
+              "answer": true,
+              "explanation": "`toHaveBeenCalledTimes(3)` asserts the mock was called exactly 3 times.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "`mockClear()` resets the mock's call history AND removes its custom implementation, reverting it to returning `undefined`.",
+              "answer": false,
+              "explanation": "`mockClear()` resets ONLY the call history (`mock.calls` and `mock.results`) but PRESERVES the implementation. To also remove the implementation, use `mockReset()`. The distinction matters: `mockClear` is for between-test cleanup while keeping behavior, `mockReset` is for a full reset.",
+              "tags": [
+                "vi-fn",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "`mockReset()` resets the mock's call history but preserves any custom implementation you have set.",
+              "answer": false,
+              "explanation": "`mockReset()` resets BOTH the call history AND removes any custom implementation, reverting the mock to returning `undefined`. This is stronger than `mockClear()`, which only resets history while preserving the implementation.",
+              "tags": [
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "`mockRestore()` is only meaningful for spies created with `vi.spyOn()`. It restores the original method implementation.",
+              "answer": true,
+              "explanation": "`mockRestore` is designed for spies: it restores the original unwrapped method. On `vi.fn()` mocks, it behaves like `mockReset`.",
+              "tags": [
+                "vi-fn",
+                "vi-spyon",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "`mockRestore()` on a `vi.fn()` mock has the same effect as `mockReset()` because there is no original implementation to restore.",
+              "answer": true,
+              "explanation": "`vi.fn()` has no original implementation to restore, so `mockRestore` effectively equals `mockReset`.",
+              "tags": [
+                "vi-fn",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "`vi.restoreAllMocks()` calls `mockRestore()` on every mock and spy created in the test.",
+              "answer": true,
+              "explanation": "`vi.restoreAllMocks()` restores every mock and spy, making it a comprehensive cleanup tool.",
+              "tags": [
+                "vi-spyon",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "It is good practice to call `vi.restoreAllMocks()` in `afterEach` to ensure mocks do not leak between tests.",
+              "answer": true,
+              "explanation": "Calling `vi.restoreAllMocks()` in `afterEach` ensures no mock state leaks between tests.",
+              "tags": [
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "When mocking a module that exports a default function, the factory should return the mock function directly (e.g., `() => mockFn`), not wrapped in an object.",
+              "answer": false,
+              "explanation": "The factory must return an object with a `default` property: `{ default: mockFn }`. ES module default exports are the `default` property of the module object. Returning the mock function directly would make the mock module's default export undefined.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "`importOriginal` inside a `vi.mock` factory is not available \u2014 you must manually re-implement any exports you want to keep from the original module.",
+              "answer": false,
+              "explanation": "`importOriginal` IS available inside a `vi.mock` factory. It lets you import the real module and selectively override only certain exports while preserving the rest. This avoids having to re-implement exports you don't want to mock.",
+              "tags": [
+                "vi-spyon",
+                "import-original"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "`vi.useFakeTimers()` only replaces `setTimeout` and `setInterval` \u2014 it does not affect `Date` or other time-related APIs.",
+              "answer": false,
+              "explanation": "`vi.useFakeTimers()` replaces `setTimeout`, `setInterval`, `Date`, `performance.now`, and other time-related APIs with Vitest-controlled implementations. This comprehensive replacement is what makes fake timers useful for controlling all aspects of time in tests.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "After calling `vi.useFakeTimers()`, `setTimeout` callbacks still execute normally at their scheduled time.",
+              "answer": false,
+              "explanation": "With fake timers, `setTimeout` callbacks will NEVER execute unless you manually advance time using `vi.advanceTimersByTime()`, `vi.runAllTimers()`, or similar methods. The whole point of fake timers is to give you explicit control over when timer callbacks run.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "`vi.advanceTimersByTime(1000)` advances the fake clock by 1000 milliseconds and executes any timers that were scheduled to fire during that period.",
+              "answer": true,
+              "explanation": "`advanceTimersByTime(1000)` moves the clock forward 1000ms and executes all timers scheduled within that window.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "`vi.runAllTimers()` executes all pending timers immediately, regardless of their scheduled time.",
+              "answer": true,
+              "explanation": "`runAllTimers()` executes all pending timers and any new timers they create, recursively.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "`vi.useRealTimers()` restores the original timer implementations after a test that used fake timers.",
+              "answer": true,
+              "explanation": "`vi.useRealTimers()` undoes `vi.useFakeTimers()`, restoring real `setTimeout`, `setInterval`, `Date`, etc.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "You should always call `vi.useRealTimers()` in `afterEach` when using fake timers to prevent timer state from leaking into subsequent tests.",
+              "answer": true,
+              "explanation": "Always clean up fake timers to prevent leaking timer state into other tests.",
+              "tags": [
+                "mock-lifecycle",
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "`vi.setSystemTime(new Date('2025-01-01'))` sets the current date returned by `new Date()` and `Date.now()` when fake timers are active.",
+              "answer": true,
+              "explanation": "`vi.setSystemTime` controls what `Date.now()` and `new Date()` return when fake timers are active.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "Fake timers are appropriate for testing `setTimeout` and `setInterval` logic, such as debounce functions.",
+              "answer": true,
+              "explanation": "Timer-based logic (debounce, throttle, intervals, auto-save) is the primary use case for fake timers.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "Fake timers should be used for testing data fetching loading states because `fetch` relies on timers.",
+              "answer": false,
+              "explanation": "False. Data fetching is Promise-based, not timer-based. `findBy`/`waitFor` are the correct tools for testing fetch loading states. Fake timers control `setTimeout`/`setInterval`, not Promise resolution.",
+              "tags": [
+                "fake-timers",
+                "async-testing",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "Fake timers are the preferred tool for testing async data fetching with `fetch` or `axios`.",
+              "answer": false,
+              "explanation": "For testing Promise-based async behavior (like data fetching), `findBy` queries or `waitFor` are preferred over fake timers. Fake timers are designed for timer-based behavior (`setTimeout`, `setInterval`). Data fetching is Promise-based and resolves via the microtask queue, not the timer queue.",
+              "tags": [
+                "fake-timers",
+                "async-testing",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "`renderHook` renders a custom hook by mounting it directly without any wrapper component.",
+              "answer": false,
+              "explanation": "React hooks can only be called inside components. `renderHook` creates a minimal wrapper component internally that calls the hook, allowing you to test it in isolation. The hook is not mounted \"directly\" \u2014 it is always inside a component.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "`renderHook` returns the hook's return value directly \u2014 you access it as the return value of the `renderHook()` call.",
+              "answer": false,
+              "explanation": "`renderHook` returns an object with a `result` property. The current return value of the hook is at `result.current`, not returned directly. This indirection is necessary because the hook's return value can change over time as state updates occur.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "You can test a custom hook by directly calling it outside of a React component.",
+              "answer": false,
+              "explanation": "Hooks cannot be called outside React components. Doing so violates the Rules of Hooks. `renderHook` provides the component wrapper.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "The KCD guidance on testing hooks is: prefer testing hooks through the components that use them. Use `renderHook` only when the hook is shared by many components or has complex logic worth isolating.",
+              "answer": true,
+              "explanation": "Testing through components is more realistic. `renderHook` is for shared or complex hooks that justify isolated testing.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "`renderHook` does not support a `wrapper` option \u2014 to provide Context, you must create a custom wrapper component manually and call the hook inside it.",
+              "answer": false,
+              "explanation": "`renderHook` accepts a `wrapper` option for providing Context providers, just like `render`. You pass a component that wraps children in the necessary providers. There is no need to create a fully custom wrapper component.",
+              "tags": [
+                "render-hook",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "To test a hook that reads from Context, you must provide the Context via the `wrapper` option in `renderHook`.",
+              "answer": true,
+              "explanation": "If a hook reads from Context, you must provide that Context via the `wrapper` option.",
+              "tags": [
+                "render-hook",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "When testing a hook that triggers state updates, you must wrap the state update call in `act()`.",
+              "answer": true,
+              "explanation": "True. When calling hook functions directly from `renderHook` (not through user events), you must wrap them in `act()` to flush React state updates before asserting on `result.current`.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "`waitFor` invokes the callback function exactly once and either passes or fails immediately.",
+              "answer": false,
+              "explanation": "`waitFor` REPEATEDLY invokes the callback function until it stops throwing or the timeout is reached. It polls on an interval (default 50ms) with a default timeout of 1000ms. This retry behavior is what makes it suitable for testing async state changes.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "The default timeout for `waitFor` is 1000 milliseconds.",
+              "answer": true,
+              "explanation": "The default `waitFor` timeout is 1000ms. You can customize it via the `timeout` option.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "`waitFor` should be used for all assertions in a test, even those that do not involve async behavior.",
+              "answer": false,
+              "explanation": "`waitFor` should only be used for assertions that depend on async behavior. Using it everywhere is wasteful and masks synchronous failures.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "`waitForElementToBeRemoved` throws if the element is not present in the DOM when first called.",
+              "answer": true,
+              "explanation": "`waitForElementToBeRemoved` expects the element to be present initially. If it is already gone, it throws immediately.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "`waitForElementToBeRemoved` is useful for waiting for a loading spinner to disappear.",
+              "answer": true,
+              "explanation": "This is the canonical use case: render component \u2192 loading spinner appears \u2192 `waitForElementToBeRemoved` \u2192 assert final content.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "To mock the global `fetch` function, you can assign a mock to `globalThis.fetch = vi.fn()`.",
+              "answer": true,
+              "explanation": "`globalThis.fetch = vi.fn(...)` replaces the global `fetch` with a mock for the test.",
+              "tags": [
+                "vi-fn",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "When mocking `fetch`, you should mock the entire request/response cycle, including `response.json()` returning a Promise.",
+              "answer": true,
+              "explanation": "A real `fetch` response requires calling `.json()` which returns a Promise. Your mock must replicate this: `{ json: () => Promise.resolve(data), ok: true }`.",
+              "tags": [
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "A better practice than mocking `fetch` directly is to create an API layer module and mock that module, keeping the transport layer out of the test.",
+              "answer": true,
+              "explanation": "An API layer (e.g., `api.ts` with `fetchUsers()`) provides a seam for mocking. You mock the API module, not the transport.",
+              "tags": [
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "`vi.mock('./api')` with no factory auto-mocks all functions exported from `./api`, replacing them with `vi.fn()`.",
+              "answer": true,
+              "explanation": "Without a factory, `vi.mock()` auto-mocks all exported functions with `vi.fn()`.",
+              "tags": [
+                "vi-fn",
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "When a component under test calls `fetch('/api/users')`, and `fetch` is mocked with `vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) })`, the component will receive an empty array when it calls `response.json()`.",
+              "answer": true,
+              "explanation": "The mock provides `response.json()` as a function returning `Promise.resolve([])`, so the component receives `[]`.",
+              "tags": [
+                "vi-fn",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "Mocking a module in one test file affects that module in all other test files.",
+              "answer": false,
+              "explanation": "Each test file runs in isolation. `vi.mock()` in one file does not affect others.",
+              "tags": [
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "Each test file in Vitest runs in its own isolated context, so `vi.mock()` in one file does not affect other files.",
+              "answer": true,
+              "explanation": "Vitest isolates test files via worker threads. Module mocks are scoped to their file.",
+              "tags": [
+                "vi-mock",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "You can use `mockReturnValueOnce` chained multiple times to return different values on successive calls.",
+              "answer": true,
+              "explanation": "`mockReturnValueOnce` can be chained: each call adds another value to the queue.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "`vi.fn().mockReturnValueOnce(1).mockReturnValueOnce(2).mockReturnValue(0)` returns `1` on the first call, `2` on the second, and `0` for all subsequent calls.",
+              "answer": true,
+              "explanation": "The once-values are consumed in order. After they are exhausted, the persistent `mockReturnValue(0)` kicks in.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "`vi.spyOn(console, 'error').mockImplementation(() => {})` suppresses console.error output during the test while tracking calls.",
+              "answer": true,
+              "explanation": "This pattern suppresses the output (empty implementation) while still tracking calls via the spy.",
+              "tags": [
+                "vi-fn",
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "If you spy on `console.error` and do not restore it, the suppression leaks into subsequent tests.",
+              "answer": true,
+              "explanation": "Without restoration, the spy persists. Use `vi.restoreAllMocks()` in `afterEach` to prevent leaks.",
+              "tags": [
+                "vi-spyon",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "`vi.runOnlyPendingTimers()` executes only the timers currently scheduled, without executing new timers that may be created by those callbacks.",
+              "answer": true,
+              "explanation": "`runOnlyPendingTimers` executes currently queued timers but does not recursively run timers those callbacks create.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "`vi.advanceTimersByTime(500)` with a `setInterval` of 200ms will trigger the interval callback twice (at 200ms and 400ms).",
+              "answer": true,
+              "explanation": "True. A 200ms interval fires at 200ms and 400ms within the 500ms window. The next firing would be at 600ms, which is beyond the 500ms advance. So the callback fires twice.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "`renderHook` can only test hooks that use `useState`. It does not support hooks that use `useEffect`.",
+              "answer": false,
+              "explanation": "`renderHook` supports hooks that use any React hook, including `useEffect`, `useReducer`, `useContext`, etc.",
+              "tags": [
+                "render-hook",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "After calling `result.current.increment()` from a `renderHook` test, you should re-read `result.current` to get the updated value \u2014 `result` is a ref-like object.",
+              "answer": true,
+              "explanation": "`result` is a ref-like container. After a state update, `result.current` reflects the new value.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "`vi.mock` with `importOriginal` inside the factory allows you to mock only specific exports while keeping the rest of the real module intact.",
+              "answer": true,
+              "explanation": "`importOriginal` gives you the real module exports. Spread them and override only what you need.",
+              "tags": [
+                "import-original"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "When testing a component that fetches data on mount, you should mock the API call to return test data and use `findBy` to wait for the rendered data to appear.",
+              "answer": true,
+              "explanation": "Mock the API \u2192 render the component \u2192 use `findBy` to wait for the data to render. This is the standard async component test pattern.",
+              "tags": [
+                "async-testing",
+                "mock-fetch"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "count": 48,
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "`vi.fn()` creates:",
+              "options": [
+                "A spy that wraps an existing function",
+                "A standalone mock function that tracks calls and can be configured with return values",
+                "A module-level mock",
+                "A fake timer"
+              ],
+              "answer": 1,
+              "explanation": "`vi.fn()` creates a standalone mock function. It does not wrap anything \u2014 it starts empty and tracks calls.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "What does `vi.spyOn(obj, 'method')` do by default?",
+              "options": [
+                "Replaces `obj.method` with an empty function",
+                "Wraps `obj.method` to track calls while preserving the original implementation",
+                "Deletes `obj.method`",
+                "Creates a new object with a mocked `method`"
+              ],
+              "answer": 1,
+              "explanation": "`vi.spyOn` wraps the method, tracking calls while preserving the original behavior.",
+              "tags": [
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "`vi.mock('./module')` without a factory function:",
+              "options": [
+                "Does nothing",
+                "Throws an error",
+                "Auto-mocks all exported functions from the module with `vi.fn()`",
+                "Imports the module normally"
+              ],
+              "answer": 2,
+              "explanation": "Without a factory, `vi.mock` auto-mocks: all exported functions become `vi.fn()`.",
+              "tags": [
+                "vi-fn",
+                "vi-mock"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "`vi.mock()` calls are hoisted because:",
+              "options": [
+                "They need to run before imports so the mock is in place when the module is first loaded",
+                "Vitest alphabetizes all function calls",
+                "JavaScript requires mocks to be at the top of the file",
+                "It is a TypeScript requirement"
+              ],
+              "answer": 0,
+              "explanation": "Hoisting ensures the mock is registered before any `import` statement runs, so the mocked version is loaded.",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "What problem does hoisting create for `vi.mock()` factory functions?",
+              "options": [
+                "Factory functions cannot return objects",
+                "Variables declared with `const`/`let` after the mock are not yet initialized when the factory runs",
+                "Factory functions cannot use `import`",
+                "The factory runs after the module loads"
+              ],
+              "answer": 1,
+              "explanation": "Variables declared after `vi.mock()` in source code are not yet initialized when the hoisted factory runs (temporal dead zone).",
+              "tags": [
+                "vi-mock",
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "`vi.hoisted()` is used to:",
+              "options": [
+                "Move a test to the top of the file",
+                "Declare variables that are accessible inside `vi.mock()` factories despite hoisting",
+                "Hoist `describe` blocks",
+                "Prioritize certain tests"
+              ],
+              "answer": 1,
+              "explanation": "`vi.hoisted()` declares variables that exist before hoisted mocks, solving the temporal dead zone problem.",
+              "tags": [
+                "mock-hoisting"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "`mockFn.mockReturnValue(42)` causes the mock to return `42`:",
+              "options": [
+                "Only on the next call",
+                "On all subsequent calls",
+                "Only when called with specific arguments",
+                "Only in the current test"
+              ],
+              "answer": 1,
+              "explanation": "`mockReturnValue` sets a persistent return value for all calls.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "`mockFn.mockReturnValueOnce(42)` causes the mock to return `42`:",
+              "options": [
+                "On all subsequent calls",
+                "Only on the next call, then reverts to default",
+                "Only when called with `42` as an argument",
+                "On the last call only"
+              ],
+              "answer": 1,
+              "explanation": "`mockReturnValueOnce` applies to only the next call.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "`mockFn.mockResolvedValue(data)` is equivalent to:",
+              "options": [
+                "`mockFn.mockReturnValue(data)`",
+                "`mockFn.mockReturnValue(Promise.resolve(data))`",
+                "`mockFn.mockImplementation(async () => data)`",
+                "Both (b) and (c)"
+              ],
+              "answer": 3,
+              "explanation": "Both are functionally equivalent for most testing purposes. `mockResolvedValue(data)` is sugar for returning `Promise.resolve(data)`. Technically, option (b) returns the same Promise object every call while (c) creates a new one each time, but this rarely matters in practice.",
+              "tags": [
+                "vi-fn",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "What does `mockClear()` reset?",
+              "options": [
+                "Call history only (calls and results)",
+                "Call history and implementation",
+                "Call history, implementation, and original function",
+                "Nothing"
+              ],
+              "answer": 0,
+              "explanation": "`mockClear` clears call history (`calls` and `results`) but preserves the implementation.",
+              "tags": [
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "What does `mockReset()` reset?",
+              "options": [
+                "Call history only",
+                "Call history and implementation (reverts to returning `undefined`)",
+                "Call history, implementation, and original function",
+                "Only the return value"
+              ],
+              "answer": 1,
+              "explanation": "`mockReset` clears history and removes the custom implementation.",
+              "tags": [
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "What does `mockRestore()` do that `mockReset()` does not?",
+              "options": [
+                "It clears call history",
+                "It removes the mock implementation",
+                "It restores the original method implementation (meaningful only for `vi.spyOn`)",
+                "It deletes the mock entirely"
+              ],
+              "answer": 2,
+              "explanation": "`mockRestore` additionally restores the original unwrapped method, which only matters for `vi.spyOn` mocks.",
+              "tags": [
+                "vi-spyon",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "`vi.restoreAllMocks()` is best placed in:",
+              "options": [
+                "`beforeAll`",
+                "`beforeEach`",
+                "`afterEach`",
+                "`afterAll`"
+              ],
+              "answer": 2,
+              "explanation": "`afterEach` is the right place for cleanup. Restoring after each test prevents mock leaks.",
+              "tags": [
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "When mocking a module's default export, the factory should return:",
+              "options": [
+                "The mock function directly",
+                "`{ default: mockFn }`",
+                "`{ __esModule: true, default: mockFn }`",
+                "Either (b) or (c) depending on module system"
+              ],
+              "answer": 1,
+              "explanation": "In Vitest (ESM-native), `{ default: mockFn }` is sufficient for mocking default exports. The `__esModule: true` marker is a Jest/CJS convention that is unnecessary in Vitest's module resolution.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "`importOriginal` inside `vi.mock` allows you to:",
+              "options": [
+                "Import a different module",
+                "Import the real module and selectively override specific exports",
+                "Import the test file itself",
+                "Import from node_modules only"
+              ],
+              "answer": 1,
+              "explanation": "`importOriginal` imports the real module so you can spread it and override only selected exports.",
+              "tags": [
+                "import-original"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "`vi.useFakeTimers()` replaces:",
+              "options": [
+                "Only `setTimeout`",
+                "`setTimeout`, `setInterval`, `Date`, and other time APIs",
+                "Only `Date`",
+                "The test runner's internal timer"
+              ],
+              "answer": 1,
+              "explanation": "`vi.useFakeTimers()` replaces `setTimeout`, `setInterval`, `Date`, `performance.now`, and related APIs.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "After `vi.useFakeTimers()`, a `setTimeout(fn, 1000)` callback will execute:",
+              "options": [
+                "After 1 real second",
+                "Immediately",
+                "Only when you manually advance time with `vi.advanceTimersByTime(1000)` or similar",
+                "Never"
+              ],
+              "answer": 2,
+              "explanation": "With fake timers, callbacks only fire when you manually advance time.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "`vi.advanceTimersByTime(500)` does what?",
+              "options": [
+                "Pauses the test for 500ms",
+                "Advances the fake clock by 500ms and fires all timers scheduled within that window",
+                "Sets the clock to exactly 500ms",
+                "Skips 500ms of real time"
+              ],
+              "answer": 1,
+              "explanation": "`advanceTimersByTime` moves the clock forward and fires all timers within that window.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "`vi.runAllTimers()` is useful when:",
+              "options": [
+                "You want to advance time by a specific amount",
+                "You want to execute all pending and recursively created timers immediately",
+                "You want to restore real timers",
+                "You want to pause timer execution"
+              ],
+              "answer": 1,
+              "explanation": "`runAllTimers` flushes all pending timers and recursively runs newly created ones.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "`vi.runOnlyPendingTimers()` differs from `vi.runAllTimers()` in that:",
+              "options": [
+                "It runs no timers",
+                "It only executes currently scheduled timers, not new ones created by those callbacks",
+                "It runs timers in reverse order",
+                "It only runs `setInterval` timers"
+              ],
+              "answer": 1,
+              "explanation": "`runOnlyPendingTimers` runs only currently queued timers, not recursively created ones.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "When should you use fake timers instead of `findBy`/`waitFor`?",
+              "options": [
+                "When testing data fetching",
+                "When testing timer-based logic like debounce, throttle, or auto-save intervals",
+                "When testing form submission",
+                "When testing CSS animations"
+              ],
+              "answer": 1,
+              "explanation": "Timer-based logic (debounce, throttle, intervals) is the use case for fake timers.",
+              "tags": [
+                "fake-timers",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "When should you use `findBy`/`waitFor` instead of fake timers?",
+              "options": [
+                "When testing debounce functions",
+                "When testing `setInterval` logic",
+                "When testing async data fetching, state transitions, or any behavior driven by Promises",
+                "When testing `setTimeout`"
+              ],
+              "answer": 2,
+              "explanation": "Promise-based async (data fetching, state transitions) is handled with `findBy`/`waitFor`.",
+              "tags": [
+                "fake-timers",
+                "async-testing",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "`vi.setSystemTime(new Date('2025-06-15'))` is used for:",
+              "options": [
+                "Delaying the test by a duration",
+                "Setting the fake system clock to a specific date/time",
+                "Scheduling a timer",
+                "Restoring real time"
+              ],
+              "answer": 1,
+              "explanation": "`vi.setSystemTime` sets the fake clock to a specific date/time when fake timers are active.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "`renderHook` is imported from:",
+              "options": [
+                "`vitest`",
+                "`@testing-library/react`",
+                "`@testing-library/react-hooks` (deprecated)",
+                "`react`"
+              ],
+              "answer": 1,
+              "explanation": "`renderHook` is imported from `@testing-library/react` (the hooks testing was merged into RTL).",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "`renderHook(() => useCounter())` returns:",
+              "options": [
+                "The counter value directly",
+                "An object with a `result` property where `result.current` holds the hook's return value",
+                "A React component",
+                "A Promise"
+              ],
+              "answer": 1,
+              "explanation": "`renderHook` returns `{ result }` where `result.current` holds the hook's return value.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "To trigger a state update from `renderHook`, you should:",
+              "options": [
+                "Call the update function directly: `result.current.increment()`",
+                "Wrap the call in `act()`: `act(() => { result.current.increment(); })`",
+                "Re-render the hook",
+                "Create a new `renderHook` call"
+              ],
+              "answer": 1,
+              "explanation": "State updates from hooks must be wrapped in `act()` to ensure React processes them before assertions.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "KCD recommends using `renderHook` primarily when:",
+              "options": [
+                "The hook uses `useState`",
+                "The hook is shared across many components or has complex logic worth testing in isolation",
+                "The hook uses `useEffect`",
+                "Always \u2014 all hooks should be tested with `renderHook`"
+              ],
+              "answer": 1,
+              "explanation": "KCD says use `renderHook` for shared or complex hooks. Prefer testing through components otherwise.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "The `wrapper` option in `renderHook` is used for:",
+              "options": [
+                "Wrapping the hook return value",
+                "Providing Context providers that the hook depends on",
+                "Adding error boundaries",
+                "Wrapping the test in `act()`"
+              ],
+              "answer": 1,
+              "explanation": "The `wrapper` option provides Context providers that the hook needs to function.",
+              "tags": [
+                "render-hook",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "To mock `fetch` for a component test, which approach is recommended?",
+              "options": [
+                "Mock the global `fetch` directly",
+                "Create an API layer module and mock that module",
+                "Use a real network connection to a test server",
+                "Skip testing network behavior"
+              ],
+              "answer": 1,
+              "explanation": "An API layer module is a cleaner mock boundary than the global `fetch` function.",
+              "tags": [
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "A minimal mock for `fetch` that returns JSON data looks like:",
+              "options": [
+                "`vi.fn().mockReturnValue(data)`",
+                "`vi.fn().mockResolvedValue({ json: () => Promise.resolve(data), ok: true })`",
+                "`vi.fn().mockResolvedValue(data)`",
+                "`vi.fn(() => data)`"
+              ],
+              "answer": 1,
+              "explanation": "A `fetch` mock must return a response-like object with `json()` returning a Promise and an `ok` property.",
+              "tags": [
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "To test that a component shows \"Error\" when the API call fails, you would:",
+              "options": [
+                "Mock the API to throw a synchronous error",
+                "Mock the API to return a rejected Promise, then use `findBy` or `waitFor` to find the error message",
+                "Not mock anything and let the real API fail",
+                "Use fake timers"
+              ],
+              "answer": 1,
+              "explanation": "Mock the API to reject, render the component, then use `findBy`/`waitFor` to find the error message.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "`expect(mockFn).toHaveBeenCalledWith('arg1', 'arg2')` checks:",
+              "options": [
+                "The mock was called with only those arguments and nothing else",
+                "The mock was called at least once with those exact arguments",
+                "The mock's return value matches those arguments",
+                "The mock was called exactly once"
+              ],
+              "answer": 1,
+              "explanation": "`toHaveBeenCalledWith` checks that at least one call matched those arguments.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "`expect(mockFn).toHaveBeenCalledTimes(0)` is equivalent to:",
+              "options": [
+                "`expect(mockFn).toHaveBeenCalled()`",
+                "`expect(mockFn).not.toHaveBeenCalled()`",
+                "`expect(mockFn).toHaveReturned()`",
+                "`expect(mockFn).toBeUndefined()`"
+              ],
+              "answer": 1,
+              "explanation": "`toHaveBeenCalledTimes(0)` and `.not.toHaveBeenCalled()` are logically equivalent.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "`mockFn.mock.calls[0][1]` accesses:",
+              "options": [
+                "The first argument of the first call",
+                "The second argument of the first call",
+                "The first argument of the second call",
+                "The return value of the first call"
+              ],
+              "answer": 1,
+              "explanation": "`mock.calls[0]` is the first call's arguments array. Index `[1]` is the second argument.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "`mockFn.mock.results[0].value` accesses:",
+              "options": [
+                "The first argument of the first call",
+                "The return value of the first call",
+                "The type of the first call result",
+                "Whether the first call threw"
+              ],
+              "answer": 1,
+              "explanation": "`mock.results[0].value` is the return value (or thrown value) of the first call.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "When testing a component with a `useEffect` that calls `fetch` on mount, the correct pattern is:",
+              "options": [
+                "Mock `fetch`, render the component, assert on the loading state, then use `findBy` to assert on the loaded state",
+                "Mock `fetch`, wait 1 second with `setTimeout`, then assert",
+                "Do not test `useEffect` behavior",
+                "Call `useEffect` directly outside the component"
+              ],
+              "answer": 0,
+              "explanation": "Mock \u2192 render \u2192 assert loading \u2192 `findBy` for loaded data. This is the standard async component test flow.",
+              "tags": [
+                "async-testing",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "`vi.mock('./api', async (importOriginal) => { const actual = await importOriginal(); return { ...actual, fetchUsers: vi.fn() }; })` does what?",
+              "options": [
+                "Replaces the entire `./api` module with a mock",
+                "Keeps all real exports from `./api` but replaces `fetchUsers` with a mock",
+                "Throws an error because `importOriginal` is invalid",
+                "Mocks only the default export"
+              ],
+              "answer": 1,
+              "explanation": "`importOriginal` gives the real module. Spreading it and overriding `fetchUsers` keeps everything else real.",
+              "tags": [
+                "vi-fn",
+                "vi-mock",
+                "import-original",
+                "async-testing",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "`vi.mocked(fetchUsers)` returns:",
+              "options": [
+                "A new mock function",
+                "The same `fetchUsers` reference but typed as a mock, enabling mock methods in TypeScript",
+                "The original un-mocked function",
+                "`undefined`"
+              ],
+              "answer": 1,
+              "explanation": "`vi.mocked()` is a type cast, not a runtime operation. It tells TypeScript to treat the value as a mock.",
+              "tags": [
+                "vi-mocked",
+                "mock-fetch"
+              ]
+            },
+            {
+              "id": "MC-39",
+              "question": "A test uses `vi.useFakeTimers()` but forgets `vi.useRealTimers()` in cleanup. What happens?",
+              "options": [
+                "Nothing \u2014 fake timers reset automatically",
+                "Subsequent tests may fail because `setTimeout`, `Date`, etc. are still faked",
+                "The test runner crashes",
+                "Only `Date` is affected"
+              ],
+              "answer": 1,
+              "explanation": "Fake timers persist across tests if not cleaned up. Subsequent tests get faked `setTimeout`, `Date`, etc.",
+              "tags": [
+                "mock-lifecycle",
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-40",
+              "question": "To test a `setInterval` that fires every 200ms, and you want to verify it has fired 3 times:",
+              "options": [
+                "`vi.advanceTimersByTime(600)` and check the callback was called 3 times",
+                "`vi.runAllTimers()` and check the callback was called 3 times",
+                "Wait 600 real milliseconds",
+                "`vi.advanceTimersByTime(200)` once"
+              ],
+              "answer": 0,
+              "explanation": "`advanceTimersByTime(600)` fires the 200ms interval at 200ms, 400ms, and 600ms = 3 times.",
+              "tags": [
+                "fake-timers"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "`renderHook` is necessary because:",
+              "options": [
+                "Hooks cannot be imported in test files",
+                "Hooks can only be called inside React components \u2014 `renderHook` provides a wrapper component",
+                "Vitest does not support testing functions",
+                "TypeScript requires hooks to be wrapped"
+              ],
+              "answer": 1,
+              "explanation": "React hooks can only be called inside components. `renderHook` provides the wrapper component.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "After `act(() => { result.current.increment(); })`, you read the updated count from:",
+              "options": [
+                "The `act` return value",
+                "`result.current.count`",
+                "`result.previous.count`",
+                "A new `renderHook` call"
+              ],
+              "answer": 1,
+              "explanation": "`result.current` is updated after `act()` completes. Read the new value from `result.current.count`.",
+              "tags": [
+                "render-hook"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "To test a hook that depends on `UserContext`, you provide it via:",
+              "options": [
+                "`renderHook(() => useUser(), { wrapper: ({ children }) => <UserContext.Provider value={mockUser}>{children}</UserContext.Provider> })`",
+                "`vi.mock('UserContext')`",
+                "Setting a global variable",
+                "Passing it as a hook argument"
+              ],
+              "answer": 0,
+              "explanation": "Provide the Context via the `wrapper` option in `renderHook`.",
+              "tags": [
+                "render-hook",
+                "mock-context"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "`vi.fn().mockReturnValueOnce('a').mockReturnValueOnce('b')` \u2014 what does the third call return?",
+              "options": [
+                "`'a'`",
+                "`'b'`",
+                "`undefined`",
+                "Throws an error"
+              ],
+              "answer": 2,
+              "explanation": "Both `mockReturnValueOnce` values are consumed. No persistent `mockReturnValue` was set, so the default is `undefined`.",
+              "tags": [
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "To verify a spy was called AND restore it after the test, you should:",
+              "options": [
+                "Call `mockClear()` in `afterEach`",
+                "Call `mockReset()` in `afterEach`",
+                "Call `mockRestore()` in `afterEach` or use `vi.restoreAllMocks()`",
+                "Do nothing \u2014 spies auto-restore"
+              ],
+              "answer": 2,
+              "explanation": "`mockRestore()` restores the original method (for spies). `vi.restoreAllMocks()` in `afterEach` handles all of them.",
+              "tags": [
+                "vi-spyon",
+                "mock-lifecycle"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "A component renders \"No results\" when the API returns an empty array. The test should:",
+              "options": [
+                "Mock the API to return `[]`, render the component, and use `findByText('No results')` or `waitFor` to assert",
+                "Never mock the API",
+                "Use fake timers to trigger the empty state",
+                "Test only with real API data"
+              ],
+              "answer": 0,
+              "explanation": "Mock the API to return `[]`, render, then `findByText`/`waitFor` for the \"No results\" message.",
+              "tags": [
+                "async-testing"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "`vi.spyOn(console, 'warn').mockImplementation(() => {})` is commonly used to:",
+              "options": [
+                "Spy on user interactions",
+                "Suppress expected console warnings during a test while verifying they were called",
+                "Mock the DOM",
+                "Replace `console.log` with `console.warn`"
+              ],
+              "answer": 1,
+              "explanation": "This pattern suppresses expected console noise while letting you verify the warning was triggered.",
+              "tags": [
+                "vi-fn",
+                "vi-spyon"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "The correct order for testing a component that fetches data is:",
+              "options": [
+                "Assert data \u2192 render \u2192 mock API",
+                "Mock API \u2192 render \u2192 assert loading \u2192 await data \u2192 assert data",
+                "Render \u2192 mock API \u2192 assert data",
+                "Assert loading \u2192 render \u2192 mock API \u2192 assert data"
+              ],
+              "answer": 1,
+              "explanation": "The correct flow: set up mocks first \u2192 render component \u2192 assert initial (loading) state \u2192 await data \u2192 assert final state.",
+              "tags": [
+                "async-testing",
+                "mock-fetch"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1827 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week1",
+      "title": "Week 1: TypeScript Fundamentals",
+      "scope": "The Basics, Everyday Types, Narrowing, More on Functions (through overloads), Object Types.",
+      "readings": [
+        "TS-HB: \"The Basics\"",
+        "TS-HB: \"Everyday Types\"",
+        "TS-HB: \"Narrowing\"",
+        "TS-HB: \"More on Functions\" (through \"Function Overloads\")",
+        "TS-HB: \"Object Types\""
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "TypeScript is a statically typed superset of JavaScript: all valid JavaScript is valid TypeScript.",
+              "answer": true,
+              "explanation": "TypeScript is a strict superset of JavaScript. Any valid JS file is valid TS (though it may produce type errors under strict settings).",
+              "tags": [
+                "typescript-basics"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "TypeScript types are enforced at runtime by the compiled JavaScript.",
+              "answer": false,
+              "explanation": "All types are erased at compile time. The JavaScript output has no type information and no runtime type enforcement.",
+              "tags": [
+                "compilation"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "The primary purpose of TypeScript is to catch type errors before your code runs.",
+              "answer": true,
+              "explanation": "TypeScript is a static type checker. Its purpose is to find errors before execution.",
+              "tags": [
+                "typescript-basics"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "Type annotations are always required in TypeScript; the compiler cannot determine types without them.",
+              "answer": false,
+              "explanation": "TypeScript has powerful type inference. Many variables, return types, and expressions are inferred without explicit annotations.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "`const x = 10` infers `x` as the literal type `10`, while `let x = 10` infers `x` as `number`.",
+              "answer": true,
+              "explanation": "`const` prevents reassignment, so TypeScript infers the narrowest literal type. `let` allows reassignment, so it widens to the base type.",
+              "tags": [
+                "type-inference",
+                "literal-types"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "`string`, `number`, `boolean`, and `symbol` are the four primitive types in TypeScript \u2014 there are no others.",
+              "answer": false,
+              "explanation": "TypeScript has more than four primitive types. In addition to `string`, `number`, `boolean`, and `symbol`, there are also `bigint`, `null`, and `undefined`. The statement incorrectly claims these are the only primitive types.",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "`String` (uppercase) and `string` (lowercase) are interchangeable in type annotations.",
+              "answer": false,
+              "explanation": "`String` is the wrapper object type. `string` is the primitive type. The Handbook explicitly says to always use the lowercase versions.",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "The type `any` disables type checking for the value it applies to and should be avoided in strict codebases.",
+              "answer": true,
+              "explanation": "`any` opts out of type checking entirely. It defeats the purpose of TypeScript and should be avoided or explicitly justified.",
+              "tags": [
+                "any-type"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "The type `unknown` is the type-safe counterpart of `any`: it accepts any value but requires narrowing before use.",
+              "answer": true,
+              "explanation": "`unknown` is the top type that accepts any value, but you must narrow it (via `typeof`, `instanceof`, etc.) before performing operations.",
+              "tags": [
+                "unknown-type"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "A function with return type `void` must not contain any `return` statement at all.",
+              "answer": false,
+              "explanation": "A `void` function can have `return` statements (including `return undefined` or bare `return`). `void` means the return value should not be used, not that `return` is prohibited.",
+              "tags": [
+                "void-type",
+                "return-types"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "The `never` type represents the return type of any function that returns `undefined`, such as a function with no `return` statement.",
+              "answer": false,
+              "explanation": "`never` represents values that never occur \u2014 it is the return type of functions that NEVER complete normally (always throw or loop infinitely). A function with no `return` statement returns `undefined` and has return type `void`, not `never`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "In TypeScript, `null` and `undefined` are the same type.",
+              "answer": false,
+              "explanation": "`null` and `undefined` are distinct types in TypeScript. With `strictNullChecks`, they are not interchangeable.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "With `strictNullChecks` enabled, `null` is still assignable to `string` because `string` implicitly includes `null` in its type.",
+              "answer": false,
+              "explanation": "Under `strictNullChecks`, `null` is NOT assignable to `string`. You must explicitly include `null` in the type via a union (e.g., `string | null`). Without `strictNullChecks`, `null` is assignable to all types \u2014 but the whole point of the flag is to stop that behavior.",
+              "tags": [
+                "null-undefined",
+                "strict-mode"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "A union type `string | number` means the value is both a `string` and a `number` simultaneously, and TypeScript lets you use methods from either type without narrowing.",
+              "answer": false,
+              "explanation": "A union type means the value is one of the listed types at any given point, not all of them simultaneously. You must narrow (via `typeof`, `in`, etc.) before using type-specific operations. Accessing methods from only one branch without narrowing is a compile error.",
+              "tags": [
+                "union-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "An intersection type `A & B` for two object types produces a type that has only the properties that are common to both `A` and `B`.",
+              "answer": false,
+              "explanation": "An intersection `A & B` produces a type with ALL properties from both `A` and `B`, not just the common ones. The confusion is with union types: `A | B` restricts you to common properties (without narrowing). Intersection combines everything.",
+              "tags": [
+                "intersection-types",
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "Only interfaces (declared with `interface`) can describe object shapes; type aliases (declared with `type`) are limited to primitives and unions.",
+              "answer": false,
+              "explanation": "Both type aliases and interfaces can describe object shapes. `type Foo = { x: number }` and `interface Foo { x: number }` are both valid. Type aliases are more versatile \u2014 they can also describe unions, intersections, tuples, primitives, and more.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "Both interfaces and type aliases support declaration merging: declaring the same name twice adds properties to the existing definition.",
+              "answer": false,
+              "explanation": "Only interfaces support declaration merging. Declaring the same interface name twice merges the declarations. Declaring a type alias with the same name twice is a compile error (`Duplicate identifier`).",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "You can extend an interface from another interface using the `extends` keyword, but you cannot extend a type alias.",
+              "answer": false,
+              "explanation": "Type aliases can be \"extended\" using intersection types: `type B = A & { extra: string }`. The syntax differs from `extends`, but the effect is similar.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "Optional properties (e.g., `age?: number`) have the type `number | undefined`.",
+              "answer": true,
+              "explanation": "An optional property `age?: number` means the property may be absent, and if present its value is `number`. The type includes `undefined` because absence and `undefined` are treated the same (without `exactOptionalPropertyTypes`).",
+              "tags": [
+                "optional-properties"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "The `readonly` modifier on a property deeply freezes the entire object graph \u2014 mutations to nested objects are also prevented.",
+              "answer": false,
+              "explanation": "`readonly` is shallow. It prevents reassignment of the property itself (`obj.prop = newValue` is an error), but it does NOT prevent mutation of nested objects (`obj.prop.nested = newValue` is allowed). For deep immutability, you would need `Readonly<T>` applied recursively.",
+              "tags": [
+                "readonly"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "The TypeScript compiler (`tsc`) outputs plain JavaScript. The type annotations are completely removed from the emitted code.",
+              "answer": true,
+              "explanation": "TypeScript compiles to JavaScript by stripping all type annotations and type-only constructs.",
+              "tags": [
+                "compilation"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "TypeScript requires explicit return type annotations on all functions \u2014 it cannot infer return types automatically.",
+              "answer": false,
+              "explanation": "TypeScript CAN and DOES infer return types from `return` statements without explicit annotations. Explicit return type annotations are optional but can be useful for documentation, public APIs, and catching accidental changes.",
+              "tags": [
+                "return-types"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "The `downlevelIteration` compiler flag is needed to use `for...of` loops when targeting ES5 or earlier.",
+              "answer": true,
+              "explanation": "`downlevelIteration` emits helper code to properly support iteration protocols when targeting older JS versions.",
+              "tags": [
+                "compilation"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "Enabling `strict: true` in `tsconfig.json` only turns on `strictNullChecks` \u2014 other strict flags like `noImplicitAny` must be enabled separately.",
+              "answer": false,
+              "explanation": "`strict: true` enables an entire family of strict checking flags, including `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`, `strictBindCallApply`, `strictPropertyInitialization`, `noImplicitThis`, `alwaysStrict`, and `useUnknownInCatchVariables`.",
+              "tags": [
+                "null-undefined",
+                "strict-mode"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "With `noImplicitAny` enabled, TypeScript errors when it cannot infer a type and would default to `any`.",
+              "answer": true,
+              "explanation": "`noImplicitAny` catches cases where TypeScript would silently assign `any`, such as untyped function parameters.",
+              "tags": [
+                "strict-mode"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "`const arr = [1, 2, 3]` infers the type as the tuple `[1, 2, 3]`.",
+              "answer": false,
+              "explanation": "`const arr = [1, 2, 3]` infers `number[]`, not a tuple. A tuple requires `as const` or an explicit tuple annotation.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "A variable declared with `let` and initialized to a string literal (e.g., `let s = \"hello\"`) is inferred as the literal type `\"hello\"`.",
+              "answer": false,
+              "explanation": "`let` widens to `string`. Only `const` would infer the literal type `\"hello\"`.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "`bigint` and `symbol` are primitive types in TypeScript, in addition to `string`, `number`, `boolean`, `null`, and `undefined`.",
+              "answer": true,
+              "explanation": "`bigint` and `symbol` are primitive types in both JavaScript and TypeScript.",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "A union type `A | B` means the value has all the properties of both `A` and `B` simultaneously.",
+              "answer": false,
+              "explanation": "A union `A",
+              "tags": [
+                "union-types"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "When you have a union type like `string | number`, you can access any property from any member of the union without narrowing first.",
+              "answer": false,
+              "explanation": "Without narrowing, you can only access properties that are common to ALL members of the union. TypeScript cannot know which member you have, so it restricts you to the shared interface. To access type-specific properties, you must narrow first.",
+              "tags": [
+                "union-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "The type `object` (lowercase) refers to any non-primitive type \u2014 it includes arrays, functions, and plain objects but not `string`, `number`, or `boolean`.",
+              "answer": true,
+              "explanation": "The lowercase `object` excludes all primitives. It includes arrays, functions, and plain objects.",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "`Object` (uppercase) is the preferred type annotation for objects in TypeScript.",
+              "answer": false,
+              "explanation": "`Object` (uppercase) is the JavaScript wrapper type and is too broad. Use specific types, `object`, or `Record`.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "A type alias can represent a union, intersection, primitive, tuple, or any other type \u2014 not just object shapes.",
+              "answer": true,
+              "explanation": "Type aliases are versatile: `type X = string",
+              "tags": [
+                "type-aliases"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "An interface can represent a union type, such as `interface Foo = string | number`.",
+              "answer": false,
+              "explanation": "Interfaces can only describe object shapes (with call/construct signatures). They cannot be unions or primitives.",
+              "tags": [
+                "union-types"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "When an interface and a type alias describe the same object shape, they are structurally identical and interchangeable in assignments.",
+              "answer": true,
+              "explanation": "Structural typing means shape is what matters. An interface `{ x: number }` and a type alias `{ x: number }` are interchangeable.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "An interface can extend multiple other interfaces using a comma-separated list: `interface C extends A, B {}`.",
+              "answer": true,
+              "explanation": "Interfaces support multiple inheritance: `interface C extends A, B {}` combines properties from both.",
+              "tags": [
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "A type alias can combine multiple types using intersection: `type C = A & B`.",
+              "answer": true,
+              "explanation": "Intersection is how type aliases \"extend\": `type C = A & B`.",
+              "tags": [
+                "type-aliases"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "`void` and `undefined` are interchangeable: a function that returns `void` and one that returns `undefined` are the same.",
+              "answer": false,
+              "explanation": "`void` and `undefined` behave differently. A `void` return type allows the return value to be ignored. Contextual typing with `void` callbacks permits returning values that are then discarded. `undefined` as a return type requires an explicit `return undefined` or no return.",
+              "tags": [
+                "void-type"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "A callback typed as `() => void` must not return any value \u2014 TypeScript will error if the callback's body contains a `return` statement with a value.",
+              "answer": false,
+              "explanation": "A callback typed as `() => void` IS allowed to return a value \u2014 TypeScript simply ignores the return value. This is an important rule: `void` in a callback position means the caller won't use the return value, not that the function can't return one. This is why `Array.prototype.push` can be used in `forEach` callbacks despite returning a number.",
+              "tags": [
+                "void-type",
+                "functions"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "The `never` type is the top type in TypeScript \u2014 every other type is a subtype of `never`.",
+              "answer": false,
+              "explanation": "`never` is the BOTTOM type, not the top type. `never` is a subtype of every other type, but no type is a subtype of `never`. The top type in TypeScript is `unknown`, which accepts any value. The relationship is reversed: everything extends `never` \u2192 `never` extends everything.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "If a function has return type `never`, TypeScript knows that code after a call to that function is unreachable.",
+              "answer": true,
+              "explanation": "If a function returns `never`, code after the call is unreachable. TypeScript uses this for exhaustiveness checking.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "Contextual typing means TypeScript can infer the type of a function parameter from the context in which it is used, such as an array method callback.",
+              "answer": true,
+              "explanation": "Contextual typing infers types from the surrounding context, such as callback parameter types in array methods.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "In `[1, 2, 3].forEach((n) => { ... })`, TypeScript infers `n` as `number` through contextual typing.",
+              "answer": true,
+              "explanation": "`forEach`'s callback signature tells TypeScript that the parameter is the array element type.",
+              "tags": [
+                "contextual-typing"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "`null` and `undefined` are assignable to all types by default when `strictNullChecks` is disabled.",
+              "answer": true,
+              "explanation": "Without `strictNullChecks`, `null` and `undefined` are assignable to every type. This is the pre-strict behavior.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "Index signatures (e.g., `[key: string]: number`) allow an object to accept any number of properties as long as they match the declared key and value types.",
+              "answer": true,
+              "explanation": "Index signatures allow open-ended objects. `[key: string]: number` means any string-keyed property must have a `number` value.",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "TypeScript uses structural typing: if two types have the same shape, they are compatible regardless of their declared names.",
+              "answer": true,
+              "explanation": "TypeScript uses structural (duck) typing. If two types have the same properties and types, they are compatible.",
+              "tags": [
+                "structural-typing"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "Excess property checking applies to all object assignments, not just object literals.",
+              "answer": false,
+              "explanation": "Excess property checking applies only when assigning object literals directly to a typed target. Assigning a pre-existing variable with extra properties does not trigger it.",
+              "tags": [
+                "excess-property-checking"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "An object type can have both named properties and an index signature, but the named properties' types must be assignable to the index signature's value type.",
+              "answer": true,
+              "explanation": "Named properties must be compatible with the index signature. `{ [key: string]: number; name: string }` is an error because `string` is not `number`.",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "`readonly` on an array type (e.g., `readonly number[]`) prevents calling mutation methods like `push` and `splice`.",
+              "answer": true,
+              "explanation": "`readonly number[]` (equivalent to `ReadonlyArray<number>`) removes mutation methods from the type.",
+              "tags": [
+                "readonly",
+                "array-types"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "A `readonly` array can be assigned to a mutable array type without error.",
+              "answer": false,
+              "explanation": "A `readonly` array cannot be assigned to a mutable array type. This would allow the mutable reference to call `push`, violating `readonly`. TypeScript prevents this.",
+              "tags": [
+                "readonly"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "Tuple types (e.g., `[string, number]`) are fixed-length arrays where each position has a specific type.",
+              "answer": true,
+              "explanation": "Tuples have a fixed length with known types at each position.",
+              "tags": [
+                "tuple-types"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "TypeScript infers `const pair = [\"hello\", 42]` as the tuple type `[string, number]`.",
+              "answer": false,
+              "explanation": "Without `as const`, TypeScript infers `(string",
+              "tags": [
+                "tuple-types"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "Tuple types can have optional elements, denoted with `?`: `[string, number?]` allows a tuple of length 1 or 2.",
+              "answer": true,
+              "explanation": "Optional tuple elements use `?` and allow shorter tuples.",
+              "tags": [
+                "tuple-types"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "Tuple types can have rest elements: `[string, ...number[]]` allows a string followed by any number of numbers.",
+              "answer": true,
+              "explanation": "Rest elements in tuples allow variable length after fixed positions.",
+              "tags": [
+                "tuple-types"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "An intersection of two object types with a conflicting property type (e.g., `{ x: string } & { x: number }`) produces `never` for that property.",
+              "answer": true,
+              "explanation": "`string & number` is an impossible intersection, which resolves to `never`. The property's type becomes `never`.",
+              "tags": [
+                "intersection-types",
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "An empty object type `{}` matches any non-null, non-undefined value in TypeScript, not just objects with no properties.",
+              "answer": true,
+              "explanation": "`{}` means \"any value that is not `null` or `undefined`.\" It matches strings, numbers, objects, etc. This is a common source of confusion.",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "TypeScript allows extending an interface with a type alias using `extends`: `interface B extends SomeTypeAlias {}`.",
+              "answer": true,
+              "explanation": "Interfaces can extend type aliases as long as the alias describes an object shape.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "When two interfaces are merged via declaration merging, if they declare the same property name with different types, the result is an intersection of those types.",
+              "answer": false,
+              "explanation": "Declaration merging with conflicting property types for non-function members is a compile error. Only function members can have merge-compatible overloads.",
+              "tags": [
+                "interfaces"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "A `readonly` property can be assigned in the object's initializer (object literal) even though it cannot be reassigned afterward.",
+              "answer": true,
+              "explanation": "`readonly` prevents reassignment after initialization. The initializer is allowed.",
+              "tags": [
+                "readonly"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "The `Readonly<T>` utility type makes all properties of `T` readonly.",
+              "answer": true,
+              "explanation": "`Readonly<T>` is a mapped type that adds `readonly` to every property.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "Nested objects inside a `Readonly<T>` are also deeply frozen and cannot be mutated.",
+              "answer": false,
+              "explanation": "`Readonly<T>` is shallow. Nested objects are not made readonly.",
+              "tags": [
+                "generics"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "Index signatures support only `string` and `number` as key types (and `symbol` in recent versions).",
+              "answer": true,
+              "explanation": "Index signatures use `string`, `number`, or `symbol` keys.",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "A numeric index signature `[index: number]: string` means that when you index with a number, the result is a `string`. JavaScript converts number keys to strings at runtime.",
+              "answer": true,
+              "explanation": "JavaScript converts numeric keys to strings. A numeric index signature works because JS handles the conversion.",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "`typeof` in a type position (e.g., `type T = typeof x`) extracts the TypeScript type of a variable, which is different from the JavaScript runtime `typeof` operator.",
+              "answer": true,
+              "explanation": "`typeof` in a type position extracts the compile-time type from a value. The runtime `typeof` operator returns a string like `\"string\"` or `\"number\"`.",
+              "tags": [
+                "typeof-operator"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "Truthiness narrowing can eliminate `null` and `undefined` from a union type inside an `if (value)` block.",
+              "answer": true,
+              "explanation": "Truthiness checking (`if (value)`) removes `null`, `undefined`, `0`, `\"\"`, `false`, and `NaN`. This is useful but imprecise \u2014 it also eliminates empty strings and zero.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "The equality check `if (x === y)` can narrow the types of both `x` and `y` to their overlap.",
+              "answer": true,
+              "explanation": "Equality narrowing works on both sides. If `x === y` and `x` is `string",
+              "tags": [
+                "equality-narrowing",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "The `in` operator (e.g., `if (\"swim\" in animal)`) can narrow a union type based on whether a property exists.",
+              "answer": true,
+              "explanation": "The `in` operator checks property existence and narrows the union to whichever member(s) have that property.",
+              "tags": [
+                "union-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "`instanceof` is only useful for narrowing class instances, not plain objects or interfaces.",
+              "answer": true,
+              "explanation": "`instanceof` checks the prototype chain, which only exists for class instances. It cannot narrow plain object types or interfaces.",
+              "tags": [
+                "instanceof",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-73",
+              "question": "`typeof null` returns `\"object\"` at runtime, which means `typeof` narrowing alone cannot distinguish `null` from objects.",
+              "answer": true,
+              "explanation": "`typeof null === \"object\"` is a JavaScript quirk. This means `typeof` alone cannot distinguish `null` from objects; you need an explicit `=== null` check.",
+              "tags": [
+                "typeof-operator",
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-74",
+              "question": "A `typeof` guard for `\"function\"` narrows the type to `Function`.",
+              "answer": true,
+              "explanation": "`typeof x === \"function\"` narrows `x` to `Function`. This works for any callable value.",
+              "tags": [
+                "typeof-operator",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-75",
+              "question": "Truthiness narrowing with `if (value)` eliminates `0` and `\"\"` (empty string) in addition to `null` and `undefined`.",
+              "answer": true,
+              "explanation": "All falsy values are excluded: `null`, `undefined`, `0`, `NaN`, `\"\"`, `false`. This can be a pitfall if `0` or `\"\"` are valid inputs.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-76",
+              "question": "The double-negation pattern `if (!!value)` narrows differently than `if (value)`.",
+              "answer": false,
+              "explanation": "`!!value` and `value` have identical truthiness. The double negation coerces to boolean but does not change what TypeScript narrows.",
+              "tags": [
+                "truthiness",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-77",
+              "question": "After an `if (typeof x === \"string\")` check, in the `else` branch, `x` has `string` removed from its type.",
+              "answer": true,
+              "explanation": "In the `else` branch, TypeScript removes the narrowed type. If `typeof x === \"string\"` was true in the `if`, then `string` is excluded in the `else`.",
+              "tags": [
+                "equality-narrowing",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-78",
+              "question": "Equality narrowing with `==` (loose equality) treats `null` and `undefined` as equal, so `if (x == null)` catches both.",
+              "answer": true,
+              "explanation": "`==` (loose equality) treats `null` and `undefined` as equal. `x == null` is true when `x` is `null` or `undefined`. TypeScript narrows accordingly.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "TF-79",
+              "question": "TypeScript's control flow analysis can narrow variables across `if/else`, `switch`, ternary expressions, and `while` loops.",
+              "answer": true,
+              "explanation": "Control flow analysis tracks variable types through all branching constructs.",
+              "tags": [
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-80",
+              "question": "Assigning a new value to a variable can widen or change its narrowed type \u2014 TypeScript re-analyzes the type after each assignment.",
+              "answer": true,
+              "explanation": "TypeScript re-analyzes the type after assignment. If you assign a `string` to a `string",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "TF-81",
+              "question": "A custom type guard function uses the return type `value is Type` to inform TypeScript of narrowing when the function returns `true`.",
+              "answer": true,
+              "explanation": "Type predicates use `value is Type` as the return type of a function to enable custom narrowing.",
+              "tags": [
+                "type-guards"
+              ]
+            },
+            {
+              "id": "TF-82",
+              "question": "The `in` operator can be used to narrow between two types that both have the checked property, as long as the property types differ.",
+              "answer": false,
+              "explanation": "The `in` operator narrows by checking whether a property exists. If both union members have the same property, `in` cannot distinguish them (it narrows to whichever members include the property, which could be both).",
+              "tags": [
+                "in-operator",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-83",
+              "question": "TypeScript narrows the type to `never` when all possibilities in a union have been eliminated by control flow.",
+              "answer": true,
+              "explanation": "When all union members are eliminated by narrowing, the remaining type is `never`.",
+              "tags": [
+                "never-type"
+              ]
+            },
+            {
+              "id": "TF-84",
+              "question": "A `switch (true)` statement with `typeof` checks in each `case` can narrow a union type.",
+              "answer": true,
+              "explanation": "`switch (true)` with `typeof` in each `case` is a valid narrowing pattern, though less common than `if/else`.",
+              "tags": [
+                "union-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "Function overload signatures in TypeScript create multiple runtime implementations of the same function.",
+              "answer": false,
+              "explanation": "Overload signatures are a compile-time feature. There is only one implementation at runtime. The overload signatures define the type-level contract; the implementation body handles all cases.",
+              "tags": [
+                "function-overloads"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "A function's rest parameter must be the last parameter in the parameter list and is typed as an array.",
+              "answer": true,
+              "explanation": "Rest parameters must come last and are typed as arrays: `function sum(...nums: number[])`.",
+              "tags": [
+                "rest-parameters",
+                "functions"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Type assertions (`value as Type`) perform a runtime conversion of the value to the target type.",
+              "answer": false,
+              "explanation": "Type assertions (`as Type`) are compile-time only. They tell TypeScript to treat the value as a different type but produce no runtime code.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "The non-null assertion operator (`value!`) tells TypeScript to treat the value as non-null and non-undefined, without any runtime check.",
+              "answer": true,
+              "explanation": "The `!` operator removes `null",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-85",
+              "question": "TypeScript infers the return type of a function from its `return` statements. You do not need an explicit return type annotation, though one can be added for clarity or documentation.",
+              "answer": true,
+              "explanation": "TypeScript infers return types. Explicit annotations help with documentation, public APIs, and catching accidental return type changes.",
+              "tags": [
+                "return-types"
+              ]
+            },
+            {
+              "id": "TF-86",
+              "question": "An optional parameter (e.g., `greeting?: string`) and a parameter with a default value (e.g., `greeting: string = \"Hi\"`) are both optional from the caller's perspective, but only the default-value form provides a value when omitted.",
+              "answer": true,
+              "explanation": "Both are optional to the caller. With `?`, the value is `T",
+              "tags": [
+                "optional-parameters",
+                "functions"
+              ]
+            },
+            {
+              "id": "TF-87",
+              "question": "A function typed as `(a: string, b: number) => void` can be called with `(a: string) => void` \u2014 that is, fewer parameters is acceptable.",
+              "answer": false,
+              "explanation": "The statement is backwards. A function with fewer parameters can be passed where more are expected (compatible), but you cannot call a 2-param function with only 1 argument unless the second is optional.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-88",
+              "question": "In TypeScript, functions with fewer parameters are assignable to functions with more parameters (of compatible types). This is called parameter-count compatibility.",
+              "answer": true,
+              "explanation": "TypeScript permits passing a callback with fewer parameters. `[1,2,3].forEach((x) => ...)` works even though `forEach`'s callback has 3 parameters (value, index, array).",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-89",
+              "question": "The implementation signature of overloaded functions is directly callable by external code.",
+              "answer": false,
+              "explanation": "The implementation signature is hidden from callers. Only the overload signatures are callable.",
+              "tags": [
+                "function-overloads"
+              ]
+            },
+            {
+              "id": "TF-90",
+              "question": "In function overloads, the implementation signature must be compatible with all overload signatures.",
+              "answer": true,
+              "explanation": "The implementation must handle all overloads. If an overload accepts `string` and another accepts `number`, the implementation must accept `string",
+              "tags": [
+                "function-overloads"
+              ]
+            },
+            {
+              "id": "TF-91",
+              "question": "A rest parameter can appear in the middle of a parameter list in TypeScript.",
+              "answer": false,
+              "explanation": "Rest parameters must be the last parameter. They cannot appear in the middle.",
+              "tags": [
+                "rest-parameters",
+                "functions"
+              ]
+            },
+            {
+              "id": "TF-92",
+              "question": "Destructured function parameters can be typed using an inline object type: `function f({ x, y }: { x: number; y: number }) {}`.",
+              "answer": true,
+              "explanation": "Destructured parameters are typed with an inline object type after the destructuring pattern.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-93",
+              "question": "`void` as a return type in a type alias (e.g., `type Fn = () => void`) means the function is forbidden from returning a value.",
+              "answer": false,
+              "explanation": "In a contextual type position (like a type alias callback), `void` permits the function to return any value \u2014 the return is simply discarded. This is distinct from a direct `void` annotation on a function declaration.",
+              "tags": [
+                "type-aliases"
+              ]
+            },
+            {
+              "id": "TF-94",
+              "question": "A type assertion can assert to any type, even an unrelated one, as long as you first assert to `unknown`: `value as unknown as TargetType`.",
+              "answer": true,
+              "explanation": "The double assertion `value as unknown as T` bypasses TypeScript's assignability check via `unknown`, which is the top type. This is dangerous and should be used extremely rarely.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "TF-95",
+              "question": "The `as const` assertion on a value makes all its properties `readonly` and infers literal types instead of widened types.",
+              "answer": true,
+              "explanation": "`as const` makes literals readonly and preserves literal types: `{ x: 10 } as const` produces `{ readonly x: 10 }`.",
+              "tags": [
+                "literal-types"
+              ]
+            },
+            {
+              "id": "TF-96",
+              "question": "A function that has an explicit return type of `never` but does not always throw or loop infinitely will produce a compile error.",
+              "answer": true,
+              "explanation": "If a function annotated with `never` has a code path that completes normally, TypeScript reports an error because the function could return `undefined`.",
+              "tags": [
+                "never-type",
+                "null-undefined",
+                "return-types"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What is the inferred type of `value`?",
+              "options": [
+                "`[number, number, number]`",
+                "`number[]`",
+                "`(1 | 2 | 3)[]`",
+                "`any[]`"
+              ],
+              "code": "let value = [1, 2, 3];",
+              "answer": 1,
+              "explanation": "`let` with an array literal infers a general array type: `number[]`. A tuple would require `as const` or an explicit annotation.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "What error does TypeScript report?",
+              "options": [
+                "`\"five\"` is not assignable to parameter of type `number`",
+                "Function `double` cannot return `number`",
+                "`result` is implicitly typed as `any`",
+                "No error"
+              ],
+              "code": "function double(x: number): number {\n  return x * 2;\n}\nconst result = double(\"five\");",
+              "answer": 0,
+              "explanation": "`\"five\"` is a `string`, which is not assignable to the `number` parameter. TypeScript catches this at compile time.",
+              "tags": [
+                "any-type",
+                "functions",
+                "object-types",
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "What is the return type of this function as inferred by TypeScript?",
+              "options": [
+                "`number`",
+                "`number | null`",
+                "`number | undefined`",
+                "`any`"
+              ],
+              "code": "function parse(input: string) {\n  const n = parseInt(input);\n  if (isNaN(n)) {\n    return null;\n  }\n  return n;\n}",
+              "answer": 1,
+              "explanation": "The function returns either `null` or a `number`, so TypeScript infers `number",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "What is the type of `x` inside the `else` block?",
+              "options": [
+                "`string | number | null`",
+                "`string`",
+                "`number`",
+                "`never`"
+              ],
+              "code": "function example(x: string | number | null) {\n  if (x === null) {\n    // ...\n  } else if (typeof x === \"string\") {\n    // ...\n  } else {\n    // what is x here?\n  }\n}",
+              "answer": 2,
+              "explanation": "After excluding `null` (first branch) and `string` (second branch), only `number` remains.",
+              "tags": [
+                "equality-narrowing",
+                "functions",
+                "never-type",
+                "null-undefined",
+                "object-types",
+                "primitive-types",
+                "rest-parameters",
+                "type-guards",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "Which of the following is NOT a valid way to narrow a union type in TypeScript?",
+              "options": [
+                "`typeof x === \"string\"` in an `if` condition",
+                "`\"property\" in x` in an `if` condition",
+                "`x instanceof SomeClass` in an `if` condition",
+                "`x is string` used directly as a condition in an `if` statement"
+              ],
+              "answer": 3,
+              "explanation": "`x is string` is a type predicate used in a function return type, not as a standalone condition. You cannot write `if (x is string)` directly.",
+              "tags": [
+                "union-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "What happens when you try to assign to a `readonly` property outside the object's initialization?",
+              "options": [
+                "TypeScript reports a compile-time error",
+                "The assignment is silently ignored at runtime",
+                "The value changes at runtime but TypeScript warns",
+                "No error at compile time or runtime"
+              ],
+              "code": "type Point = {\n  readonly x: number;\n  readonly y: number;\n};\n\nconst p: Point = { x: 10, y: 20 };\np.x = 30;",
+              "answer": 0,
+              "explanation": "`readonly` properties produce a compile-time error on reassignment. The check is enforced by TypeScript, not at runtime.",
+              "tags": [
+                "object-types",
+                "readonly"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "Which statement about interfaces and type aliases is FALSE?",
+              "options": [
+                "Both can describe the shape of an object",
+                "Both can be extended (interfaces with `extends`, type aliases with intersections)",
+                "Both support declaration merging",
+                "Both support generic parameters"
+              ],
+              "answer": 2,
+              "explanation": "Only interfaces support declaration merging. Declaring the same `type` alias twice is a compile error.",
+              "tags": [
+                "type-aliases",
+                "interfaces"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "What does the `?` signify in this property declaration?",
+              "options": [
+                "The property's value must be `boolean | null`",
+                "The property may be absent from the object entirely, and if present its value is `boolean`",
+                "The property is readonly",
+                "The property must be provided but can be `false`"
+              ],
+              "code": "interface Config {\n  debug?: boolean;\n}",
+              "answer": 1,
+              "explanation": "The `?` makes the property optional: it may be missing from the object entirely. If present, its value is `boolean`.",
+              "tags": [
+                "interfaces",
+                "object-types",
+                "optional-properties",
+                "primitive-types",
+                "readonly"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "What is the type of `obj[key]` given this index signature?",
+              "options": [
+                "`number` (without `noUncheckedIndexedAccess`)",
+                "`number | undefined`",
+                "`any`",
+                "`string`"
+              ],
+              "code": "interface NumberMap {\n  [key: string]: number;\n}\n\nconst obj: NumberMap = { a: 1, b: 2 };\nconst val = obj[\"c\"];",
+              "answer": 0,
+              "explanation": "Without `noUncheckedIndexedAccess`, TypeScript trusts the index signature and types the result as `number`. With that flag enabled, it would be `number",
+              "tags": [
+                "object-types"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "What does this intersection type produce?",
+              "options": [
+                "A type with either `name` or `age`, but not both",
+                "A type with both `name: string` and `age: number`",
+                "A union type `string | number`",
+                "The type `never`"
+              ],
+              "code": "type A = { name: string };\ntype B = { age: number };\ntype C = A & B;",
+              "answer": 1,
+              "explanation": "Intersection of two object types combines all properties. The result has both `name: string` and `age: number`.",
+              "tags": [
+                "intersection-types"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "What is the inferred type of `items`?",
+              "options": [
+                "`[number, string, boolean]`",
+                "`(number | string | boolean)[]`",
+                "`any[]`",
+                "`object[]`"
+              ],
+              "code": "const items = [1, \"two\", true];",
+              "answer": 1,
+              "explanation": "Mixed-element arrays are inferred as union arrays: `(number",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "What does truthiness narrowing eliminate in this code?",
+              "options": [
+                "Only `null`",
+                "Only `undefined`",
+                "Both `null` and `undefined` (and also empty string, which is falsy)",
+                "Nothing; `value` is still `string | null | undefined`"
+              ],
+              "code": "function printLength(value: string | null | undefined) {\n  if (value) {\n    // what types has narrowing removed here?\n    console.log(value.length);\n  }\n}",
+              "answer": 2,
+              "explanation": "Truthiness narrowing removes all falsy values: `null`, `undefined`, `\"\"`, `0`, `false`, `NaN`. This means empty strings are also eliminated, which can be a pitfall if empty strings are valid input.",
+              "tags": [
+                "truthiness",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "What does a type assertion do?",
+              "options": [
+                "Converts the DOM element to an `HTMLCanvasElement` at runtime",
+                "Tells TypeScript to treat the value as `HTMLCanvasElement` without any runtime effect",
+                "Creates a new `HTMLCanvasElement` instance",
+                "Throws an error if the element is not a canvas"
+              ],
+              "code": "const canvas = document.getElementById(\"main\") as HTMLCanvasElement;",
+              "answer": 1,
+              "explanation": "Type assertions are compile-time instructions to TypeScript. They produce no runtime code. If the element is not actually a canvas, you'll get a runtime error later.",
+              "tags": [
+                "type-assertions"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "What is the purpose of the non-null assertion operator `!`?",
+              "options": [
+                "It converts `null` to an empty string at runtime",
+                "It tells TypeScript to remove `null` and `undefined` from the type, with no runtime check",
+                "It throws a runtime error if `value` is `null`",
+                "It is equivalent to `value ?? \"\"`"
+              ],
+              "code": "function process(value: string | null) {\n  console.log(value!.length);\n}",
+              "answer": 1,
+              "explanation": "The `!` postfix operator removes `null",
+              "tags": [
+                "non-null-assertion"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Which of the following correctly describes function overloads in TypeScript?",
+              "options": [
+                "Each overload signature generates a separate JavaScript function",
+                "Overload signatures define the callable shapes; only the implementation signature contains the function body, and the implementation signature is not directly callable",
+                "Overload signatures are only for documentation and are ignored by the type checker",
+                "You can have multiple implementation signatures for the same function"
+              ],
+              "answer": 1,
+              "explanation": "Overload signatures define the public-facing type contracts. The implementation signature handles all cases in one body. Callers cannot call the implementation signature directly \u2014 only the overloads are visible.",
+              "tags": [
+                "function-overloads"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "What is the inferred type of `pair`?",
+              "options": [
+                "`any`",
+                "`{ first: number; second: string }`",
+                "`[number, string]`",
+                "`object`"
+              ],
+              "code": "function makePair(a: number, b: string) {\n  return { first: a, second: b };\n}\nconst pair = makePair(1, \"hello\");",
+              "answer": 1,
+              "explanation": "TypeScript infers the return type from the returned object literal: `{ first: number; second: string }`.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "What is the inferred type of `x`?",
+              "options": [
+                "`string`",
+                "`\"hello\"`",
+                "`any`",
+                "`String`"
+              ],
+              "code": "const x = \"hello\";",
+              "answer": 1,
+              "explanation": "`const` infers the literal type `\"hello\"`.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "What is the inferred type of `y`?",
+              "options": [
+                "`string`",
+                "`\"hello\"`",
+                "`any`",
+                "`string | undefined`"
+              ],
+              "code": "let y = \"hello\";",
+              "answer": 0,
+              "explanation": "`let` widens to `string` because the variable can be reassigned.",
+              "tags": [
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "What is the type of `z`?",
+              "options": [
+                "`(string | number)[]`",
+                "`readonly [1, \"two\"]`",
+                "`[number, string]`",
+                "`readonly (string | number)[]`"
+              ],
+              "code": "const z = [1, \"two\"] as const;",
+              "answer": 1,
+              "explanation": "`as const` produces `readonly [1, \"two\"]` \u2014 a readonly tuple with literal types.",
+              "tags": [
+                "literal-types",
+                "readonly",
+                "tuple-types",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "What does `const obj = { x: 10, y: 20 }` infer for the type of `obj`?",
+              "options": [
+                "`{ readonly x: 10; readonly y: 20 }`",
+                "`{ x: number; y: number }`",
+                "`{ x: 10; y: 20 }`",
+                "`object`"
+              ],
+              "answer": 1,
+              "explanation": "`const` on the binding prevents reassignment of `obj`, but the properties are inferred as `number` (not literals), because object contents are still mutable.",
+              "tags": [
+                "primitive-types",
+                "readonly"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "What is the inferred return type of this function?",
+              "options": [
+                "`string`",
+                "`number`",
+                "`string | number`",
+                "`\"yes\" | 42`"
+              ],
+              "code": "function getResult(flag: boolean) {\n  if (flag) {\n    return \"yes\";\n  }\n  return 42;\n}",
+              "answer": 2,
+              "explanation": "The function can return `\"yes\"` (string) or `42` (number). TypeScript infers the union `string",
+              "tags": [
+                "functions",
+                "object-types",
+                "primitive-types",
+                "return-types",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "What is the type of `cb`'s parameter `n` in this code?",
+              "options": [
+                "`any`",
+                "`number`",
+                "`unknown`",
+                "`string | number`"
+              ],
+              "code": "const nums = [1, 2, 3];\nnums.forEach((n) => {\n  console.log(n.toFixed(2));\n});",
+              "answer": 1,
+              "explanation": "Contextual typing: `nums` is `number[]`, so the `forEach` callback parameter is `number`.",
+              "tags": [
+                "any-type",
+                "array-types",
+                "functions",
+                "primitive-types",
+                "type-inference",
+                "unknown-type"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "A function parameter has no type annotation and `noImplicitAny` is enabled. What happens?",
+              "options": [
+                "The parameter is inferred as `any` silently",
+                "TypeScript reports an error because the parameter has an implicit `any` type",
+                "The parameter is inferred as `unknown`",
+                "The parameter is inferred as `never`"
+              ],
+              "answer": 1,
+              "explanation": "`noImplicitAny` reports an error when TypeScript would infer `any` implicitly.",
+              "tags": [
+                "strict-mode"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "What is the type of `result`?",
+              "options": [
+                "`string | number`",
+                "`\"yes\" | 0`",
+                "`any`",
+                "`boolean`"
+              ],
+              "code": "const result = Math.random() > 0.5 ? \"yes\" : 0;",
+              "answer": 0,
+              "explanation": "Ternary with `let`-like widening: `\"yes\"` widens to `string` and `0` widens to `number`, producing `string",
+              "tags": [
+                "any-type",
+                "literal-types",
+                "primitive-types",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "What is the type of `x` inside the `if` block?",
+              "options": [
+                "`string | number | boolean`",
+                "`number`",
+                "`string | boolean`",
+                "`never`"
+              ],
+              "code": "function f(x: string | number | boolean) {\n  if (typeof x === \"number\") {\n    // x is?\n  }\n}",
+              "answer": 1,
+              "explanation": "`typeof x === \"number\"` narrows `x` to `number` inside the block.",
+              "tags": [
+                "equality-narrowing",
+                "functions",
+                "never-type",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "What is the type of `x` in the `else` branch?",
+              "options": [
+                "`string | number | boolean`",
+                "`number`",
+                "`string | boolean`",
+                "`never`"
+              ],
+              "code": "function f(x: string | number | boolean) {\n  if (typeof x === \"number\") {\n    // ...\n  } else {\n    // x is?\n  }\n}",
+              "answer": 2,
+              "explanation": "The `else` branch excludes `number`, leaving `string",
+              "tags": [
+                "equality-narrowing",
+                "functions",
+                "never-type",
+                "object-types",
+                "primitive-types",
+                "rest-parameters",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "What does `typeof null` return at runtime in JavaScript?",
+              "options": [
+                "`\"null\"`",
+                "`\"object\"`",
+                "`\"undefined\"`",
+                "`\"number\"`"
+              ],
+              "answer": 1,
+              "explanation": "`typeof null` returns `\"object\"` \u2014 a long-standing JavaScript quirk.",
+              "tags": [
+                "typeof-operator",
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "In this code, what is the type of `x` inside the `if` block?",
+              "options": [
+                "`object`",
+                "`null`",
+                "`object | null`",
+                "`never`"
+              ],
+              "code": "function f(x: object | null) {\n  if (typeof x === \"object\") {\n    // x is?\n  }\n}",
+              "answer": 2,
+              "explanation": "Because `typeof null === \"object\"`, `typeof x === \"object\"` does not exclude `null`. The type remains `object",
+              "tags": [
+                "equality-narrowing",
+                "functions",
+                "never-type",
+                "null-undefined",
+                "object-types",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "What does `x == null` check for?",
+              "options": [
+                "Only `null`",
+                "Only `undefined`",
+                "Both `null` and `undefined`",
+                "All falsy values"
+              ],
+              "answer": 2,
+              "explanation": "Loose equality `== null` matches both `null` and `undefined`.",
+              "tags": [
+                "null-undefined"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "After this check, what is the type of `val`?",
+              "options": [
+                "`string | number | undefined`",
+                "`string | number`",
+                "`string`",
+                "`undefined`"
+              ],
+              "code": "function f(val: string | number | undefined) {\n  if (val != null) {\n    // val is?\n  }\n}",
+              "answer": 1,
+              "explanation": "`!= null` eliminates both `null` and `undefined`, leaving `string",
+              "tags": [
+                "functions",
+                "null-undefined",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "type-narrowing",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "What is the type of `pet` inside the `else` block?",
+              "options": [
+                "`Fish`",
+                "`Bird`",
+                "`Fish | Bird`",
+                "`never`"
+              ],
+              "code": "type Fish = { swim: () => void; name: string };\ntype Bird = { fly: () => void; name: string };\n\nfunction move(pet: Fish | Bird) {\n  if (\"swim\" in pet) {\n    // pet is Fish\n  } else {\n    // pet is?\n  }\n}",
+              "answer": 1,
+              "explanation": "In the `else` branch, `\"swim\"` is not in `pet`, so `Fish` is excluded, leaving `Bird`.",
+              "tags": [
+                "functions",
+                "in-operator",
+                "never-type",
+                "object-types",
+                "type-guards",
+                "type-inference",
+                "type-narrowing",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "What is the problem with using truthiness narrowing on `value: number | null`?",
+              "options": [
+                "Nothing \u2014 this is correct",
+                "The `if (value)` check also excludes `0`, which is a valid `number` but is falsy",
+                "`null` is not eliminated by truthiness checks",
+                "`toFixed` does not exist on `number`"
+              ],
+              "code": "function f(value: number | null) {\n  if (value) {\n    console.log(value.toFixed(2));\n  }\n}",
+              "answer": 1,
+              "explanation": "`0` is a valid number but is falsy. The truthiness check `if (value)` excludes it, which is a bug if `0` is a meaningful input.",
+              "tags": [
+                "truthiness",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "What is the type of `value` after the assertion?",
+              "options": [
+                "`unknown`",
+                "`string`",
+                "`any`",
+                "`never`"
+              ],
+              "code": "function f(value: unknown) {\n  if (typeof value === \"string\") {\n    // value is?\n  }\n}",
+              "answer": 1,
+              "explanation": "`typeof value === \"string\"` narrows `unknown` to `string`.",
+              "tags": [
+                "any-type",
+                "equality-narrowing",
+                "functions",
+                "never-type",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator",
+                "unknown-type"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "What happens when control flow analysis determines all union members have been handled?",
+              "options": [
+                "`x` is `string`",
+                "`x` is `\"a\" | \"b\"`",
+                "`x` is `never`",
+                "TypeScript reports an error before the else block"
+              ],
+              "code": "function f(x: \"a\" | \"b\") {\n  if (x === \"a\") {\n    // ...\n  } else if (x === \"b\") {\n    // ...\n  } else {\n    // x is?\n  }\n}",
+              "answer": 2,
+              "explanation": "After `\"a\"` and `\"b\"` are handled, no members remain. The type is `never`.",
+              "tags": [
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "Which narrowing technique eliminates `null | undefined` from `string | null | undefined` in a single check?",
+              "options": [
+                "`typeof x === \"string\"` \u2014 narrows to `string` but leaves `null | undefined` unhandled",
+                "`if (x != null)` \u2014 eliminates both `null` and `undefined` via loose equality",
+                "`if (x !== null)` \u2014 eliminates only `null`, leaves `undefined`",
+                "Both (a) and (b) eliminate both `null` and `undefined`"
+              ],
+              "answer": 1,
+              "explanation": "`x != null` (loose inequality) eliminates both `null` and `undefined` in one check. Option (a) narrows to `string` only. Option (c) only eliminates `null`.",
+              "tags": [
+                "null-undefined",
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "What does TypeScript infer for `x` in the `default` case?",
+              "options": [
+                "`\"a\" | \"b\" | \"c\"`",
+                "`\"c\"`",
+                "`never`",
+                "`string`"
+              ],
+              "code": "function f(x: \"a\" | \"b\" | \"c\") {\n  switch (x) {\n    case \"a\": return 1;\n    case \"b\": return 2;\n    default:\n      // x is?\n  }\n}",
+              "answer": 1,
+              "explanation": "Cases `\"a\"` and `\"b\"` are handled. Only `\"c\"` remains in the `default`.",
+              "tags": [
+                "functions",
+                "never-type",
+                "object-types",
+                "primitive-types",
+                "type-inference",
+                "union-types"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "What does this code produce?",
+              "options": [
+                "Error: cannot declare `Dog` twice",
+                "The two declarations merge: `Dog` has both `name` and `breed`",
+                "The second declaration overwrites the first",
+                "`d` only needs `breed`"
+              ],
+              "code": "interface Dog {\n  name: string;\n}\ninterface Dog {\n  breed: string;\n}\nconst d: Dog = { name: \"Rex\", breed: \"Lab\" };",
+              "answer": 1,
+              "explanation": "Interfaces merge. Both declarations combine into a single `Dog` with `name` and `breed`.",
+              "tags": [
+                "interfaces",
+                "object-types"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "What happens here?",
+              "options": [
+                "Error: type aliases cannot be extended",
+                "`B` has both `x: number` and `y: number` via intersection",
+                "`B` only has `y: number`",
+                "`B` is `never`"
+              ],
+              "code": "type A = { x: number };\ntype B = A & { y: number };\nconst b: B = { x: 1, y: 2 };",
+              "answer": 1,
+              "explanation": "Intersection with type aliases works the same as interface `extends`. `B` has both properties.",
+              "tags": [
+                "interfaces",
+                "intersection-types",
+                "never-type",
+                "object-types",
+                "type-aliases"
+              ]
+            },
+            {
+              "id": "MC-39",
+              "question": "What is the type of `arr`?",
+              "options": [
+                "`number[]` \u2014 `push` succeeds",
+                "`readonly number[]` \u2014 `push` is a compile-time error",
+                "`readonly number[]` \u2014 `push` succeeds at runtime but TypeScript warns",
+                "`[1, 2, 3]` \u2014 a tuple"
+              ],
+              "code": "const arr: readonly number[] = [1, 2, 3];\narr.push(4);",
+              "answer": 1,
+              "explanation": "`readonly number[]` removes mutation methods. `push` is a compile-time error.",
+              "tags": [
+                "array-types",
+                "readonly",
+                "tuple-types",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-40",
+              "question": "What is the type of `entry`?",
+              "options": [
+                "`string | number | boolean`",
+                "`string`",
+                "`any`",
+                "`\"a\"`"
+              ],
+              "code": "const tuple: [string, number, boolean] = [\"a\", 1, true];\nconst entry = tuple[0];",
+              "answer": 1,
+              "explanation": "Tuple element 0 is typed as `string`. TypeScript knows the exact type at each index.",
+              "tags": [
+                "any-type",
+                "primitive-types",
+                "tuple-types",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "An object type has `[key: string]: number` and also `name: string`. What happens?",
+              "options": [
+                "This is allowed \u2014 TypeScript permits it",
+                "Error: `name: string` is not assignable to the index signature's `number` value type",
+                "The index signature overrides `name`",
+                "`name` becomes `number`"
+              ],
+              "answer": 1,
+              "explanation": "Named properties must be compatible with the index signature's value type. `name: string` is not `number`, so it's an error.",
+              "tags": [
+                "primitive-types"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "What is the type of `val`?",
+              "options": [
+                "Error: `verbose` is missing",
+                "Valid \u2014 `Partial_Config` makes all properties optional",
+                "`val` has type `{ debug: boolean }`",
+                "`Partial_Config` is identical to `Config`"
+              ],
+              "code": "type Config = { debug: boolean; verbose: boolean };\ntype Partial_Config = { [K in keyof Config]?: Config[K] };\nconst val: Partial_Config = { debug: true };",
+              "answer": 1,
+              "explanation": "The mapped type makes both properties optional, so omitting `verbose` is allowed.",
+              "tags": [
+                "in-operator",
+                "keyof",
+                "mapped-types",
+                "object-types",
+                "optional-properties",
+                "type-inference",
+                "type-narrowing"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "A function has a default parameter: `function greet(name: string, greeting = \"Hello\")`. What is the type of `greeting`?",
+              "options": [
+                "`string | undefined`",
+                "`string` \u2014 the default ensures it always has a value inside the function body",
+                "`\"Hello\"`",
+                "`any`"
+              ],
+              "answer": 1,
+              "explanation": "Inside the function body, the default ensures `greeting` is always `string`. From the caller's perspective, the parameter is optional.",
+              "tags": [
+                "optional-parameters",
+                "functions"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "What is the type of `args` inside the function?",
+              "options": [
+                "`number`",
+                "`number[]`",
+                "`...number`",
+                "`[number]`"
+              ],
+              "code": "function sum(...args: number[]) {\n  return args.reduce((a, b) => a + b, 0);\n}",
+              "answer": 1,
+              "explanation": "Rest parameters are typed as arrays: `args` is `number[]`.",
+              "tags": [
+                "array-types",
+                "functions",
+                "object-types",
+                "primitive-types",
+                "rest-parameters",
+                "type-inference"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "A function has three overload signatures and one implementation. A caller tries to call the implementation signature directly (which is wider than any overload). What happens?",
+              "options": [
+                "The call succeeds",
+                "TypeScript rejects the call \u2014 the implementation signature is not visible to callers",
+                "TypeScript issues a warning but allows it",
+                "The call succeeds only in strict mode"
+              ],
+              "answer": 1,
+              "explanation": "The implementation signature is not directly callable. Only overload signatures are visible to callers.",
+              "tags": [
+                "function-overloads"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "What is the type of `p`?",
+              "options": [
+                "`{ x: number; y: number }` \u2014 assignment succeeds",
+                "`{ readonly x: number; readonly y: number }` \u2014 assignment is a compile error",
+                "`{ x: 10; y: 2 }` \u2014 literal types",
+                "`never`"
+              ],
+              "code": "type Point = { x: number; y: number };\ntype ReadonlyPoint = Readonly<Point>;\nconst p: ReadonlyPoint = { x: 1, y: 2 };\np.x = 10;",
+              "answer": 1,
+              "explanation": "`Readonly<Point>` adds `readonly` to both properties. Assigning `p.x = 10` is a compile error.",
+              "tags": [
+                "never-type",
+                "object-types",
+                "readonly",
+                "type-inference",
+                "utility-types"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "What is the type of `value`?",
+              "options": [
+                "`string`",
+                "`\"localhost\"`",
+                "`any`",
+                "`readonly string`"
+              ],
+              "code": "const config = {\n  host: \"localhost\",\n  port: 3000,\n} as const;\ntype Host = typeof config.host;",
+              "answer": 1,
+              "explanation": "`as const` makes `host` the literal type `\"localhost\"`. `typeof config.host` is `\"localhost\"`.",
+              "tags": [
+                "any-type",
+                "literal-types",
+                "object-types",
+                "primitive-types",
+                "readonly",
+                "type-inference",
+                "type-narrowing",
+                "typeof-operator"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "What does this function's parameter destructuring type?",
+              "options": [
+                "`x` is `number`, `y` is `number`, `color` is `string | undefined`",
+                "`x` is `number`, `y` is `number`, `color` is `string` (the default ensures it is never `undefined` inside the body)",
+                "All three are `any`",
+                "Error: destructuring cannot be typed"
+              ],
+              "code": "function draw({ x, y, color = \"red\" }: { x: number; y: number; color?: string }) {\n  // ...\n}",
+              "answer": 1,
+              "explanation": "The default value `\"red\"` ensures `color` is always `string` inside the body. TypeScript narrows the `string",
+              "tags": [
+                "any-type",
+                "functions",
+                "null-undefined",
+                "object-types",
+                "primitive-types",
+                "rest-parameters"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "JSON quiz format for React/TypeScript/MUI study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}
