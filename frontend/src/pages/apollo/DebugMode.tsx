@@ -30,7 +30,7 @@ function formatTag(tag: string): string {
   return tag.replace(/-/g, " ");
 }
 
-export default function DebugMode({ title, quizId, questions, onExit, onSaved }: Props) {
+  export default function DebugMode({ title: _title, quizId, questions, onExit, onSaved }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [index, setIndex] = useState(0);

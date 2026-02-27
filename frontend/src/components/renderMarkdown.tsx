@@ -1,4 +1,4 @@
-import { createElement, Fragment } from "react";
+import { Fragment } from "react";
 import type { ReactNode, ComponentPropsWithoutRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -43,7 +43,7 @@ function renderCitations(text: string): ReactNode[] {
 
 const markdownComponents = {
   // Fenced code blocks: match existing .code-block styling
-  pre({ children, ...props }: ComponentPropsWithoutRef<"pre">) {
+  pre({ children }: ComponentPropsWithoutRef<"pre">) {
     return <>{children}</>;
   },
 

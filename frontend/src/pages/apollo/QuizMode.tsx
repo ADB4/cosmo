@@ -42,15 +42,20 @@ export default function QuizMode({ questions, onExit }: Props) {
   const [viewIndex, setViewIndex] = useState(0);
 
   const q = questions[index];
+  if (!q) return null;
+
   const total = questions.length;
   const progress = ((index + 1) / total) * 100;
 
   const submitAnswer = useCallback(() => {
+    const currentQ = questions[index];
+    if (!currentQ) return;
+
     const value =
-      q.sectionType === "short_answer" ? saInput.trim() : selected ?? "";
+      currentQ.sectionType === "short_answer" ? saInput.trim() : selected ?? "";
     if (!value) return;
 
-    const newAnswers = [...answers, { questionId: q.id, value }];
+    const newAnswers = [...answers, { questionId: currentQ.id, value }];
     setAnswers(newAnswers);
     setSelected(null);
     setSaInput("");
@@ -60,7 +65,7 @@ export default function QuizMode({ questions, onExit }: Props) {
     } else {
       finishQuiz(newAnswers);
     }
-  }, [q, selected, saInput, answers, index, total]);
+  }, [questions, selected, saInput, answers, index, total]);
 
   const finishQuiz = useCallback(
     async (finalAnswers: Answer[]) => {
@@ -94,14 +99,17 @@ export default function QuizMode({ questions, onExit }: Props) {
         const updated = [...prev];
         let evalIdx = 0;
         for (let i = 0; i < updated.length; i++) {
+          const item = updated[i];
+          if (!item) continue;
+
           if (
-            updated[i].question.sectionType === "short_answer" &&
-            updated[i].given
+            item.question.sectionType === "short_answer" &&
+            item.given
           ) {
             const eval_ = evaluations[evalIdx];
-            if (eval_.status === "fulfilled") {
+            if (eval_ && eval_.status === "fulfilled") {
               updated[i] = {
-                ...updated[i],
+                ...item,
                 saScore: eval_.value.score,
                 saFeedback: eval_.value.feedback,
                 correct:
@@ -113,7 +121,7 @@ export default function QuizMode({ questions, onExit }: Props) {
               };
             } else {
               updated[i] = {
-                ...updated[i],
+                ...item,
                 saScore: "partial",
                 saFeedback: "Evaluation failed — could not reach Ollama.",
               };
@@ -151,6 +159,8 @@ export default function QuizMode({ questions, onExit }: Props) {
       totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
 
     const r = results[viewIndex];
+    if (!r) return null;
+
     const isSA = r.question.sectionType === "short_answer";
 
     const getResultClass = (res: Result) => {
