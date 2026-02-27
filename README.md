@@ -195,4 +195,117 @@ All backend settings live in `backend/config.py` and can be overridden via envir
 - **Backend:** Python, Flask, ChromaDB, Ollama, pymupdf4llm, tiktoken
 - **Frontend:** React 19, TypeScript (strict), Vite 6, vanilla CSS
 - **Markdown rendering:** react-markdown + remark-gfm with custom citation markers
-- **Styling:** CSS custom properties, monospace terminal aesthetic
+
+# Deployment: Local Container + Cloudflare Tunnel
+
+Serves a Vite/React/TypeScript app from a local Docker container, exposed to the internet via Cloudflare Tunnel and protected by Cloudflare Access authentication.
+
+## Architecture
+
+```
+Browser → Cloudflare CDN → Cloudflare Tunnel → cloudflared container → nginx container (app)
+                ↑
+        Cloudflare Access
+        (auth gate)
+```
+
+No inbound ports are opened on your machine. The `cloudflared` container maintains an outbound-only connection to Cloudflare's edge.
+
+## Prerequisites
+
+- Docker and Docker Compose
+- A Cloudflare account with a domain (free plan works)
+- Domain's DNS managed by Cloudflare
+
+## Setup
+
+### 1. Cloudflare Tunnel
+
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) > Networks > Tunnels
+2. Click **Create a tunnel**, choose **Cloudflared** as the connector
+3. Name it (e.g., `study-app`)
+4. Skip the connector install step (Docker handles this)
+5. Add a **Public Hostname**:
+   - Subdomain: your choice (e.g., `study`)
+   - Domain: select your domain
+   - Service Type: `HTTP`
+   - URL: `app:80`
+6. Save. Copy the tunnel token from the install command (the long string after `--token`)
+
+### 2. Cloudflare Access (Authentication)
+
+1. In Zero Trust, go to Access > Applications
+2. Click **Add an application** > Self-hosted
+3. Configure:
+   - Application name: your choice
+   - Session duration: 24 hours (or your preference)
+   - Application domain: match your tunnel hostname (e.g., `study.yourdomain.com`)
+4. Add a policy:
+   - Policy name: e.g., `Allow me`
+   - Action: **Allow**
+   - Selector: **Emails** — enter your email address
+5. Save
+
+When you visit the site, Cloudflare will prompt for your email and send a one-time PIN. Only your email gets through.
+
+### 3. Local Configuration
+
+```bash
+# Copy the example env file and add your tunnel token
+cp .env.example .env
+# Edit .env and replace the placeholder with your actual tunnel token
+```
+
+### 4. Build and Run
+
+```bash
+# Build and start both containers
+docker compose up -d --build
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Rebuild after code changes
+docker compose up -d --build
+```
+
+Your site should be live at `https://study.yourdomain.com` (or whatever hostname you configured).
+
+## Day-to-Day Usage
+
+```bash
+# Start
+docker compose up -d
+
+# Stop
+docker compose down
+
+# Rebuild after changes
+docker compose up -d --build
+
+# Check tunnel connectivity
+docker compose logs tunnel
+```
+
+## File Overview
+
+| File                | Purpose                                          |
+|---------------------|--------------------------------------------------|
+| `Dockerfile`        | Multi-stage build: npm install + build, then nginx |
+| `docker-compose.yml`| Orchestrates app and cloudflared containers       |
+| `nginx.conf`        | SPA routing, static asset caching, security headers|
+| `.dockerignore`     | Keeps node_modules etc. out of Docker build context|
+| `.env`              | Tunnel token (not committed to git)               |
+
+## Troubleshooting
+
+**Site not loading**: Check `docker compose logs tunnel` — the tunnel container should show a successful connection. Verify the tunnel token is correct in `.env`.
+
+**502 errors**: The tunnel is connected but can't reach the app. Check `docker compose logs app` and ensure nginx started correctly. Verify the tunnel's service URL is set to `http://app:80` in the Cloudflare dashboard.
+
+**Auth not appearing**: Confirm the Access application domain exactly matches your tunnel's public hostname. Check that the Access policy is active.
+
+**Stale content after rebuild**: Hard-refresh your browser (Ctrl+Shift+R) or clear the Cloudflare cache from the dashboard.
