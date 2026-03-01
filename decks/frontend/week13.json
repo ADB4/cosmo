@@ -1,0 +1,1936 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week13",
+      "title": "Week 13: Testing Philosophy and Vitest Fundamentals",
+      "scope": "Why we test, what not to test, the Testing Trophy, Vitest setup and configuration, test lifecycle hooks, basic assertions, `describe`/`it`/`expect` API, watch mode, test environments (`jsdom`, `happy-dom`).",
+      "readings": [
+        "KCD: \"Write tests. Not too many. Mostly integration.\"",
+        "KCD: \"Testing Implementation Details\"",
+        "Vitest: \"Getting Started\"",
+        "Vitest: \"Features\"",
+        "Vitest: \"Configuring Vitest\"",
+        "Vitest: \"Test API Reference\" (`describe`, `it`/`test`, `expect`, `beforeEach`, `afterEach`, `beforeAll`, `afterAll`)",
+        "Vitest: \"Test Environment\" (`node`, `jsdom`, `happy-dom`)"
+      ],
+      "scoring_note": "Wrong answers on T/F and MC are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness — do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "count": 72,
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "The primary purpose of writing tests is to achieve 100% code coverage, which guarantees that your software has no bugs.",
+              "answer": false,
+              "explanation": "The primary purpose of testing is to gain confidence that your software works as expected for users. Code coverage is a metric, not a goal — 100% coverage does not guarantee bug-free software. Tests can cover every line while still missing important edge cases or behavioral requirements.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "The Testing Trophy model places end-to-end tests at the base as the most valuable test type.",
+              "answer": false,
+              "explanation": "The Testing Trophy places static analysis at the base, not e2e tests. E2e tests are at the top.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "In the Testing Trophy, unit tests provide the best balance of confidence and cost, which is why they should make up the majority of your test suite.",
+              "answer": false,
+              "explanation": "In the Testing Trophy, INTEGRATION tests provide the best confidence-to-cost ratio, not unit tests. The Testing Trophy differs from the traditional Testing Pyramid precisely by placing more emphasis on integration tests as the most valuable layer.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "End-to-end tests form the base of the Testing Trophy because they test the full application stack.",
+              "answer": false,
+              "explanation": "STATIC ANALYSIS (TypeScript, ESLint) forms the base of the Testing Trophy, not end-to-end tests. Static analysis catches errors with zero runtime cost and requires no test code to write. E2E tests are at the top of the Trophy — high confidence but high cost.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "Unit tests provide higher confidence than integration tests because they test smaller, isolated pieces of code.",
+              "answer": false,
+              "explanation": "Unit tests test isolated pieces but provide lower confidence than integration tests because they do not verify that pieces work correctly together.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The Testing Trophy and the Testing Pyramid recommend the same balance of test types — both place the most emphasis on unit tests.",
+              "answer": false,
+              "explanation": "The Testing Trophy differs from the Testing Pyramid by placing MORE emphasis on integration tests and LESS on unit tests. The Pyramid has unit tests as the largest layer; the Trophy has integration tests as the largest layer.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "End-to-end tests are at the top of the Testing Trophy because they are expensive to write and maintain but provide the highest confidence.",
+              "answer": true,
+              "explanation": "E2e tests simulate real user flows across the full stack. They are expensive but provide the highest confidence that the system works end-to-end.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "\"Write tests. Not too many. Mostly integration.\" means you should only write integration tests and never write unit tests.",
+              "answer": false,
+              "explanation": "The quote means the majority of your tests should be integration tests, but unit and e2e tests still have their place. \"Not too many\" means you should be judicious, not that you should avoid other types entirely.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "Testing implementation details means writing tests that assert on internal component state, private methods, or the specific way something is built rather than how it behaves.",
+              "answer": true,
+              "explanation": "Testing implementation details means coupling your tests to how the code works internally rather than to the user-visible behavior.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "A test that breaks when you refactor the implementation but the behavior stays the same is a sign that the test is testing implementation details.",
+              "answer": true,
+              "explanation": "This is the classic symptom of an implementation-detail test: it breaks on refactor even though behavior is preserved, creating a false negative.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "A test that continues to pass when you break the behavior it is supposed to verify is a false positive.",
+              "answer": false,
+              "explanation": "False. This describes a false negative — the test fails to detect a real bug (the test passes, giving you false confidence). A false positive is when a test fails even though the behavior is correct (the test cries wolf).",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Tests that test implementation details are valuable because they ensure that the internal structure of your code never changes.",
+              "answer": false,
+              "explanation": "Tests that test implementation details give you FALSE confidence: they can pass even when behavior is broken, or fail even when behavior is correct. They create noise and friction during refactoring without meaningfully improving confidence in the software's correctness.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "A good test should break whenever the implementation changes, even if the external behavior stays the same — this ensures the implementation stays consistent.",
+              "answer": false,
+              "explanation": "The ideal test should break when BEHAVIOR changes and remain green when the implementation is refactored. Tests that break on implementation changes without behavior changes are testing implementation details, which produces false positives and makes refactoring painful.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "Vitest is a standalone test framework that requires webpack to run.",
+              "answer": false,
+              "explanation": "Vitest is built on Vite, not webpack. It uses Vite's transformation pipeline natively.",
+              "tags": [
+                "vitest-config",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "Vitest uses its own independent configuration system and does not read from your Vite configuration file.",
+              "answer": false,
+              "explanation": "Vitest reuses your Vite configuration by default, including plugins and resolve aliases. This means your test environment automatically matches your development environment without duplicate configuration.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "Vitest can only be configured via a dedicated `vitest.config.ts` file — it cannot read configuration from `vite.config.ts`.",
+              "answer": false,
+              "explanation": "Vitest can read its configuration from either a `test` key inside `vite.config.ts` OR from a separate `vitest.config.ts` file. Both locations are supported, and `vitest.config.ts` takes precedence if both exist.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "Vitest requires a separate TypeScript compilation step before running tests because it cannot process `.ts` files natively.",
+              "answer": false,
+              "explanation": "Vitest transforms TypeScript via esbuild (same as Vite dev) without a separate compilation step.",
+              "tags": [
+                "vitest-config",
+                "esbuild"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "Vitest uses `tsc` (the TypeScript compiler) to type-check and compile test files before running them.",
+              "answer": false,
+              "explanation": "Vitest transforms TypeScript files using esbuild by default (via Vite), not `tsc`. esbuild strips type annotations without performing type checking, which makes it much faster. If you want type checking, you run `tsc --noEmit` separately.",
+              "tags": [
+                "testing-trophy",
+                "vitest-config",
+                "esbuild"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "Vitest watch mode re-runs only the tests affected by a file change, not the entire test suite.",
+              "answer": true,
+              "explanation": "Vitest's watch mode uses Vite's module graph to determine which tests are affected by a change and only re-runs those.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "Vitest is API-compatible with Jest, meaning most `expect` matchers and lifecycle hooks have the same names and signatures.",
+              "answer": true,
+              "explanation": "Vitest intentionally maintains API compatibility with Jest for `expect` matchers, lifecycle hooks, and mock APIs, easing migration.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "The `describe` function in Vitest creates a test suite — a logical grouping of related tests.",
+              "answer": true,
+              "explanation": "`describe` groups related tests into a suite, which can contain tests, lifecycle hooks, and nested `describe` blocks.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "`it` and `test` in Vitest are different functions with different behavior.",
+              "answer": false,
+              "explanation": "`it` and `test` are aliases. They are the same function with different names.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "A test written with `it(\"should add two numbers\", ...)` behaves identically to one written with `test(\"should add two numbers\", ...)`.",
+              "answer": true,
+              "explanation": "`it` and `test` are identical in behavior. The choice between them is purely stylistic.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "`expect(value).toBe(other)` performs a deep equality check, recursively comparing all properties of objects.",
+              "answer": false,
+              "explanation": "`toBe` uses `Object.is()` for comparison, which checks referential equality for objects (same reference in memory). It does NOT perform deep comparison. For deep equality, use `toEqual`. `expect({a:1}).toBe({a:1})` fails because the two objects are different references.",
+              "tags": [
+                "vitest-api",
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "`expect(value).toEqual(other)` uses reference equality (like `===`) to compare objects, so two objects with the same properties but different references will not be equal.",
+              "answer": false,
+              "explanation": "`toEqual` performs a DEEP equality check, recursively comparing object properties and array elements by value. Two objects with the same properties will be considered equal even if they are different references. Reference equality is what `toBe` uses.",
+              "tags": [
+                "vitest-api",
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "`expect(value).toBe(other)` is the correct matcher for comparing the contents of two separate objects with the same shape.",
+              "answer": false,
+              "explanation": "`toBe` checks reference equality. Two separate objects with the same shape are different references. Use `toEqual` for structural comparison.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "`expect(value).toBeTruthy()` passes for any value that would be truthy in JavaScript, including `1`, `\"hello\"`, `[]`, and `{}`.",
+              "answer": true,
+              "explanation": "`toBeTruthy` passes for any JavaScript truthy value. `[]` and `{}` are truthy (only `0`, `\"\"`, `null`, `undefined`, `NaN`, and `false` are falsy).",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "`expect(value).toBeNull()` is equivalent to `expect(value).toBe(null)`.",
+              "answer": true,
+              "explanation": "Both check for `null` using strict equality. They are functionally equivalent.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "`expect(value).toBeUndefined()` will pass for a variable that has been declared but not assigned a value.",
+              "answer": true,
+              "explanation": "An unassigned declared variable has the value `undefined`, so `toBeUndefined` passes.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "`expect(() => fn()).toThrow()` checks that calling `fn()` throws an error. You must wrap the call in a function to catch the throw.",
+              "answer": true,
+              "explanation": "You must pass a function that calls the throwing code so `expect` can catch the error.",
+              "tags": [
+                "vitest-api",
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "If you write `expect(fn()).toThrow()` without wrapping `fn()` in an arrow function, the error is thrown before `expect` can catch it.",
+              "answer": true,
+              "explanation": "Without the wrapper, `fn()` executes immediately and the thrown error propagates before `expect` can handle it, causing the test to fail with an unhandled error.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "`expect(value).toContain(item)` works for both arrays (checking element membership) and strings (checking substring presence).",
+              "answer": true,
+              "explanation": "`toContain` works on arrays (element in array) and strings (substring match).",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "`expect(value).toHaveLength(n)` works on any value that has a `.length` property, including strings and arrays.",
+              "answer": true,
+              "explanation": "`toHaveLength` checks the `.length` property, which exists on strings, arrays, and other array-like objects.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "`beforeEach` runs once before all tests in the enclosing `describe` block.",
+              "answer": false,
+              "explanation": "`beforeEach` runs before each individual test, not once before all tests. That is `beforeAll`.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "`beforeEach` runs before each individual test inside the enclosing `describe` block, providing fresh setup for every test.",
+              "answer": true,
+              "explanation": "`beforeEach` provides fresh setup before every test, helping ensure tests are isolated from each other.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "`afterEach` is commonly used for cleanup tasks such as resetting mocks or clearing shared state between tests.",
+              "answer": true,
+              "explanation": "`afterEach` is the standard place for test cleanup: resetting mocks, clearing DOM state, etc.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "`beforeAll` runs once before any test in the `describe` block and is useful for expensive setup that does not need to be repeated for each test.",
+              "answer": true,
+              "explanation": "`beforeAll` runs once for the entire scope. It is used for expensive one-time setup like opening database connections.",
+              "tags": [
+                "testing-trophy",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "`afterAll` runs after every individual test, not just once at the end.",
+              "answer": false,
+              "explanation": "`afterAll` runs once after all tests in its scope have completed, not after every individual test.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "Lifecycle hooks defined outside of any `describe` block apply to every test in the file.",
+              "answer": true,
+              "explanation": "Top-level lifecycle hooks (outside any `describe`) apply to every test in the file.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "Nested `describe` blocks inherit `beforeEach` hooks from their parent `describe` blocks.",
+              "answer": true,
+              "explanation": "Hooks are inherited: an inner `describe` runs its parent's `beforeEach` before its own.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "If a `beforeEach` is defined in an outer `describe` and another `beforeEach` in an inner `describe`, the outer runs first, then the inner.",
+              "answer": true,
+              "explanation": "Outer `beforeEach` runs first, then inner `beforeEach`, for each test inside the inner block.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "You cannot nest `describe` blocks inside other `describe` blocks.",
+              "answer": false,
+              "explanation": "`describe` blocks can be nested to any depth, which is how you create hierarchical test organization.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "The `jsdom` test environment runs tests in a real headless browser like Chrome or Firefox.",
+              "answer": false,
+              "explanation": "`jsdom` is a JavaScript implementation of the DOM that runs in Node.js — it is NOT a real browser. It simulates browser APIs like `document`, `window`, and DOM manipulation, but it does not have a rendering engine, CSS layout, or real navigation. For real browser testing, you would use tools like Playwright or Cypress.",
+              "tags": [
+                "vitest-config",
+                "test-environments"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "The default Vitest test environment is `node`, which does not provide `document`, `window`, or any DOM APIs.",
+              "answer": true,
+              "explanation": "The default environment is `node`, which provides no DOM. You must explicitly configure `jsdom` or `happy-dom` for component testing.",
+              "tags": [
+                "vitest-config",
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "You must use a DOM environment (`jsdom` or `happy-dom`) to test React components because they need `document.createElement` and related APIs.",
+              "answer": true,
+              "explanation": "React's rendering process calls DOM APIs. Without a DOM implementation, `render()` would fail.",
+              "tags": [
+                "vitest-config",
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "You can set the test environment per-file using a special comment at the top of the test file: `// @vitest-environment jsdom`.",
+              "answer": true,
+              "explanation": "The per-file comment `// @vitest-environment jsdom` overrides the global config for that file.",
+              "tags": [
+                "vitest-config",
+                "test-environments"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "Setting `globals: true` in Vitest config makes `describe`, `it`, `expect`, and lifecycle hooks available without importing them.",
+              "answer": true,
+              "explanation": "With `globals: true`, Vitest injects these functions globally, similar to how Jest works by default.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-49",
+              "question": "When `globals: true` is not set, you must import test functions explicitly: `import { describe, it, expect } from 'vitest'`.",
+              "answer": true,
+              "explanation": "Without `globals: true`, all test APIs must be explicitly imported from `'vitest'`.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-50",
+              "question": "The `setupFiles` configuration option specifies files that run once before the entire test suite, useful for global polyfills or DOM library setup.",
+              "answer": true,
+              "explanation": "`setupFiles` run once before the suite starts. Common uses include importing `@testing-library/jest-dom` matchers or setting up global polyfills.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-51",
+              "question": "The `include` configuration option in Vitest determines which files are treated as test files, typically via glob patterns like `**/*.test.ts`.",
+              "answer": true,
+              "explanation": "The `include` option accepts glob patterns to determine which files Vitest recognizes as tests.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "TF-52",
+              "question": "Vitest does not support in-source testing — tests must always be placed in separate test files.",
+              "answer": false,
+              "explanation": "Vitest supports in-source testing using the `import.meta.vitest` guard. You can write tests inside your production source files, and Vitest will strip them from production builds. This allows colocation of tests with their source code.",
+              "tags": [
+                "vitest-config",
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "TF-53",
+              "question": "In-source tests are always included in the production build output.",
+              "answer": false,
+              "explanation": "In-source tests are tree-shaken out of the production build by Vite when configured correctly. The `import.meta.vitest` guard ensures the test code is only included during testing.",
+              "tags": [
+                "vitest-config",
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "TF-54",
+              "question": "Vitest's watch mode is enabled by default when running `vitest` (without the `run` flag) and Vitest detects it is not in a CI environment.",
+              "answer": true,
+              "explanation": "Running `vitest` without the `run` flag starts watch mode automatically (unless CI is detected).",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-55",
+              "question": "Running `vitest run` executes all tests once and exits, without entering watch mode.",
+              "answer": true,
+              "explanation": "`vitest run` is the non-interactive, single-run mode used in CI pipelines and scripts.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-56",
+              "question": "Tests in Vitest run sequentially by default within a single file.",
+              "answer": true,
+              "explanation": "Within a single file, Vitest runs tests sequentially by default.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-57",
+              "question": "Different test files in Vitest can run in parallel, with each file running in its own isolated context.",
+              "answer": true,
+              "explanation": "Vitest can parallelize across files using worker threads or child processes, with each file isolated in its own context.",
+              "tags": [
+                "vitest-config",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-58",
+              "question": "You should test every line of code and aim for 100% code coverage to ensure quality.",
+              "answer": false,
+              "explanation": "100% coverage is not a useful goal. Some code is trivial, some is better tested via integration, and coverage measures execution, not correctness. The Testing Trophy philosophy is \"not too many.\"",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "TF-59",
+              "question": "Some code is not worth testing — for example, simple pass-through components with no logic, or third-party library internals.",
+              "answer": true,
+              "explanation": "Not all code warrants its own tests. Trivial pass-through code and third-party internals are often tested implicitly through integration tests or not at all.",
+              "tags": [
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-60",
+              "question": "Testing a button's `onClick` handler by asserting that `setState` was called with a specific value is an example of testing implementation details.",
+              "answer": true,
+              "explanation": "Asserting that `setState` was called with a specific value tests how the component achieves its result, not what the user sees. This is an implementation detail.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-61",
+              "question": "Testing that clicking a button causes a visible change in the rendered output is an example of testing behavior.",
+              "answer": true,
+              "explanation": "Clicking a button and checking the rendered output mirrors what a real user would see. This is a behavior test.",
+              "tags": [
+                "general",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-62",
+              "question": "The phrase \"test behavior, not implementation\" means you should test what the user sees and experiences, not the internal mechanics of how your code achieves it.",
+              "answer": true,
+              "explanation": "\"Test behavior\" means testing from the user's perspective — what they see, click, and experience.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-63",
+              "question": "A test that imports a component and directly accesses its internal state (e.g., via component instance methods) is testing behavior.",
+              "answer": false,
+              "explanation": "Accessing internal state directly tests how the component works internally, not what the user experiences. This is testing implementation details.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-64",
+              "question": "If a test breaks because you renamed an internal helper function but the component still works correctly for users, that test is testing implementation details.",
+              "answer": true,
+              "explanation": "If renaming an internal helper breaks a test but the component still works correctly, the test was coupled to internal naming — an implementation detail.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "TF-65",
+              "question": "`expect.assertions(n)` verifies that exactly `n` assertions were called during the test. This is useful in async tests to ensure assertions inside callbacks actually run.",
+              "answer": true,
+              "explanation": "`expect.assertions(n)` is a safeguard for async tests, ensuring that assertions inside callbacks actually execute and are not silently skipped.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-66",
+              "question": "`it.skip` marks a test to be skipped during the current run without deleting it from the file.",
+              "answer": true,
+              "explanation": "`it.skip` skips the test while preserving it in the source for later use.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-67",
+              "question": "`it.only` runs only the marked test(s) in the file and skips all others. This is useful for debugging a specific test.",
+              "answer": true,
+              "explanation": "`it.only` focuses the test run on the marked test(s), useful for isolating failures during debugging.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-68",
+              "question": "`it.todo` marks a test as a placeholder that has not been implemented yet. It will appear in the test report but will not fail.",
+              "answer": true,
+              "explanation": "`it.todo` is a placeholder. It shows up in the report as \"todo\" without executing or failing.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "TF-69",
+              "question": "Vitest can only run test files that end in `.test.ts` — it does not support `.spec.ts` or other naming conventions.",
+              "answer": false,
+              "explanation": "Vitest supports multiple naming conventions by default: `.test.ts`, `.test.tsx`, `.spec.ts`, `.spec.tsx`, and files in `__tests__` directories.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "TF-70",
+              "question": "The `expect(value).toMatchObject(obj)` matcher checks that `value` contains at least the properties in `obj`, without requiring an exact match.",
+              "answer": true,
+              "explanation": "`toMatchObject` is a subset matcher: it checks that the actual value contains at least the specified properties without requiring an exact match.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-71",
+              "question": "`expect(value).toStrictEqual(other)` is stricter than `toEqual` because it distinguishes between `undefined` properties and missing properties, and checks that objects have the same prototype.",
+              "answer": true,
+              "explanation": "`toStrictEqual` is more precise than `toEqual`: it checks prototypes, distinguishes between `undefined` properties and missing properties, and rejects sparse array elements.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "TF-72",
+              "question": "Vitest's `expect` API includes asymmetric matchers like `expect.any(Number)` and `expect.stringContaining(\"sub\")` that can be used inside other matchers for partial matching.",
+              "answer": true,
+              "explanation": "Asymmetric matchers like `expect.any(Number)` and `expect.stringContaining(\"sub\")` enable partial matching inside `toEqual`, `toMatchObject`, and other structural matchers.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "matchers"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "count": 16,
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "Describe the Testing Trophy in 3–4 sentences. Name each layer from bottom to top and explain why integration tests occupy the largest portion.",
+              "model_answer": "The Testing Trophy has four layers, bottom to top: static analysis, unit tests, integration tests, and end-to-end tests. Integration tests occupy the largest portion because they test how multiple pieces of code work together — for example, rendering a component with its children, interacting with it, and asserting the result — which closely mirrors how users actually use the software. They catch bugs that unit tests miss (because individual units might work fine in isolation but fail when composed) while being far cheaper and faster to write and maintain than end-to-end tests. The result is the best ratio of confidence gained per unit of time and effort spent.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "Explain what Kent C. Dodds means by \"testing implementation details.\" Give one concrete example of an implementation-detail test and one example of a behavior test for the same component (a counter with an increment button).",
+              "model_answer": "\"Testing implementation details\" means writing tests that depend on how a component achieves its result rather than what the user sees. For a counter with an increment button:\n\nImplementation-detail test: You spy on the `useState` setter (or check that the component's internal `count` state variable equals `1` after clicking). This breaks if you refactor from `useState` to `useReducer`, even though the counter still works.\n\nBehavior test: You render the counter, click the increment button, and assert that the displayed text shows `\"1\"`. This test mirrors what a user does and survives any internal refactor.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "What is the difference between a false positive and a false negative in the context of testing? Which one is more dangerous and why?",
+              "model_answer": "A false negative is when a test fails to detect a real bug — the test passes, but the behavior is actually broken. A false positive is when a test fails even though the behavior is correct — typically caused by testing implementation details during a refactor. False negatives are more dangerous because they give you false confidence: you believe your code works when it does not, and bugs reach users. False positives are annoying (they slow you down), but at least they get your attention.\n\nNote: These definitions follow KCD's convention where 'positive' means the test passes and 'negative' means the test fails. Some sources reverse these terms. The key insight: a test that misses a real bug is the more dangerous failure mode.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "Write a minimal Vitest configuration inside `vite.config.ts` that sets the test environment to `jsdom`, enables global test APIs, and specifies a setup file at `./src/test/setup.ts`.",
+              "model_answer": "```ts\n// vite.config.ts\nimport { defineConfig } from 'vite';\nimport react from '@vitejs/plugin-react';\n\nexport default defineConfig({\n  plugins: [react()],\n  test: {\n    environment: 'jsdom',\n    globals: true,\n    setupFiles: ['./src/test/setup.ts'],\n  },\n});\n```",
+              "tags": [
+                "vitest-config",
+                "test-environments"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Explain the difference between `beforeEach` and `beforeAll`. Give one scenario where `beforeAll` is preferable to `beforeEach`.",
+              "model_answer": "`beforeEach` runs before every individual test in its scope, providing a fresh setup each time. `beforeAll` runs once before any test in its scope. Use `beforeAll` when the setup is expensive and does not need to be reset between tests — for example, establishing a database connection or reading a large fixture file from disk. Since the setup is shared, you must be careful that tests do not mutate the shared state in ways that affect other tests.",
+              "tags": [
+                "testing-trophy",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "What happens if you write the following test? Explain why it does not work as intended and show the correct version.\n\n```ts\nit(\"throws on invalid input\", () => {\n  expect(processInput(-1)).toThrow();\n});\n```",
+              "model_answer": "The problem is that `processInput(-1)` is called immediately, and if it throws, the error escapes before `expect` can catch it. The test crashes instead of failing gracefully with a matcher error. The correct version wraps the call in a function:\n\n```ts\nit(\"throws on invalid input\", () => {\n  expect(() => processInput(-1)).toThrow();\n});\n```\n\nThe arrow function defers execution so `expect` can invoke it inside a try/catch and evaluate the `.toThrow()` matcher.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "Explain the difference between `toBe` and `toEqual` when comparing objects. Write a short test demonstrating where they give different results.",
+              "model_answer": "`toBe` uses `Object.is()` (essentially `===`), which checks referential identity. Two separate objects with identical contents are different references, so `toBe` fails. `toEqual` performs a deep structural comparison and passes if the contents match.\n\n```ts\nit(\"demonstrates toBe vs toEqual\", () => {\n  const a = { x: 1, y: 2 };\n  const b = { x: 1, y: 2 };\n\n  expect(a).toEqual(b);   // passes — same contents\n  expect(a).toBe(b);      // fails — different references\n});\n```",
+              "tags": [
+                "vitest-api",
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "What is the difference between the `node`, `jsdom`, and `happy-dom` test environments in Vitest? When would you choose each one?",
+              "model_answer": "`node` is the default — a plain Node.js environment with no DOM APIs. Use it for testing pure logic (utility functions, reducers, data transformations). `jsdom` provides a comprehensive browser-like DOM implementation in Node.js and is the standard choice for React component testing. `happy-dom` is a lighter, faster alternative to `jsdom` with most DOM APIs but some gaps in coverage — use it when speed matters and your components do not rely on obscure browser APIs. For React Testing Library usage, both `jsdom` and `happy-dom` work; `jsdom` is the safer default.",
+              "tags": [
+                "vitest-config",
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "What does the `globals: true` configuration option do in Vitest? What is the alternative if you leave it disabled?",
+              "model_answer": "`globals: true` makes Vitest's test APIs (`describe`, `it`, `expect`, `beforeEach`, `afterEach`, `beforeAll`, `afterAll`) available as global functions in every test file without needing to import them. If you leave it disabled (the default), you must explicitly import them at the top of every test file:\n\n```ts\nimport { describe, it, expect, beforeEach } from 'vitest';\n```",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "What is in-source testing in Vitest? Write a small example showing how you would add a test to a utility function's source file using `import.meta.vitest`.",
+              "model_answer": "In-source testing lets you write tests directly inside your source file, guarded by `import.meta.vitest` so they are stripped from the production build:\n\n```ts\n// src/utils/math.ts\nexport function add(a: number, b: number): number {\n  return a + b;\n}\n\nif (import.meta.vitest) {\n  const { describe, it, expect } = import.meta.vitest;\n\n  describe(\"add\", () => {\n    it(\"adds two numbers\", () => {\n      expect(add(2, 3)).toBe(5);\n    });\n  });\n}\n```\n\nVitest detects and runs these tests during `vitest` or `vitest run`. In production builds, the `import.meta.vitest` block is tree-shaken away.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "matchers",
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "The Testing Trophy includes \"static analysis\" at its base. Name two specific tools the syllabus uses for static analysis and explain what each catches that tests do not.",
+              "model_answer": "The syllabus uses TypeScript and ESLint. TypeScript catches type errors at compile time — such as passing a string where a number is expected, misspelling a property name, or forgetting to handle `null`. ESLint catches code quality issues, potential bugs, and convention violations — such as unused variables, missing dependencies in `useEffect`, or accessibility issues (via eslint-plugin-jsx-a11y). Both run without executing the code, catching entire categories of bugs that would require many tests to cover otherwise.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "Explain in 2–3 sentences why 100% code coverage is not a goal. What does coverage actually measure, and what does it fail to measure?",
+              "model_answer": "Code coverage measures which lines, branches, and statements were executed during the test run — not whether the behavior is correct. A test that calls a function without asserting anything about its result achieves coverage but provides zero confidence. Coverage also cannot tell you about missing functionality: if you never wrote a feature, there is no code to cover, so your coverage number stays high even though the feature is absent. Coverage is a useful tool for finding untested areas, but it should never be a target in itself.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "What is Vitest's watch mode? How do you enter it, how do you run tests once without it, and why is it useful during development?",
+              "model_answer": "Watch mode is Vitest's interactive mode where it monitors file changes and re-runs only the affected tests in real time. You enter watch mode by running `vitest` without the `run` flag (it starts automatically outside CI). You exit it with `q` or Ctrl+C. To run tests once without watch mode, use `vitest run`. Watch mode is useful during development because you get instant feedback on the tests related to the file you just changed, without waiting for the entire suite to run.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Describe the execution order of lifecycle hooks in the following structure. List each hook call in the order it would run for `test A`:\n\n```ts\ndescribe(\"outer\", () => {\n  beforeAll(() => console.log(\"outer beforeAll\"));\n  beforeEach(() => console.log(\"outer beforeEach\"));\n  afterEach(() => console.log(\"outer afterEach\"));\n\n  describe(\"inner\", () => {\n    beforeEach(() => console.log(\"inner beforeEach\"));\n    afterEach(() => console.log(\"inner afterEach\"));\n\n    it(\"test A\", () => console.log(\"test A\"));\n  });\n});\n```",
+              "model_answer": "For `test A` inside the inner `describe`, the execution order is:\n\n1. `outer beforeAll` (once, before any test in the outer block)\n2. `outer beforeEach` (before each test, inherited by the inner block)\n3. `inner beforeEach` (before each test in the inner block)\n4. `test A`\n5. `inner afterEach` (after each test in the inner block)\n6. `outer afterEach` (after each test, inherited by the inner block)\n\nSo the console output would be: `outer beforeAll`, `outer beforeEach`, `inner beforeEach`, `test A`, `inner afterEach`, `outer afterEach`.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "What is the purpose of `expect.assertions(n)` and when would you use it? Write a short async test that would silently pass without `expect.assertions` but correctly fail with it.",
+              "model_answer": "`expect.assertions(n)` verifies that exactly `n` assertion calls were made during the test. It is essential in async tests where an assertion inside a `.then()` or `.catch()` might never execute if the async operation resolves/rejects unexpectedly — the test would pass silently with zero assertions.\n\n```ts\nit(\"calls the error handler on rejection\", async () => {\n  expect.assertions(1);\n\n  try {\n    await fetchData(\"bad-url\");\n  } catch (error) {\n    expect(error).toBeDefined();\n  }\n});\n```\n\nWithout `expect.assertions(1)`, if `fetchData` resolves instead of rejecting, the catch block never runs and the test passes with zero assertions — a false negative. With it, Vitest fails the test because no assertions were called.",
+              "tags": [
+                "testing-philosophy",
+                "vitest-config",
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "The syllabus says \"Test behavior, not implementation.\" In 3–4 sentences, explain why a test that asserts `setState` was called with a specific value is less valuable than a test that asserts the rendered output changed. Connect your answer to the concept of test resilience to refactoring.",
+              "model_answer": "A test that asserts `setState` was called with a specific value is coupled to how the component manages its state internally. If you refactor from `useState` to `useReducer`, or move state into a parent component, the test breaks even though the user experience is identical. A test that asserts the rendered output changed — for example, that the displayed count went from `\"0\"` to `\"1\"` after a click — mirrors how a real user interacts with the component and what they observe. This test survives any internal refactor as long as the behavior remains the same. This resilience to refactoring is the defining property of a good test: it should only fail when behavior changes, not when implementation changes.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-17",
+              "question": "Define what a \"unit test,\" an \"integration test,\" and an \"end-to-end test\" each verify. Use one sentence per level.",
+              "model_answer": "A unit test verifies a single isolated piece of logic — a pure function, a utility, or a single module — with all external dependencies mocked or absent. An integration test verifies that multiple units work correctly together — for example, rendering a React component, simulating user interaction, and asserting on the resulting DOM, with minimal or no mocking. An end-to-end (e2e) test verifies a complete user workflow through the full application stack — real browser, real (or realistic) server, real database — exercising the system exactly as a user would.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-18",
+              "question": "KCD's article argues that integration tests provide the best \"confidence-to-cost ratio.\" Define what confidence and cost mean in this context, and explain why integration tests occupy the sweet spot.",
+              "model_answer": "Confidence means the degree to which a passing test tells you your application works correctly for real users. Cost includes time to write, time to run, brittleness (how often it breaks for reasons other than real bugs), and difficulty of debugging when it fails. Unit tests are cheap but provide limited confidence because they test pieces in isolation — everything can pass yet the pieces still fail together. E2e tests provide high confidence but are expensive to write, slow to run, and flaky. Integration tests hit the sweet spot: they test meaningful user-facing behavior (rendering + interaction + assertion) without the overhead of a full browser, giving strong confidence that the parts work together at a manageable cost.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-19",
+              "question": "Define \"testing implementation details\" as KCD uses the phrase. Explain why a test that checks a component's internal state count is an implementation detail test, and what you should test instead.",
+              "model_answer": "Testing implementation details means writing assertions about how code achieves a result rather than what result it produces from a user's perspective. A test that reads `component.state.count` or asserts that `setState` was called a certain number of times is testing internal machinery that a user never sees. If the developer later refactors the component to use `useReducer` instead of `useState`, that test breaks even though the behavior is identical. Instead, you should test what the user sees and does: render the component, click the increment button, and assert that the displayed text reads \"Count: 1.\" This test survives any internal refactor.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-20",
+              "question": "Define \"false positive\" and \"false negative\" in the context of tests. Which one does KCD argue is more damaging to team trust in a test suite, and why?",
+              "model_answer": "A false positive is a test that fails when there is no actual bug — the code works correctly but the test breaks, usually because it tests implementation details and a refactor changed the internals. A false negative is a test that passes when there is an actual bug — the test does not catch a real problem. KCD argues that false positives are more damaging to team trust because developers learn to ignore or habitually \"fix\" test failures without investigating, which erodes confidence in the suite. When failures become noise, developers stop trusting the tests, and eventually real bugs (false negatives) slip through unnoticed.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-21",
+              "question": "The Testing Trophy places \"static analysis\" at its base. Define what static analysis means in this context and name the specific tools the syllabus uses for it.",
+              "model_answer": "Static analysis means automatically checking code for errors without executing it. In the Testing Trophy, it is the broadest, cheapest layer of quality assurance — it catches entire categories of bugs before any test runs. The specific tools in this syllabus are TypeScript (which catches type errors, null reference issues, and incorrect function calls at compile time) and ESLint with typescript-eslint (which catches code-quality issues, unused variables, accessibility violations in JSX, and stylistic problems). Together, they form a safety net that eliminates many bugs that would otherwise require tests to catch.",
+              "tags": [
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-22",
+              "question": "Explain what it means to \"test behavior, not implementation.\" Restate this principle in terms of what you render, how you query, and what you assert.",
+              "model_answer": "Testing behavior means writing tests from the user's perspective. In terms of what you render: render the full component (not internal sub-components in isolation) with realistic props. In terms of how you query: find elements the way a user would — by their visible text, accessible role, or label — not by class names, component instances, or test IDs. In terms of what you assert: assert on observable output — what text appears, which elements are visible or hidden, what happens after a click — not on internal state, hook return values, or whether a particular function was called internally.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-23",
+              "question": "Define what Vitest is and explain its relationship to Vite. Why does the Vitest documentation say it is \"Vite-native\"?",
+              "model_answer": "Vitest is a test runner and assertion framework designed to work with the Vite build tool. It is \"Vite-native\" because it reuses Vite's transformation pipeline — the same plugin system, the same module resolution, the same TypeScript/JSX handling — so your tests use the exact same configuration as your development server. This means you do not need a separate Babel or TypeScript compilation step for tests, and features like Vite plugins, path aliases, and CSS module support work in tests without duplicate configuration. Vitest reads its configuration from `vite.config.ts` (the `test` key) or a dedicated `vitest.config.ts`.",
+              "tags": [
+                "vitest-config",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-24",
+              "question": "Explain the `describe`, `it` (or `test`), and `expect` API in Vitest. What is the role of each, and are any of them optional?",
+              "model_answer": "`describe` is a grouping function that creates a named block to organize related tests. It is optional — tests can exist at the top level of a file without a `describe` wrapper. `it` (aliased as `test`) defines an individual test case with a name and a function body containing the test logic. Each `it` block is one test that passes or fails independently. `expect` creates an assertion: it takes a value and returns an object with matcher methods (`.toBe()`, `.toEqual()`, `.toHaveLength()`, etc.) that check whether the value meets an expected condition. A test with no `expect` calls passes vacuously, which is a common mistake.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-25",
+              "question": "Define each of Vitest's lifecycle hooks: `beforeAll`, `afterAll`, `beforeEach`, and `afterEach`. State the execution order when a `describe` block contains three tests.",
+              "model_answer": "`beforeAll` runs once before all tests in the current `describe` block (or file). `afterAll` runs once after all tests complete. `beforeEach` runs before each individual test. `afterEach` runs after each individual test. For a `describe` block with three tests, the order is: `beforeAll` → (`beforeEach` → test 1 → `afterEach`) → (`beforeEach` → test 2 → `afterEach`) → (`beforeEach` → test 3 → `afterEach`) → `afterAll`. Lifecycle hooks defined outside a `describe` apply to all tests in the file.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-26",
+              "question": "What is the difference between a \"test environment\" in Vitest and the Node.js runtime your tests execute in? Name the three built-in environments and when you would choose each.",
+              "model_answer": "Vitest always runs tests in Node.js, but the \"test environment\" determines what global APIs are available. The three built-in environments are: (1) `node` — the default; provides only Node.js globals. Use for testing pure logic, utilities, and server-side code with no DOM. (2) `jsdom` — a JavaScript implementation of the browser DOM and Web APIs (window, document, etc.) running inside Node. Use for React component testing. (3) `happy-dom` — a lighter, faster alternative to jsdom with the same purpose. Use when you want faster tests and do not need jsdom's more complete browser simulation. For React component tests, you must use either `jsdom` or `happy-dom` because components need a DOM to render into.",
+              "tags": [
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-27",
+              "question": "Explain what `globals: true` does in a Vitest configuration. What is the trade-off, and what must you add to `tsconfig.json` when using it?",
+              "model_answer": "`globals: true` makes Vitest's API functions (`describe`, `it`, `expect`, `vi`, `beforeEach`, etc.) available as global variables without explicit imports. Without it, you must import them: `import { describe, it, expect } from 'vitest'`. The trade-off is that global mode is more convenient (less boilerplate) but obscures where functions come from, and can collide with other globals. When using `globals: true`, you must add `\"vitest/globals\"` to the `types` array in `tsconfig.json` so TypeScript recognizes the global types without import.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-28",
+              "question": "What is a `setupFiles` entry in Vitest configuration? Give a concrete example of what you would put in a setup file for a React project.",
+              "model_answer": "The `setupFiles` option is an array of file paths that Vitest runs before each test file. These files execute in the test environment and are used for global setup that every test needs. A concrete example for a React project: a setup file that imports `@testing-library/jest-dom/vitest` (which adds custom DOM matchers like `.toBeVisible()`, `.toHaveTextContent()`, and `.toBeInTheDocument()` to Vitest's `expect`). You might also import `@testing-library/react/cleanup-after-each` if auto-cleanup is not configured, or set up global mocks for browser APIs like `matchMedia` that jsdom does not fully implement.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-29",
+              "question": "Explain the difference between `toBe` and `toEqual` in Vitest. When does the choice matter, and when does it not?",
+              "model_answer": "`toBe` uses strict reference equality (`Object.is`) — it checks that two values are the exact same reference (for objects) or the same value (for primitives). `toEqual` uses deep structural equality — it recursively compares the contents of objects and arrays. For primitives (`toBe(5)`, `toBe(\"hello\")`), both behave identically because primitives are compared by value. The choice matters for objects and arrays: `toBe` fails when comparing two objects with identical contents but different references, while `toEqual` passes. Use `toBe` for primitives, identity checks, and when you specifically want to assert same-reference. Use `toEqual` for comparing object shapes and array contents.",
+              "tags": [
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-30",
+              "question": "What does `toMatchObject` do, and how does it differ from `toEqual`? Give a scenario where `toMatchObject` is preferable.",
+              "model_answer": "`toMatchObject` checks that the received object contains at least the properties specified in the expected object — extra properties on the received object are ignored. `toEqual` requires exact structural match — no extra properties allowed (at the top level for objects). `toMatchObject` is preferable when you want to assert on a subset of an object's properties without specifying all of them. For example, when testing an API response that includes a timestamp, id, and other auto-generated fields, you might write `expect(result).toMatchObject({ name: \"Alice\", status: \"active\" })` without needing to match the exact `id` or `createdAt`.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-31",
+              "question": "Explain what `toThrow` tests and how to use it correctly. Why must you wrap the throwing code in a function?",
+              "model_answer": "`toThrow` asserts that a function throws an error when called. You can optionally pass an expected error message or class: `expect(fn).toThrow('message')` or `expect(fn).toThrow(TypeError)`. You must wrap the throwing code in a function (e.g., `expect(() => parse(null)).toThrow()`) because `expect` needs to call the function itself to catch the error. If you write `expect(parse(null)).toThrow()`, `parse(null)` executes immediately before `expect` runs, the error is uncaught, and the test crashes instead of cleanly failing the assertion.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-32",
+              "question": "Define what \"watch mode\" is in Vitest. Explain how it determines which tests to re-run, and how you run tests once without watch mode.",
+              "model_answer": "Watch mode is Vitest's default behavior where it starts a long-running process that monitors file changes and automatically re-runs affected tests when source or test files are saved. It determines which tests to re-run by analyzing the module dependency graph — if you change a utility file, only tests that import that file (directly or transitively) are re-run. To run tests once without watch mode, use the `--run` flag: `vitest --run`. In CI environments, Vitest automatically detects that it is not in a terminal and disables watch mode.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-33",
+              "question": "What is the purpose of `expect.assertions(n)` in a test? Describe the specific bug it prevents.",
+              "model_answer": "`expect.assertions(n)` declares that exactly `n` assertions must be called during the test. If the actual number of assertions differs, the test fails. It prevents the specific bug where an async test completes before the assertion runs — the test passes vacuously because the code path containing the `expect` call was never reached. For example, in a test that asserts inside a `.then()` or `catch()`, if the promise resolves differently than expected, the assertion may be skipped entirely. `expect.assertions(1)` catches this by failing the test when zero assertions are made.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-34",
+              "question": "Explain the `test.each` (or `it.each`) API in Vitest. When is it useful, and what does it replace?",
+              "model_answer": "`test.each` (or `it.each`) runs the same test logic against multiple sets of input data, generating a separate test case for each data set. You provide an array of argument tuples and a test function that receives each tuple. It replaces manually duplicating test blocks that differ only in input/output values. Example: `it.each([[1, 2, 3], [2, 3, 5]])('add(%i, %i) = %i', (a, b, expected) => { expect(add(a, b)).toBe(expected); })` generates two tests. This is useful for testing pure functions across a range of inputs, edge cases, and boundary values without repetitive code.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-35",
+              "question": "What does `test.skip` do, and what is `test.todo`? When would you use each?",
+              "model_answer": "`test.skip` marks a test to be skipped during execution — the test is recognized by the runner but not executed. Use it when a test is temporarily broken or irrelevant and you want to suppress its failure without deleting it. `test.todo` creates a placeholder test with no implementation — it appears in test output as a reminder but does not run. Use it when planning tests: you can outline all the test cases you intend to write before implementing them. Both serve as intentional markers, unlike commenting out tests, which are easy to forget.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-36",
+              "question": "Explain what `toHaveBeenCalledWith` asserts. How does it differ from `toHaveBeenCalled`, and how would you combine it with `vi.fn()`?",
+              "model_answer": "`toHaveBeenCalled` asserts only that a mock function was called at least once — it does not check arguments. `toHaveBeenCalledWith(arg1, arg2, ...)` asserts that the mock was called with specific arguments in at least one of its calls. You combine them with `vi.fn()`: create a mock (`const handler = vi.fn()`), pass it as a prop or callback, trigger the action, then assert: `expect(handler).toHaveBeenCalledWith('expected-arg')`. This tests that your code passes the correct arguments to callbacks without testing the callback's internal behavior.",
+              "tags": [
+                "matchers",
+                "vi-fn"
+              ]
+            },
+            {
+              "id": "SA-37",
+              "question": "What does the `toContain` matcher check, and on what data types can it be used?",
+              "model_answer": "`toContain` checks that a value is found within a collection. For arrays, it checks that the array includes the expected item (using reference equality for objects, value equality for primitives). For strings, it checks that the expected substring exists within the string. For Sets and Maps, it checks membership. Example: `expect([1, 2, 3]).toContain(2)` passes; `expect('hello world').toContain('world')` passes. For deep object comparison within arrays, use `toContainEqual` instead, which uses deep equality rather than reference equality.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-38",
+              "question": "Define what the `--reporter` option does in Vitest. Name at least two reporter formats and explain when you would use a non-default reporter.",
+              "model_answer": "The `--reporter` option controls the output format of test results. Vitest includes several reporters: `default` (terminal-friendly with colored output and progress), `verbose` (lists every test name), `json` (machine-readable JSON output), `junit` (XML format for CI systems that parse JUnit reports), and `dot` (minimal, one dot per test). You would use a non-default reporter in CI pipelines: `junit` for CI systems like Jenkins or GitLab that display JUnit XML results natively, or `json` for programmatic consumption by other tools. Locally, `verbose` is useful when debugging to see every test name.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-39",
+              "question": "Define what a \"matcher\" is in Vitest's `expect` API. Explain the difference between a built-in matcher and a custom matcher from a library like `jest-dom`.",
+              "model_answer": "A matcher is a method on the `expect` return value that performs a specific type of comparison between the received value and the expected value. Built-in matchers ship with Vitest and cover general-purpose assertions: `toBe`, `toEqual`, `toBeTruthy`, `toThrow`, `toHaveLength`, `toContain`, etc. Custom matchers from libraries like `@testing-library/jest-dom` extend `expect` with domain-specific assertions for the DOM: `.toBeInTheDocument()`, `.toBeVisible()`, `.toHaveTextContent()`, `.toBeDisabled()`, `.toHaveAttribute()`. These are registered via `expect.extend()` (typically in a setup file) and make test assertions more readable and their failure messages more descriptive for their domain.",
+              "tags": [
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-40",
+              "question": "What is the `test.concurrent` modifier in Vitest? Explain the trade-offs of concurrent test execution.",
+              "model_answer": "`test.concurrent` marks a test to run concurrently with other concurrent tests in the same file, rather than sequentially. Vitest runs test files in parallel by default, but tests within a single file run sequentially. `test.concurrent` overrides this, allowing marked tests to execute simultaneously. The trade-off: concurrent tests run faster but must be fully independent — they cannot share mutable state, and the order of execution is unpredictable. Tests that modify a shared database, write to the same file, or depend on global state (like `document.body`) will produce race conditions when run concurrently.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "SA-41",
+              "question": "What does the `include` option in Vitest configuration control? What is the default pattern, and when would you customize it?",
+              "model_answer": "The `include` option is an array of glob patterns that determines which files Vitest treats as test files. The default pattern typically matches files like `**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}` — any file whose name ends with `.test` or `.spec` before its extension. You would customize it to match your project's conventions: for example, if you keep tests in a dedicated `__tests__` directory with plain filenames, you might set `include: ['src/__tests__/**/*.ts']`, or if you use a different naming convention like `.unit.ts` and `.integration.ts`.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-42",
+              "question": "Explain what Jest compatibility means for Vitest. Name at least two APIs or behaviors that Vitest intentionally mirrors from Jest.",
+              "model_answer": "Jest compatibility means Vitest was designed to offer a familiar API surface for developers migrating from Jest, which was the dominant React test runner before Vitest. Vitest intentionally mirrors: (1) the `describe`/`it`/`expect` test structure and assertion API, with the same matcher names (`toBe`, `toEqual`, `toMatchSnapshot`, etc.); (2) the `vi` utility object, which parallels Jest's `jest` object with equivalent methods (`vi.fn()` = `jest.fn()`, `vi.mock()` = `jest.mock()`, `vi.spyOn()` = `jest.spyOn()`); (3) snapshot testing with `.toMatchSnapshot()` and `.toMatchInlineSnapshot()`. Most Jest tests can be migrated by changing imports from `jest` to `vi` and updating the configuration.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "SA-43",
+              "question": "Explain what the `.not` modifier does on `expect`. Give two examples showing `.not` with different matchers.",
+              "model_answer": "The `.not` modifier inverts any matcher that follows it — the assertion passes when the matcher would normally fail, and fails when it would normally pass. Examples:\n\n`expect(result).not.toBe(null)` — asserts that `result` is NOT null.\n`expect(items).not.toContain('deleted-item')` — asserts that the array does not include the string `'deleted-item'`.\n\n`.not` can be chained with any matcher: `.not.toEqual()`, `.not.toThrow()`, `.not.toHaveBeenCalled()`, etc. It is especially useful for negative assertions — confirming that something did not happen or that a value does not match an undesired state.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-44",
+              "question": "What does the `resolves` modifier do on `expect`? How would you test that an async function resolves to a specific value?",
+              "model_answer": "The `resolves` modifier unwraps a promise before applying a matcher. It tells Vitest to wait for the promise to resolve and then run the matcher against the resolved value. To test that an async function resolves to a specific value:\n\n```ts\nawait expect(fetchUser('alice')).resolves.toEqual({ name: 'Alice', id: 1 });\n```\n\nThe `await` is important — without it, the assertion runs asynchronously and the test may complete before the promise settles. There is a corresponding `rejects` modifier for testing that a promise rejects: `await expect(fetchUser('unknown')).rejects.toThrow('Not found')`.",
+              "tags": [
+                "matchers",
+                "async-testing"
+              ]
+            },
+            {
+              "id": "SA-45",
+              "question": "What is \"in-source testing\" in Vitest? Describe the pattern and explain one advantage and one disadvantage.",
+              "model_answer": "In-source testing allows you to write tests directly inside your source files, alongside the code they test, using an `if (import.meta.vitest)` block. Vitest strips these blocks in production builds. Example: at the bottom of a utility file, `if (import.meta.vitest) { const { it, expect } = import.meta.vitest; it('adds numbers', () => { expect(add(1, 2)).toBe(3); }); }`. Advantage: tests live next to the code, so they are easy to find and maintain, and you can test unexported helper functions. Disadvantage: it mixes test code with production code, which can make source files harder to read and increases file size during development.",
+              "tags": [
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "SA-46",
+              "question": "Define what a \"snapshot test\" is in Vitest. Explain `toMatchSnapshot` and `toMatchInlineSnapshot`, and state one risk of overusing snapshot tests.",
+              "model_answer": "A snapshot test serializes a value (typically a rendered DOM tree or a data structure) and compares it against a previously saved reference. `toMatchSnapshot()` saves the reference in a separate `.snap` file; if the output changes, the test fails until you explicitly update the snapshot. `toMatchInlineSnapshot()` saves the reference inline in the test file itself as a string argument. One risk of overusing snapshots: they make it easy to approve changes without understanding them. When a snapshot breaks, the developer may reflexively update it (`vitest --update`) without verifying that the change is correct, defeating the purpose of the test. Snapshots are best used sparingly for stable outputs, not as a substitute for targeted assertions.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-47",
+              "question": "Explain the difference between `toStrictEqual` and `toEqual` in Vitest. When does the distinction matter?",
+              "model_answer": "`toEqual` performs deep equality but ignores `undefined` properties and does not distinguish between sparse array entries and `undefined` values. `toStrictEqual` is stricter: it checks that objects have the same type (class), that no properties are `undefined` unless explicitly expected, and that arrays have the same density (a sparse `[1, , 3]` does not match `[1, undefined, 3]`). The distinction matters when you need to assert that an object does not have extra `undefined` fields — for example, verifying that a function returns `{ name: \"Alice\" }` and not `{ name: \"Alice\", age: undefined }`. `toStrictEqual` catches this; `toEqual` does not.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "SA-48",
+              "question": "What is the `vi` object in Vitest? List four categories of functionality it provides, with one example method from each.",
+              "model_answer": "The `vi` object is Vitest's utility namespace (analogous to Jest's `jest` global). It provides: (1) Mock creation — `vi.fn()` creates a mock function. (2) Module mocking — `vi.mock('./module')` replaces a module's exports with mocks. (3) Spying — `vi.spyOn(object, 'method')` wraps an existing method to track calls. (4) Timer control — `vi.useFakeTimers()` replaces real timers with controllable fakes. Additional categories include `vi.hoisted()` for hoisting variables above `vi.mock`, `vi.mocked()` for TypeScript type casting of mocked functions, and `vi.stubGlobal()` for replacing global variables.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "count": 48,
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "According to the Testing Trophy, which type of test provides the best balance of confidence and cost?",
+              "options": [
+                "Unit tests",
+                "Integration tests",
+                "End-to-end tests",
+                "Static analysis"
+              ],
+              "answer": 1,
+              "explanation": "The Testing Trophy places integration tests as the largest, most valuable layer — the best confidence-to-cost ratio.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "Which layer forms the base of the Testing Trophy?",
+              "options": [
+                "Unit tests",
+                "Integration tests",
+                "End-to-end tests",
+                "Static analysis"
+              ],
+              "answer": 3,
+              "explanation": "Static analysis (TypeScript, ESLint) forms the base of the Testing Trophy.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "\"Write tests. Not too many. Mostly integration.\" is a quote attributed to:",
+              "options": [
+                "Dan Abramov",
+                "Kent C. Dodds",
+                "Martin Fowler",
+                "Ryan Florence"
+              ],
+              "answer": 1,
+              "explanation": "This is Kent C. Dodds' widely cited summary of his testing philosophy, from his article and talk of the same name.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "What is a \"false negative\" in the context of testing?",
+              "options": [
+                "A test that passes when the behavior is broken",
+                "A test that fails when the behavior is actually correct",
+                "A test that never runs",
+                "A test that takes too long to execute"
+              ],
+              "answer": 1,
+              "explanation": "A false negative means the test fails when the behavior is actually correct — the test falsely signals failure. Following KCD's convention: 'negative' refers to the test outcome (fail), and 'false' means the outcome is wrong.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "What is a \"false positive\" in the context of testing?",
+              "options": [
+                "A test that fails when the behavior is broken",
+                "A test that fails when the behavior is actually correct",
+                "A test that passes when the behavior is broken",
+                "A test that produces random results"
+              ],
+              "answer": 2,
+              "explanation": "A false positive means the test passes when the behavior is actually broken — the test falsely signals success. Following KCD's convention: 'positive' refers to the test outcome (pass), and 'false' means the outcome is wrong.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "A test that checks whether a component calls `useState` with a specific initial value is testing:",
+              "options": [
+                "Behavior",
+                "Implementation details",
+                "Integration",
+                "Accessibility"
+              ],
+              "answer": 1,
+              "explanation": "Checking whether a specific hook was called with a specific value is an implementation detail. The user does not care how state is managed internally.",
+              "tags": [
+                "testing-philosophy",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "A test that clicks a button and asserts the displayed count increases is testing:",
+              "options": [
+                "Implementation details",
+                "Performance",
+                "Behavior",
+                "The React internals"
+              ],
+              "answer": 2,
+              "explanation": "Clicking a button and asserting visible output mirrors user interaction and tests behavior.",
+              "tags": [
+                "general",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "Which of the following is NOT a reason to avoid testing implementation details?",
+              "options": [
+                "They make tests brittle — tests break when you refactor even though behavior is unchanged",
+                "They give false confidence — tests can pass even when behavior is broken",
+                "They are slower to run than behavior tests",
+                "They couple tests to the code structure rather than the user experience"
+              ],
+              "answer": 2,
+              "explanation": "Implementation-detail tests are not inherently slower to run. The problems are brittleness, false confidence, and coupling to code structure.",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "Vitest is built on top of:",
+              "options": [
+                "webpack",
+                "Vite",
+                "Rollup",
+                "Parcel"
+              ],
+              "answer": 1,
+              "explanation": "Vitest is built natively on Vite, reusing its configuration and transformation pipeline.",
+              "tags": [
+                "vitest-config",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "Which command runs all tests once and exits without entering watch mode?",
+              "options": [
+                "`vitest`",
+                "`vitest run`",
+                "`vitest --once`",
+                "`vitest --no-watch`"
+              ],
+              "answer": 1,
+              "explanation": "`vitest run` executes all tests once and exits. `vitest` alone enters watch mode.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "Where does Vitest look for its configuration by default?",
+              "options": [
+                "`jest.config.ts`",
+                "`vitest.config.ts` or the `test` key in `vite.config.ts`",
+                "`package.json` under the `\"vitest\"` key",
+                "`.vitestrc.json`"
+              ],
+              "answer": 1,
+              "explanation": "Vitest looks for `vitest.config.ts` or the `test` key inside `vite.config.ts`.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "What is the default test environment in Vitest?",
+              "options": [
+                "`jsdom`",
+                "`happy-dom`",
+                "`node`",
+                "`browser`"
+              ],
+              "answer": 2,
+              "explanation": "The default environment is `node` — no DOM APIs. You must explicitly set `jsdom` or `happy-dom` for component tests.",
+              "tags": [
+                "vitest-config",
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "Why do React component tests require a DOM environment like `jsdom`?",
+              "options": [
+                "React cannot be imported in Node.js",
+                "React components call DOM APIs like `document.createElement` during rendering",
+                "TypeScript requires a DOM environment for type checking",
+                "Vitest cannot parse JSX without a DOM"
+              ],
+              "answer": 1,
+              "explanation": "React calls `document.createElement` and other DOM APIs during rendering. Without a DOM implementation, rendering fails.",
+              "tags": [
+                "vitest-config",
+                "test-environments",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "What is the difference between `jsdom` and `happy-dom`?",
+              "options": [
+                "`jsdom` is faster; `happy-dom` is more complete",
+                "`happy-dom` is generally faster; `jsdom` has more complete DOM API coverage",
+                "They are identical implementations",
+                "`happy-dom` only works on Linux"
+              ],
+              "answer": 1,
+              "explanation": "`happy-dom` is generally faster; `jsdom` has more complete API coverage.",
+              "tags": [
+                "test-environments"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "How do you set the test environment for a single test file without changing the global config?",
+              "options": [
+                "`import { setEnvironment } from 'vitest'`",
+                "Add `// @vitest-environment jsdom` at the top of the file",
+                "`describe.env(\"jsdom\", () => { ... })`",
+                "You cannot override the environment per-file"
+              ],
+              "answer": 1,
+              "explanation": "The `// @vitest-environment jsdom` comment at the top of a file overrides the global environment for that file.",
+              "tags": [
+                "vitest-config",
+                "test-environments"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "What does `globals: true` do in Vitest configuration?",
+              "options": [
+                "Exposes all Node.js global variables",
+                "Makes `describe`, `it`, `expect`, and lifecycle hooks available without importing them",
+                "Enables global state sharing between test files",
+                "Makes all test variables accessible globally"
+              ],
+              "answer": 1,
+              "explanation": "`globals: true` makes test APIs available globally without explicit imports.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "What is the purpose of `setupFiles` in Vitest configuration?",
+              "options": [
+                "Files that are compiled first for performance",
+                "Files that run before each individual test",
+                "Files that run once before the entire test suite, used for global setup like polyfills",
+                "Files that define test fixtures"
+              ],
+              "answer": 2,
+              "explanation": "`setupFiles` run once before the test suite starts. They are for global setup like importing custom matchers.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "What does `expect(x).toBe(y)` use for comparison?",
+              "options": [
+                "`==` (loose equality)",
+                "`===` (strict equality / reference equality)",
+                "Deep structural comparison",
+                "`Object.is()`"
+              ],
+              "answer": 3,
+              "explanation": "`toBe` uses `Object.is()` for comparison. While `Object.is()` behaves like `===` for most values, they differ on edge cases: `Object.is(NaN, NaN)` is `true` (unlike `===`), and `Object.is(-0, +0)` is `false` (unlike `===`). Since option (d) is the precise mechanism Vitest uses, it is the best answer.",
+              "tags": [
+                "vitest-config",
+                "vitest-api",
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "Given `const a = { x: 1 }; const b = { x: 1 };`, which assertion passes?",
+              "options": [
+                "`expect(a).toBe(b)`",
+                "`expect(a).toEqual(b)`",
+                "Both (a) and (b)",
+                "Neither (a) nor (b)"
+              ],
+              "answer": 1,
+              "explanation": "`a` and `b` are different references, so `toBe` fails. `toEqual` does a deep comparison and passes.",
+              "tags": [
+                "matchers",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "What is the result of this test?",
+              "options": [
+                "Passes",
+                "Fails because `toContain` only works on strings",
+                "Fails because `toContain` uses strict object comparison",
+                "Throws a runtime error"
+              ],
+              "answer": 0,
+              "explanation": "`toContain` checks array membership. `2` is in `[1, 2, 3]`, so it passes.",
+              "tags": [
+                "matchers"
+              ],
+              "code": "```ts\nit(\"test\", () => {\n  expect([1, 2, 3]).toContain(2);\n});\n```"
+            },
+            {
+              "id": "MC-21",
+              "question": "What does `expect(fn).toThrow(\"invalid\")` check?",
+              "options": [
+                "That `fn` throws an error whose message contains the string `\"invalid\"`",
+                "That `fn` returns the string `\"invalid\"`",
+                "That `fn` returns a rejected Promise with `\"invalid\"`",
+                "That `fn` logs `\"invalid\"` to the console"
+              ],
+              "answer": 0,
+              "explanation": "`toThrow(\"invalid\")` checks that the thrown error's message contains the substring `\"invalid\"`.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "Which of the following correctly tests that a function throws?",
+              "options": [
+                "`expect(myFn()).toThrow()`",
+                "`expect(() => myFn()).toThrow()`",
+                "`expect(myFn).toThrow()` (where `myFn` takes no arguments)",
+                "Both (b) and (c)"
+              ],
+              "answer": 3,
+              "explanation": "Both work. (b) wraps the call in an arrow function. (c) passes the function reference directly (valid when it takes no arguments). Both allow `expect` to invoke the function and catch the throw.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "`beforeEach` runs:",
+              "options": [
+                "Once before all tests in the file",
+                "Once before all tests in the `describe` block",
+                "Before each individual test in the enclosing scope",
+                "After each test completes"
+              ],
+              "answer": 2,
+              "explanation": "`beforeEach` runs before each individual test in its enclosing scope.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "`beforeAll` runs:",
+              "options": [
+                "Before each individual test",
+                "Once before the first test in its enclosing scope",
+                "After all tests complete",
+                "At the start of every `describe` block in the file"
+              ],
+              "answer": 1,
+              "explanation": "`beforeAll` runs once before the first test in its enclosing scope.",
+              "tags": [
+                "vitest-api",
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "What happens when you nest `describe` blocks and define `beforeEach` in both the outer and inner blocks?",
+              "options": [
+                "Only the inner `beforeEach` runs",
+                "Only the outer `beforeEach` runs",
+                "The outer `beforeEach` runs first, then the inner `beforeEach`",
+                "The inner `beforeEach` runs first, then the outer `beforeEach`"
+              ],
+              "answer": 2,
+              "explanation": "The outer `beforeEach` runs first, then the inner `beforeEach`, for each test in the inner block.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "What is the correct execution order for a test inside a nested `describe` with hooks in both levels?",
+              "options": [
+                "`beforeAll (outer)` → `beforeAll (inner)` → `beforeEach (outer)` → `beforeEach (inner)` → test → `afterEach (inner)` → `afterEach (outer)`",
+                "`beforeEach (outer)` → `beforeAll (inner)` → `beforeEach (inner)` → test → `afterAll (inner)` → `afterEach (outer)`",
+                "`beforeAll (outer)` → `beforeEach (inner)` → `beforeEach (outer)` → test → `afterEach (outer)` → `afterEach (inner)`",
+                "`beforeEach (outer)` → `beforeEach (inner)` → `beforeAll (inner)` → test → `afterEach (outer)` → `afterEach (inner)`"
+              ],
+              "answer": 0,
+              "explanation": "`beforeAll` hooks run first (outer then inner), then `beforeEach` hooks (outer then inner), then the test, then `afterEach` (inner then outer).",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "Which hook would you use to set up a database connection shared across all tests in a file?",
+              "options": [
+                "`beforeEach`",
+                "`beforeAll`",
+                "`afterAll`",
+                "`afterEach`"
+              ],
+              "answer": 1,
+              "explanation": "`beforeAll` runs once for the entire scope and is appropriate for expensive one-time setup like database connections.",
+              "tags": [
+                "testing-trophy",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "Which modifier skips a test without removing it from the file?",
+              "options": [
+                "`it.only`",
+                "`it.skip`",
+                "`it.todo`",
+                "`it.disabled`"
+              ],
+              "answer": 1,
+              "explanation": "`it.skip` skips the test without removing it from the file.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "Which modifier marks a test as a placeholder to be written later?",
+              "options": [
+                "`it.only`",
+                "`it.skip`",
+                "`it.todo`",
+                "`it.pending`"
+              ],
+              "answer": 2,
+              "explanation": "`it.todo` is a placeholder for tests to be written later.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "What does `it.only` do?",
+              "options": [
+                "Marks the test as the only passing test",
+                "Runs only the marked test(s) in the file and skips all others",
+                "Fails all other tests in the file",
+                "Removes all other tests from the report"
+              ],
+              "answer": 1,
+              "explanation": "`it.only` focuses the run on the marked test(s) and skips all others in the file.",
+              "tags": [
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "By default, how does Vitest handle test file parallelism?",
+              "options": [
+                "All tests in all files run sequentially",
+                "Tests within a file run in parallel; files run sequentially",
+                "Different files can run in parallel; tests within a file run sequentially",
+                "Everything runs in parallel"
+              ],
+              "answer": 2,
+              "explanation": "By default, Vitest runs different files in parallel (using worker threads) but tests within a file sequentially.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "What is in-source testing in Vitest?",
+              "options": [
+                "Testing production source files by importing them into separate test files",
+                "Writing tests directly inside production source files using `if (import.meta.vitest)`",
+                "Running tests in the production build",
+                "Using the source map to trace test failures"
+              ],
+              "answer": 1,
+              "explanation": "In-source testing means writing tests inside the production source file, guarded by `if (import.meta.vitest)`.",
+              "tags": [
+                "vitest-config",
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "MC-33",
+              "question": "In-source tests are included in the production build:",
+              "options": [
+                "Always",
+                "Never — they are tree-shaken from the production build when properly configured",
+                "Only in development mode",
+                "Only if explicitly included in `vite.config.ts`"
+              ],
+              "answer": 1,
+              "explanation": "In-source tests are tree-shaken from the production build when Vitest is configured correctly.",
+              "tags": [
+                "vitest-config",
+                "in-source-testing"
+              ]
+            },
+            {
+              "id": "MC-34",
+              "question": "What does `expect.assertions(2)` do when placed at the top of a test?",
+              "options": [
+                "Limits the test to only 2 `expect` calls",
+                "Verifies that exactly 2 `expect` assertions are called during the test, failing if not",
+                "Runs the test 2 times",
+                "Skips the test if fewer than 2 assertions exist"
+              ],
+              "answer": 1,
+              "explanation": "`expect.assertions(2)` verifies exactly 2 assertions ran. If the test completes with fewer or more, it fails.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-35",
+              "question": "When is `expect.assertions(n)` most useful?",
+              "options": [
+                "In synchronous tests with multiple conditions",
+                "In async tests where assertions inside callbacks might not execute if the async flow fails",
+                "In tests that test pure functions",
+                "When you want to limit the number of matchers"
+              ],
+              "answer": 1,
+              "explanation": "It is most useful in async tests where assertions inside callbacks might be silently skipped if the async flow does not reach them.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-36",
+              "question": "`expect(value).toMatchObject({ name: \"Alice\" })` when `value` is `{ name: \"Alice\", age: 30 }`:",
+              "options": [
+                "Fails because the objects are not identical",
+                "Passes because `value` contains at least the properties in the expected object",
+                "Throws a type error",
+                "Passes only if `age` is also in the expected object"
+              ],
+              "answer": 1,
+              "explanation": "`toMatchObject` is a subset matcher. `value` has all properties from the expected object, so it passes even though `value` has extra properties.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-37",
+              "question": "What is the difference between `toEqual` and `toStrictEqual`?",
+              "options": [
+                "`toStrictEqual` ignores `undefined` properties; `toEqual` does not",
+                "`toStrictEqual` distinguishes `undefined` properties from missing properties and checks prototypes; `toEqual` does not",
+                "They are identical",
+                "`toEqual` is stricter than `toStrictEqual`"
+              ],
+              "answer": 1,
+              "explanation": "`toStrictEqual` is stricter: it checks prototypes, distinguishes `undefined` properties from missing ones, and rejects sparse arrays.",
+              "tags": [
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-38",
+              "question": "Which file naming patterns does Vitest treat as test files by default?",
+              "options": [
+                "Only `*.test.ts`",
+                "Only `*.spec.ts`",
+                "Files matching patterns like `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`",
+                "Any `.ts` file in a `__tests__` directory only"
+              ],
+              "answer": 2,
+              "explanation": "Vitest matches `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`, and files in `__tests__` directories by default.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "MC-39",
+              "question": "What does `expect(value).toBeGreaterThan(3)` check?",
+              "options": [
+                "`value > 3`",
+                "`value >= 3`",
+                "`value === 3`",
+                "`value.length > 3`"
+              ],
+              "answer": 0,
+              "explanation": "`toBeGreaterThan(3)` checks `value > 3` (strictly greater than).",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-40",
+              "question": "Which asymmetric matcher checks that a value is any instance of `Number`?",
+              "options": [
+                "`expect.number()`",
+                "`expect.any(Number)`",
+                "`expect.instanceOf(Number)`",
+                "`expect.typeOf(\"number\")`"
+              ],
+              "answer": 1,
+              "explanation": "`expect.any(Number)` is an asymmetric matcher that matches any number value.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-41",
+              "question": "`expect(\"hello world\").toMatch(/world/)` will:",
+              "options": [
+                "Pass",
+                "Fail because `toMatch` only accepts strings, not regex",
+                "Throw a runtime error",
+                "Fail because the regex does not match the full string"
+              ],
+              "answer": 0,
+              "explanation": "`toMatch` accepts both strings and regular expressions. `/world/` matches the substring `\"world\"` in `\"hello world\"`.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-42",
+              "question": "What does `expect.stringContaining(\"test\")` do when used inside `toEqual`?",
+              "options": [
+                "Checks that the compared value is exactly `\"test\"`",
+                "Acts as a partial matcher that passes if the actual string contains `\"test\"` anywhere",
+                "Throws because asymmetric matchers cannot be nested",
+                "Converts the expected value to a regex"
+              ],
+              "answer": 1,
+              "explanation": "`expect.stringContaining(\"test\")` is an asymmetric matcher that passes if the actual string contains `\"test\"` as a substring.",
+              "tags": [
+                "vitest-api",
+                "matchers"
+              ]
+            },
+            {
+              "id": "MC-43",
+              "question": "Which Vitest configuration option specifies the glob patterns for files to include as tests?",
+              "options": [
+                "`testFiles`",
+                "`include`",
+                "`testMatch`",
+                "`files`"
+              ],
+              "answer": 1,
+              "explanation": "The `include` configuration option specifies glob patterns for test file discovery.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "MC-44",
+              "question": "The `test` key in `vite.config.ts` is used by:",
+              "options": [
+                "Vite's dev server",
+                "Vite's build process",
+                "Vitest",
+                "TypeScript"
+              ],
+              "answer": 2,
+              "explanation": "The `test` key in `vite.config.ts` is read by Vitest, not by Vite's dev server or build process.",
+              "tags": [
+                "vitest-config"
+              ]
+            },
+            {
+              "id": "MC-45",
+              "question": "In the Testing Trophy, which layer has the lowest confidence but the lowest cost?",
+              "options": [
+                "Unit tests",
+                "Integration tests",
+                "End-to-end tests",
+                "Static analysis"
+              ],
+              "answer": 3,
+              "explanation": "Static analysis has the lowest cost (runs automatically, no test code to write) but also the lowest per-assertion confidence (it cannot verify runtime behavior).",
+              "tags": [
+                "testing-philosophy",
+                "testing-trophy"
+              ]
+            },
+            {
+              "id": "MC-46",
+              "question": "A developer writes a test that checks whether `localStorage.setItem` was called with `\"theme\"` and `\"dark\"`. The component switches to dark mode by toggling a class on the body element. This test is:",
+              "options": [
+                "Testing behavior — it verifies the persistence mechanism",
+                "Testing implementation details — a refactor to use a cookie instead of localStorage would break this test even though the behavior is the same",
+                "An integration test — it tests the interaction between the component and the browser",
+                "An end-to-end test"
+              ],
+              "answer": 1,
+              "explanation": "Checking that `localStorage.setItem` was called is an implementation detail. A refactor to cookies would break this test even though dark mode still works.",
+              "tags": [
+                "testing-philosophy"
+              ]
+            },
+            {
+              "id": "MC-47",
+              "question": "A developer writes a test that clicks a \"Dark Mode\" toggle and then asserts that the body has a `dark` class. This test is:",
+              "options": [
+                "Testing implementation details because it relies on a CSS class name",
+                "Testing behavior — it verifies what the user would see (a visual change) via the mechanism the CSS uses",
+                "Not a valid test",
+                "An end-to-end test"
+              ],
+              "answer": 1,
+              "explanation": "Checking for a CSS class is a reasonable proxy for visual behavior — it is the mechanism that controls what the user sees. While not perfect, it tests closer to behavior than checking internal state.",
+              "tags": [
+                "general"
+              ]
+            },
+            {
+              "id": "MC-48",
+              "question": "Which of the following is NOT a valid Vitest lifecycle hook?",
+              "options": [
+                "`beforeEach`",
+                "`afterEach`",
+                "`beforeAll`",
+                "`beforeTest`"
+              ],
+              "answer": 3,
+              "explanation": "`beforeTest` is not a Vitest lifecycle hook. The valid hooks are `beforeAll`, `beforeEach`, `afterAll`, and `afterEach`.",
+              "tags": [
+                "vitest-config",
+                "vitest-api"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
