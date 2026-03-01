@@ -12,11 +12,19 @@ const PRESETS: (QuizPreset & { id: string })[] = [
   { id: "long",   label: "Long",   tf: 32, mc: 32, sa: 12 },
 ];
 
+/** Capitalize first letter of module name for display */
+function formatModuleName(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export default function Apollo() {
   const [view, setView] = useState<ApolloView>("select");
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Module selection
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [allQuestions, setAllQuestions] = useState<NormalizedQuestion[]>([]);
@@ -36,6 +44,27 @@ export default function Apollo() {
     mc: filterBySection(allQuestions, "multiple_choice").length,
     sa: filterBySection(allQuestions, "short_answer").length,
   }), [allQuestions]);
+
+  // Derive unique modules from quiz data
+  const modules = useMemo(() => {
+    const moduleMap = new Map<string, { deckCount: number; questionCount: number }>();
+    for (const q of quizzes) {
+      const existing = moduleMap.get(q.module);
+      if (existing) {
+        existing.deckCount += 1;
+        existing.questionCount += q.total_questions;
+      } else {
+        moduleMap.set(q.module, { deckCount: 1, questionCount: q.total_questions });
+      }
+    }
+    return moduleMap;
+  }, [quizzes]);
+
+  // Quizzes filtered to the selected module
+  const moduleQuizzes = useMemo(() => {
+    if (!selectedModule) return [];
+    return quizzes.filter((q) => q.module === selectedModule);
+  }, [quizzes, selectedModule]);
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
@@ -66,10 +95,11 @@ export default function Apollo() {
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!selectedModule) return;
     setUploading(true);
     setUploadMsg(null);
     try {
-      const result = await ingestQuiz(file);
+      const result = await ingestQuiz(file, selectedModule);
       setUploadMsg(`Loaded ${result.total_questions} questions from ${result.filename}`);
       loadQuizzes();
     } catch (err) {
@@ -78,7 +108,7 @@ export default function Apollo() {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
-  }, [loadQuizzes]);
+  }, [loadQuizzes, selectedModule]);
 
   const handleExit = useCallback(() => {
     setView("select");
@@ -86,11 +116,20 @@ export default function Apollo() {
   }, []);
 
   const handleDebugSaved = useCallback(async (removedIds: Set<string>) => {
-    // Remove deleted questions from local state
     setAllQuestions((prev) => prev.filter((q) => !removedIds.has(q.id)));
-    // Refresh the quiz list sidebar counts
     loadQuizzes();
   }, [loadQuizzes]);
+
+  const handleBackToModules = useCallback(() => {
+    setSelectedModule(null);
+    setSelectedId(null);
+    setUploadMsg(null);
+  }, []);
+
+  const handleBackToQuizList = useCallback(() => {
+    setSelectedId(null);
+  }, []);
+
   const totalSelected = tfCount + mcCount + saCount;
 
   const applyPreset = (p: QuizPreset) => {
@@ -121,17 +160,20 @@ export default function Apollo() {
   if (view === "study" && allQuestions.length > 0) {
     return <StudyMode title={quizTitle} questions={allQuestions} onExit={handleExit} />;
   }
+
+  // ---- Debug mode ----
   if (view === "debug" && allQuestions.length > 0 && selectedId) {
-      return (
-        <DebugMode
-          title={quizTitle}
-          quizId={selectedId}
-          questions={allQuestions}
-          onExit={handleExit}
-          onSaved={handleDebugSaved}
-        />
-      );
-    }
+    return (
+      <DebugMode
+        title={quizTitle}
+        quizId={selectedId}
+        questions={allQuestions}
+        onExit={handleExit}
+        onSaved={handleDebugSaved}
+      />
+    );
+  }
+
   // ---- Quiz mode ----
   if (view === "quiz" && quizQuestions.length > 0) {
     return <QuizMode title={quizTitle} questions={quizQuestions} onExit={handleExit} />;
@@ -190,7 +232,7 @@ export default function Apollo() {
     );
   }
 
-  // ---- Select view ----
+  // ---- Select view (module picker -> quiz list -> mode picker) ----
   const selected = quizzes.find((q) => q.id === selectedId);
 
   return (
@@ -207,24 +249,64 @@ export default function Apollo() {
         </div>
       ) : (
         <>
-          {!selectedId && (
+          {/* ── Module picker ── */}
+          {!selectedModule && (
             <div className="apollo-picker">
               <h2 className="apollo-title">Apollo</h2>
-              <p className="apollo-desc">Choose a quiz to study or test</p>
-              <div className="apollo-quiz-list">
-                {quizzes.map((q) => (
-                  <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.id)}>
-                    <span className="apollo-quiz-item-title">{q.title}</span>
-                    <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
+              <p className="apollo-desc">Choose a module</p>
+              <div className="apollo-module-list">
+                {[...modules.entries()].map(([name, info]) => (
+                  <button
+                    key={name}
+                    className="apollo-module-item"
+                    onClick={() => setSelectedModule(name)}
+                  >
+                    <span className="apollo-module-item-title">{formatModuleName(name)}</span>
+                    <span className="apollo-module-item-meta">
+                      {info.deckCount} deck{info.deckCount !== 1 ? "s" : ""} &middot; {info.questionCount} questions
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* ── Quiz list (within selected module) ── */}
+          {selectedModule && !selectedId && (
+            <div className="apollo-picker">
+              <button className="apollo-back" onClick={handleBackToModules}>
+                &#8249; All Modules
+              </button>
+              <h2 className="apollo-title">{formatModuleName(selectedModule)}</h2>
+              <p className="apollo-desc">Choose a deck to study or test</p>
+              <div className="apollo-quiz-list">
+                {moduleQuizzes.map((q) => (
+                  <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.id)}>
+                    <span className="apollo-quiz-item-title">{q.title}</span>
+                    <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Upload scoped to this module */}
+              <div className="apollo-upload-area">
+                <label className={`apollo-upload-btn ${uploading ? "apollo-upload-btn--busy" : ""}`}>
+                  {uploading ? "Processing..." : "Upload Quiz JSON"}
+                  <input ref={fileRef} type="file" accept=".json" onChange={handleUpload} disabled={uploading} hidden />
+                </label>
+                {uploadMsg && (
+                  <span className={`apollo-upload-msg ${uploadMsg.startsWith("Error") ? "apollo-upload-msg--error" : ""}`}>
+                    {uploadMsg}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Mode picker (after selecting a quiz) ── */}
           {selectedId && selected && (
             <div className="apollo-mode-select">
-              <button className="apollo-back" onClick={() => setSelectedId(null)}>
+              <button className="apollo-back" onClick={handleBackToQuizList}>
                 &#8249; Back
               </button>
               <div className="apollo-hero">
@@ -276,18 +358,6 @@ export default function Apollo() {
           )}
         </>
       )}
-
-      <div className="apollo-upload-area">
-        <label className={`apollo-upload-btn ${uploading ? "apollo-upload-btn--busy" : ""}`}>
-          {uploading ? "Processing..." : "Upload Quiz JSON"}
-          <input ref={fileRef} type="file" accept=".json" onChange={handleUpload} disabled={uploading} hidden />
-        </label>
-        {uploadMsg && (
-          <span className={`apollo-upload-msg ${uploadMsg.startsWith("Error") ? "apollo-upload-msg--error" : ""}`}>
-            {uploadMsg}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

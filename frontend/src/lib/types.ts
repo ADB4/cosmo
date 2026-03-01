@@ -38,9 +38,8 @@ export const MODE_INFO: Record<ModelMode, { label: string; description: string }
   "phi4-14b":  { label: "phi4:14b",         description: "14B, deep reasoning" },
   "qwen-7b":  { label: "qwen2.5-coder:7b",  description: "7B, best all-round" },
   "qwen-14b": { label: "qwen2.5-coder:14b", description: "14B, deep reasoning" },
-
-
 };
+
 /* ============================================================
    Apollo — Quiz / Study types
    ============================================================ */
@@ -92,6 +91,7 @@ export interface QuizSummary {
   id: string;
   title: string;
   scope: string;
+  module: string;
   total_questions: number;
   sections: { type: SectionType; count: number }[];
 }

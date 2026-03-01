@@ -1,0 +1,1176 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week3",
+      "title": "Week 3: The Relational Model",
+      "scope": "Relations, schemas, instances, keys, integrity constraints, ER-to-relational translation, physical data independence.",
+      "readings": [
+        "Ramakrishnan & Gehrke, Chapter 3"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "A relation is formally defined as a subset of the Cartesian product of its attribute domains.",
+              "answer": true,
+              "explanation": "By definition, a relation on domains D1, D2, \u2026, Dk is a subset of D1 \u00d7 D2 \u00d7 \u2026 \u00d7 Dk.",
+              "tags": [
+                "relations",
+                "definitions"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "Two tuples in the same relation instance can be identical \u2014 that is, they can agree on every attribute value.",
+              "answer": false,
+              "explanation": "A relation is a set of tuples. Sets do not contain duplicates, so no two tuples in the same relation instance can be identical.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "The order of tuples in a relation instance matters: the first tuple inserted is always the first tuple returned by a query.",
+              "answer": false,
+              "explanation": "Relations are sets and have no inherent ordering among tuples. The DBMS may return tuples in any order.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "The degree (arity) of a relation refers to the number of tuples in the current instance.",
+              "answer": false,
+              "explanation": "Degree (arity) is the number of attributes in the relation schema. The number of tuples is the cardinality of the relation instance.",
+              "tags": [
+                "relations",
+                "definitions"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "A relation schema describes the structure of a relation (name, attributes, domains), while a relation instance is the actual set of tuples at a point in time.",
+              "answer": true,
+              "explanation": "The schema is the structural description; the instance is the data that changes with modifications.",
+              "tags": [
+                "relations",
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The cardinality of a relation instance is the number of attributes in its schema.",
+              "answer": false,
+              "explanation": "Cardinality is the number of tuples. The number of attributes is the degree (arity).",
+              "tags": [
+                "relations",
+                "definitions"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "In the relational model, all information is represented as values stored in relations \u2014 there are no pointers or hidden links between records.",
+              "answer": true,
+              "explanation": "This is the information principle: all data is represented explicitly as attribute values in relations.",
+              "tags": [
+                "relational-model",
+                "information-principle"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "The relational model requires that every attribute domain contain only atomic (indivisible) values.",
+              "answer": true,
+              "explanation": "This is the atomicity requirement, also known as first normal form (1NF). Multi-valued and composite attributes must be restructured.",
+              "tags": [
+                "domains",
+                "1NF"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "A multi-valued attribute from an ER diagram can be directly represented as a single column in a relational schema.",
+              "answer": false,
+              "explanation": "The atomicity requirement prohibits multi-valued attributes. They must be restructured, typically into a separate relation.",
+              "tags": [
+                "domains",
+                "1NF",
+                "ER-translation"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "Null is a special value that belongs to every domain in the relational model.",
+              "answer": false,
+              "explanation": "Null is not a domain value \u2014 it is a marker indicating unknown or inapplicable. It can appear in any domain but is not a member of any domain.",
+              "tags": [
+                "null",
+                "domains"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "A superkey is any set of attributes that uniquely identifies tuples in at least one valid instance of the relation.",
+              "answer": false,
+              "explanation": "A superkey must uniquely identify tuples in every valid instance, not just one particular instance. The constraint is on the schema, not a snapshot.",
+              "tags": [
+                "keys",
+                "superkeys"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Every candidate key is a superkey, but not every superkey is a candidate key.",
+              "answer": true,
+              "explanation": "A candidate key is a minimal superkey. Every candidate key satisfies the superkey property, but superkeys with extra attributes are not candidate keys.",
+              "tags": [
+                "keys",
+                "candidate-keys"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "A relation can have at most one candidate key.",
+              "answer": false,
+              "explanation": "A relation can have multiple candidate keys. For example, a relation with both SSN and EmployeeID as unique identifiers has two candidate keys.",
+              "tags": [
+                "keys",
+                "candidate-keys"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "The primary key is always the smallest candidate key in terms of number of attributes.",
+              "answer": false,
+              "explanation": "The primary key is whichever candidate key the designer chooses. The choice may consider factors beyond size, such as stability and simplicity.",
+              "tags": [
+                "keys",
+                "primary-key"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "A candidate key is a superkey from which no attribute can be removed without losing the uniqueness guarantee.",
+              "answer": true,
+              "explanation": "This is the definition of minimality for candidate keys: removing any attribute destroys the uniqueness property.",
+              "tags": [
+                "keys",
+                "candidate-keys"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "Primary key attributes are allowed to contain null values.",
+              "answer": false,
+              "explanation": "Primary key attributes are implicitly NOT NULL. Null would make it impossible to uniquely identify a tuple.",
+              "tags": [
+                "keys",
+                "primary-key",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "A foreign key in one relation must always reference the primary key of another relation \u2014 it cannot reference a candidate key.",
+              "answer": false,
+              "explanation": "A foreign key can reference any candidate key (or the primary key) of the referenced relation, though referencing the primary key is most common.",
+              "tags": [
+                "foreign-keys",
+                "referential-integrity"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "The referential integrity constraint states that every non-null foreign key value must match an existing primary key value in the referenced relation.",
+              "answer": true,
+              "explanation": "This is the precise statement of referential integrity. Null foreign key values are permitted (if the column allows nulls) and do not violate the constraint.",
+              "tags": [
+                "foreign-keys",
+                "referential-integrity"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "A foreign key column can contain null values, provided the column is not also declared as NOT NULL.",
+              "answer": true,
+              "explanation": "A null foreign key value means the relationship is unknown or inapplicable. It does not violate referential integrity.",
+              "tags": [
+                "foreign-keys",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "If relation A has a foreign key referencing relation B, then B is the referencing relation and A is the referenced relation.",
+              "answer": false,
+              "explanation": "A is the referencing relation (it contains the foreign key), and B is the referenced relation (it contains the primary key being referenced).",
+              "tags": [
+                "foreign-keys",
+                "referential-integrity"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "Foreign keys arise naturally from the translation of relationship sets, weak entity sets, and ISA hierarchies in ER-to-relational mapping.",
+              "answer": true,
+              "explanation": "All three ER constructs introduce foreign keys when translated: relationship sets link entity tables, weak entities reference their owners, and ISA subclasses reference the superclass.",
+              "tags": [
+                "ER-translation",
+                "foreign-keys"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "When translating a many-to-many relationship set from an ER diagram, the relationship becomes a separate relation whose primary key is the combination of both participating entities' primary keys.",
+              "answer": true,
+              "explanation": "A many-to-many relationship set becomes its own relation, with foreign keys to both entity sets forming a composite primary key.",
+              "tags": [
+                "ER-translation",
+                "many-to-many"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "When translating a one-to-many relationship set, a separate relation is always created for the relationship.",
+              "answer": false,
+              "explanation": "For one-to-many relationships, the standard approach is to add the 'one' side's key as a foreign key in the 'many' side's relation, avoiding a separate table.",
+              "tags": [
+                "ER-translation",
+                "one-to-many"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "In translating a weak entity set, the weak entity's relation has a primary key composed of the owner's primary key and the weak entity's discriminator.",
+              "answer": true,
+              "explanation": "The weak entity cannot be uniquely identified by its own attributes alone; combining the owner's key with the discriminator forms the composite primary key.",
+              "tags": [
+                "ER-translation",
+                "weak-entities"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "Total participation of an entity set in a relationship translates to a NOT NULL constraint on the corresponding foreign key.",
+              "answer": true,
+              "explanation": "Total participation means every entity must participate, so the foreign key column cannot be null.",
+              "tags": [
+                "ER-translation",
+                "participation-constraints"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "Partial participation of an entity set in a relationship means the foreign key column must be declared NOT NULL.",
+              "answer": false,
+              "explanation": "Partial participation means some entities may not participate, so the foreign key must allow null values.",
+              "tags": [
+                "ER-translation",
+                "participation-constraints"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "There is exactly one correct way to translate an ISA hierarchy into relational schemas.",
+              "answer": false,
+              "explanation": "There are three standard approaches: one table per entity set, one table per leaf subclass, or a single table for the entire hierarchy. Each has different trade-offs.",
+              "tags": [
+                "ER-translation",
+                "ISA"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "In the single-table approach to ISA translation, subclass-specific attributes may contain null values for entities that do not belong to that subclass.",
+              "answer": true,
+              "explanation": "When all entities share one table, attributes specific to a subclass will be null for entities belonging to other subclasses.",
+              "tags": [
+                "ER-translation",
+                "ISA"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "Physical data independence means that changes to the logical schema do not affect the physical storage layer.",
+              "answer": false,
+              "explanation": "Physical data independence means changes to the physical storage (indexes, file organization) do not affect the logical schema or queries. The direction is reversed from what the statement claims.",
+              "tags": [
+                "data-independence"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "Physical data independence allows a DBA to add or remove indexes without modifying the SQL queries that applications use.",
+              "answer": true,
+              "explanation": "This is a direct consequence of physical data independence: the logical schema and queries are insulated from physical storage changes.",
+              "tags": [
+                "data-independence"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Logical data independence is achieved through views, which insulate applications from changes to the underlying base tables.",
+              "answer": true,
+              "explanation": "Views provide a layer of abstraction: if the base schema changes, views can be redefined to present the old structure to applications.",
+              "tags": [
+                "data-independence",
+                "views"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "In the relational model, the DBMS is responsible for choosing how to physically execute a query, not the programmer.",
+              "answer": true,
+              "explanation": "Physical data independence means the programmer specifies what data to retrieve (the logical query), and the DBMS decides how to execute it.",
+              "tags": [
+                "data-independence",
+                "query-optimization"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "A domain constraint restricts the values an attribute can take to a specific set defined by the attribute's domain.",
+              "answer": true,
+              "explanation": "Domain constraints ensure that every value stored in an attribute belongs to the declared domain for that attribute.",
+              "tags": [
+                "constraints",
+                "domain-constraints"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "If a modification to a relation would violate any declared integrity constraint, the DBMS allows the modification but logs a warning.",
+              "answer": false,
+              "explanation": "The DBMS rejects (rolls back) any modification that would violate a declared constraint. It does not allow violations to persist.",
+              "tags": [
+                "constraints",
+                "enforcement"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "Deleting a tuple from a referenced relation can never violate referential integrity.",
+              "answer": false,
+              "explanation": "Deleting a referenced tuple can violate referential integrity if other tuples in a referencing relation still point to it via foreign keys.",
+              "tags": [
+                "referential-integrity",
+                "modifications"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "Inserting a tuple into a referencing relation (one with a foreign key) can violate referential integrity if the foreign key value does not exist in the referenced relation.",
+              "answer": true,
+              "explanation": "The new foreign key value must match an existing primary key in the referenced relation, or the insert is rejected.",
+              "tags": [
+                "referential-integrity",
+                "modifications"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "A relational database schema consists of a single relation schema.",
+              "answer": false,
+              "explanation": "A relational database schema is a collection of relation schemas together with the integrity constraints that relate them.",
+              "tags": [
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "A database instance is the collection of relation instances that satisfy all declared constraints at a given point in time.",
+              "answer": true,
+              "explanation": "The database instance represents the actual data across all relations at a specific moment, subject to all constraints being satisfied.",
+              "tags": [
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "The relational model was developed after, and was inspired by, the hierarchical and network data models.",
+              "answer": true,
+              "explanation": "Codd proposed the relational model in 1970 as an alternative to the hierarchical and network models, emphasizing simplicity and mathematical rigor.",
+              "tags": [
+                "relational-model",
+                "history"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "In the hierarchical data model, relationships between records are represented using logical keys, just as in the relational model.",
+              "answer": false,
+              "explanation": "The hierarchical and network models used explicit pointers between records. The relational model replaced pointers with logical keys and foreign key references.",
+              "tags": [
+                "relational-model",
+                "history"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "A foreign key constraint is enforced within a single relation, while a primary key constraint spans multiple relations.",
+              "answer": false,
+              "explanation": "This is reversed: a primary key constraint is enforced within a single relation (ensuring uniqueness), while a foreign key constraint spans two relations (linking the referencing to the referenced relation).",
+              "tags": [
+                "constraints",
+                "keys"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "When translating a one-to-one relationship set, the foreign key can be placed in either participating relation's table.",
+              "answer": true,
+              "explanation": "For one-to-one relationships, the foreign key can go in either table. Total participation on one side may guide the choice.",
+              "tags": [
+                "ER-translation",
+                "one-to-one"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "The relational model supports three modification operations: insertion, deletion, and update.",
+              "answer": true,
+              "explanation": "These are the three fundamental data modification operations in the relational model.",
+              "tags": [
+                "modifications"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "An update operation on a relation can never violate a primary key constraint.",
+              "answer": false,
+              "explanation": "An update that changes a primary key value to one that already exists in the relation would violate the uniqueness aspect of the primary key constraint.",
+              "tags": [
+                "modifications",
+                "constraints"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "The attributes of a relation are ordered: the first attribute is always 'more important' than the last.",
+              "answer": false,
+              "explanation": "While schemas list attributes in a conventional order, there is no inherent ordering or importance ranking among attributes in the relational model.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "When translating a many-to-many relationship with descriptive attributes, those descriptive attributes are placed in the relationship's own relation.",
+              "answer": true,
+              "explanation": "Descriptive attributes belong to the relationship, not to either entity, so they go in the separate relation created for the many-to-many relationship.",
+              "tags": [
+                "ER-translation",
+                "many-to-many"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "The distinction between a relation schema and a relation instance is analogous to the distinction between a type and a variable in programming.",
+              "answer": true,
+              "explanation": "The schema defines the structure (like a type), while the instance holds the actual data (like a variable's value). The schema changes rarely; the instance changes with every modification.",
+              "tags": [
+                "relations",
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "Null values complicate query semantics because comparisons involving null behave differently from comparisons between non-null values.",
+              "answer": true,
+              "explanation": "Comparisons involving null yield UNKNOWN under three-valued logic, rather than TRUE or FALSE. This is explored formally in Week 6.",
+              "tags": [
+                "null"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "Define the terms 'relation schema' and 'relation instance' and explain how they differ.",
+              "model_answer": "A relation schema is the structural description of a relation: its name, the list of attributes, and the domain of each attribute. A relation instance is the actual set of tuples present in the relation at a given point in time. The schema changes rarely (only when the structure is altered), while the instance changes with every insert, update, or delete.",
+              "tags": [
+                "relations",
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "Explain why a relation is defined as a set and state two consequences of this definition.",
+              "model_answer": "A relation is a set of tuples, which means: (1) no two tuples in a relation instance can be identical (no duplicates), and (2) there is no inherent ordering among the tuples. The DBMS may return tuples in any order.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "What is the difference between a superkey and a candidate key?",
+              "model_answer": "A superkey is any set of attributes that uniquely identifies a tuple in every valid instance of the relation. A candidate key is a minimal superkey: removing any attribute from it would destroy the uniqueness guarantee. Every candidate key is a superkey, but a superkey with extra (unnecessary) attributes is not a candidate key.",
+              "tags": [
+                "keys"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "State the referential integrity constraint precisely. In your answer, identify which side is the 'referencing' relation and which is the 'referenced' relation.",
+              "model_answer": "The referential integrity constraint states that every non-null value in a foreign key column of the referencing relation must match an existing primary key (or candidate key) value in the referenced relation. The referencing relation contains the foreign key; the referenced relation contains the primary key being pointed to.",
+              "tags": [
+                "referential-integrity",
+                "foreign-keys"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Explain the atomicity requirement (first normal form) and give an example of an ER attribute that would violate it.",
+              "model_answer": "The atomicity requirement (1NF) states that every attribute domain must contain only atomic (indivisible) values. A multi-valued attribute from an ER model, such as an employee's 'PhoneNumbers' attribute that stores multiple phone numbers in a single field, would violate atomicity. It must be restructured \u2014 typically into a separate relation.",
+              "tags": [
+                "1NF",
+                "domains"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "Describe how a one-to-many relationship set from an ER diagram is translated into relational schemas. Where does the foreign key go?",
+              "model_answer": "For a one-to-many relationship, the primary key of the 'one' side entity is added as a foreign key in the 'many' side's existing relation. This avoids creating a separate table for the relationship. Any descriptive attributes of the relationship also move to the 'many' side's table. If participation is partial on the 'many' side, the foreign key column must allow nulls.",
+              "tags": [
+                "ER-translation",
+                "one-to-many"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "Explain why a weak entity set's relation has a composite primary key. What are its components?",
+              "model_answer": "A weak entity cannot be uniquely identified by its own attributes alone \u2014 it depends on an identifying owner entity. The composite primary key consists of the owner entity's primary key (included as a foreign key) combined with the weak entity's discriminator (partial key). Together, they uniquely identify each weak entity instance.",
+              "tags": [
+                "ER-translation",
+                "weak-entities"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "What is physical data independence, and why is it important for database systems?",
+              "model_answer": "Physical data independence is the separation between the logical schema (what the data looks like) and the physical storage (how data is stored on disk). It means that physical changes \u2014 such as adding indexes, changing file organizations, or migrating storage \u2014 can be made without modifying the logical schema or application queries. This enables query optimization by the DBMS and portability across systems.",
+              "tags": [
+                "data-independence"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "A relation Students has attributes {SID, Name, Email, Major}. SID is unique for every student, and Email is also unique. How many candidate keys does this relation have? List them.",
+              "model_answer": "There are two candidate keys: {SID} and {Email}. Both are minimal superkeys \u2014 each uniquely identifies a tuple, and neither has any attribute that can be removed. The designer would choose one (e.g., SID) as the primary key.",
+              "tags": [
+                "keys",
+                "candidate-keys"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "Explain the difference between a foreign key constraint and a primary key constraint. Which is enforced within a single relation, and which spans multiple relations?",
+              "model_answer": "A primary key constraint is enforced within a single relation: it ensures that no two tuples have the same primary key value and that primary key attributes are not null. A foreign key constraint spans two relations: it ensures that every non-null foreign key value in the referencing relation matches an existing primary key value in the referenced relation.",
+              "tags": [
+                "constraints",
+                "keys"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "Name and briefly describe the three standard approaches for translating an ISA hierarchy into relational schemas.",
+              "model_answer": "(1) One table per entity set: the superclass and each subclass get their own table, with subclass tables having a foreign key to the superclass. (2) One table per leaf subclass: only the leaf subclasses get tables, each inheriting all superclass attributes. (3) Single table: one table for the entire hierarchy, with null values for subclass-specific attributes that don't apply. Each approach trades off null usage, query complexity, and constraint enforcement.",
+              "tags": [
+                "ER-translation",
+                "ISA"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "How does total participation of entity set A in a relationship with entity set B translate into a constraint in the relational schema?",
+              "model_answer": "Total participation of A means every entity in A must participate in the relationship. This translates to a NOT NULL constraint on the foreign key column in A's table (or in the relationship table, depending on the translation). If participation were partial, the foreign key would allow nulls.",
+              "tags": [
+                "ER-translation",
+                "participation-constraints"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "Why can't an ER composite attribute be stored directly as a single column in the relational model?",
+              "model_answer": "The relational model requires first normal form (1NF), which mandates that all attribute domains are atomic \u2014 containing only indivisible values. A composite attribute (like an Address with Street, City, State sub-fields) is not atomic. It must be decomposed into separate atomic attributes, one per sub-field.",
+              "tags": [
+                "1NF",
+                "domains"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Give an example of an insertion, a deletion, and an update that would each violate a different integrity constraint.",
+              "model_answer": "Insertion violating referential integrity: inserting a tuple into an Enrollment table with a StudentID that doesn't exist in the Students table. Deletion violating referential integrity: deleting a student from Students when that student still has rows in Enrollment. Update violating primary key uniqueness: updating a student's SID to a value that already belongs to another student.",
+              "tags": [
+                "modifications",
+                "constraints"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "A relation has attributes {A, B, C, D}. The set {A, B} is a superkey. Is {A, B, C} necessarily also a superkey? Explain.",
+              "model_answer": "Yes. If {A, B} uniquely identifies every tuple, then adding any additional attributes (like C) cannot destroy that uniqueness \u2014 any two tuples that agree on A, B, and C must also agree on A and B, and therefore must be the same tuple. Any superset of a superkey is also a superkey.",
+              "tags": [
+                "keys",
+                "superkeys"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "Explain what it means for the relational model to have no 'hidden structures' and contrast this with the network data model.",
+              "model_answer": "In the relational model, all information is represented explicitly as attribute values in relations \u2014 there are no pointers, links, or path-based access structures. This is the information principle. In the network (and hierarchical) data models, relationships between records were represented using explicit physical pointers, creating hidden structural dependencies between records that the programmer had to navigate.",
+              "tags": [
+                "relational-model",
+                "information-principle",
+                "history"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "Which of the following is the correct definition of the degree (arity) of a relation?",
+              "options": [
+                "The number of tuples in the current instance",
+                "The number of candidate keys",
+                "The number of foreign keys",
+                "The number of attributes in the relation schema"
+              ],
+              "answer": 3,
+              "explanation": "Degree (arity) is the number of attributes. The number of tuples is the cardinality.",
+              "tags": [
+                "relations",
+                "definitions"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "A relation R has attributes {A, B, C}. Which of the following is true about the tuples in any instance of R?",
+              "options": [
+                "Tuples may contain duplicates if the values are the same",
+                "Tuples must be sorted by the primary key",
+                "No two tuples can agree on all three attributes simultaneously",
+                "Tuples are ordered by their insertion time"
+              ],
+              "answer": 2,
+              "explanation": "Relations are sets: no duplicate tuples are allowed. There is no inherent ordering.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "What does the atomicity requirement (first normal form) prohibit?",
+              "options": [
+                "Composite or multi-valued attributes in a relation",
+                "More than one candidate key per relation",
+                "Null values in any attribute",
+                "Relations with fewer than two attributes"
+              ],
+              "answer": 0,
+              "explanation": "1NF requires all domains to be atomic \u2014 no composite or multi-valued attributes.",
+              "tags": [
+                "1NF",
+                "domains"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "Relation Employees has attributes {EmpID, SSN, Name, Dept}. EmpID is unique and SSN is unique. How many candidate keys does Employees have?",
+              "options": [
+                "Two: {EmpID} and {SSN}",
+                "One: {EmpID, SSN}",
+                "One: {EmpID}",
+                "Three: {EmpID}, {SSN}, and {EmpID, SSN}"
+              ],
+              "answer": 0,
+              "explanation": "{EmpID} and {SSN} are each minimal superkeys (removing any attribute destroys uniqueness). {EmpID, SSN} is a superkey but not a candidate key because it is not minimal.",
+              "tags": [
+                "keys",
+                "candidate-keys"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "Which statement best distinguishes a superkey from a candidate key?",
+              "options": [
+                "A superkey can contain null values; a candidate key cannot",
+                "A candidate key is a minimal superkey \u2014 no attribute can be removed without losing uniqueness",
+                "A candidate key can span multiple relations; a superkey cannot",
+                "A superkey uniquely identifies tuples; a candidate key does not"
+              ],
+              "answer": 1,
+              "explanation": "The defining property of a candidate key is minimality: it is a superkey from which no attribute can be removed.",
+              "tags": [
+                "keys"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "The referential integrity constraint requires that:",
+              "options": [
+                "Every primary key value must appear as a foreign key value somewhere",
+                "Foreign keys must reference attributes with the same name in the referenced relation",
+                "Every non-null foreign key value must match an existing primary key value in the referenced relation",
+                "Foreign key columns must always be NOT NULL"
+              ],
+              "answer": 2,
+              "explanation": "Referential integrity constrains foreign key values to match existing primary key values (or be null).",
+              "tags": [
+                "referential-integrity"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "When translating a many-to-many relationship set R between entity sets A and B (with keys KA and KB), the primary key of the relation for R is:",
+              "options": [
+                "KA alone",
+                "The combination of KA and KB",
+                "A new surrogate key generated by the DBMS",
+                "KB alone"
+              ],
+              "answer": 1,
+              "explanation": "For a many-to-many relationship, the primary key of the relationship relation is the combination of both participating entities' keys.",
+              "tags": [
+                "ER-translation",
+                "many-to-many"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "In a one-to-many relationship from entity set A (the 'one' side) to entity set B (the 'many' side), the standard translation is to:",
+              "options": [
+                "Merge A and B into a single relation",
+                "Create a separate relation for the relationship",
+                "Add B's primary key as a foreign key in A's relation",
+                "Add A's primary key as a foreign key in B's relation"
+              ],
+              "answer": 3,
+              "explanation": "The 'one' side's key is added as a foreign key to the 'many' side's table. No separate relationship table is needed.",
+              "tags": [
+                "ER-translation",
+                "one-to-many"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "A weak entity set W is owned by entity set O with primary key K_O. W has discriminator D. What is the primary key of W's relation?",
+              "options": [
+                "The combination of K_O and D",
+                "D alone",
+                "K_O alone",
+                "A new auto-generated key"
+              ],
+              "answer": 0,
+              "explanation": "The weak entity's primary key is the composite of the owner's primary key and the weak entity's discriminator.",
+              "tags": [
+                "ER-translation",
+                "weak-entities"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "Total participation of entity set E in a relationship translates to which constraint on the foreign key in E's table?",
+              "options": [
+                "NOT NULL",
+                "PRIMARY KEY",
+                "CHECK (FK > 0)",
+                "UNIQUE"
+              ],
+              "answer": 0,
+              "explanation": "Total participation means every entity must participate, so the foreign key cannot be null.",
+              "tags": [
+                "ER-translation",
+                "participation-constraints"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "Which ISA translation approach may result in null values for subclass-specific attributes?",
+              "options": [
+                "A single table for the entire hierarchy",
+                "All three approaches produce nulls equally",
+                "One table per entity set in the hierarchy",
+                "One table per leaf subclass"
+              ],
+              "answer": 0,
+              "explanation": "The single-table approach stores all attributes in one table; subclass-specific attributes are null for entities not in that subclass.",
+              "tags": [
+                "ER-translation",
+                "ISA"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "Physical data independence means:",
+              "options": [
+                "Indexes are part of the logical schema",
+                "Application code determines how data is physically stored",
+                "The logical schema can change without affecting the physical storage",
+                "The physical schema can change without affecting the logical schema or queries"
+              ],
+              "answer": 3,
+              "explanation": "Physical data independence separates physical storage from the logical schema, allowing physical changes without query modifications.",
+              "tags": [
+                "data-independence"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "Which of the following is NOT a consequence of the relational model's use of set semantics for relations?",
+              "options": [
+                "Queries return results in primary key order by default",
+                "No inherent ordering among tuples",
+                "No duplicate tuples in a relation instance",
+                "The cardinality of a relation can change with insertions and deletions"
+              ],
+              "answer": 0,
+              "explanation": "Relations have no inherent ordering; the DBMS may return tuples in any order. Primary key order is not guaranteed.",
+              "tags": [
+                "relations",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "An insertion into relation R with a foreign key referencing relation S is rejected. What is the most likely reason?",
+              "options": [
+                "R already has too many tuples",
+                "The inserted tuple's primary key is null",
+                "The inserted tuple's foreign key value does not exist as a primary key in S",
+                "S has no tuples at all, and this is always an error"
+              ],
+              "answer": 2,
+              "explanation": "Referential integrity requires that non-null foreign key values match an existing primary key in the referenced relation.",
+              "tags": [
+                "referential-integrity",
+                "modifications"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "A deletion from relation S is rejected because of a foreign key constraint from relation R. What does this mean?",
+              "options": [
+                "R and S have the same schema",
+                "The deleted tuple in S has a null primary key",
+                "R has a tuple with a foreign key value that matches the deleted tuple's primary key",
+                "S has no primary key defined"
+              ],
+              "answer": 2,
+              "explanation": "Deleting a tuple from the referenced relation is rejected if referencing tuples in R still point to it.",
+              "tags": [
+                "referential-integrity",
+                "modifications"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "Which of the following best describes the role of null in the relational model?",
+              "options": [
+                "Null is a marker for unknown or inapplicable; it is not a domain value",
+                "Null is only allowed in foreign key columns",
+                "Null is a domain value that equals itself",
+                "Null represents the integer value zero"
+              ],
+              "answer": 0,
+              "explanation": "Null is a special marker, not a value. It indicates unknown or inapplicable information and can appear in any column not constrained as NOT NULL.",
+              "tags": [
+                "null"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "Relation R(A, B, C, D) has candidate keys {A} and {B, C}. Which of the following is a superkey but NOT a candidate key?",
+              "options": [
+                "{B, C}",
+                "{B}",
+                "{A, D}",
+                "{A}"
+              ],
+              "answer": 2,
+              "explanation": "{A, D} is a superkey (it contains candidate key {A}), but it is not minimal because removing D still leaves the superkey {A}.",
+              "tags": [
+                "keys",
+                "superkeys"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "In a one-to-one relationship between entity sets A and B where A has total participation, the preferred placement of the foreign key is:",
+              "options": [
+                "In B's table (foreign key referencing A), with NOT NULL",
+                "In a separate relationship table",
+                "In A's table (foreign key referencing B), with NOT NULL",
+                "It does not matter; both are equally preferred"
+              ],
+              "answer": 2,
+              "explanation": "Total participation of A means every A must participate, so placing the FK in A's table with NOT NULL enforces this constraint directly.",
+              "tags": [
+                "ER-translation",
+                "one-to-one",
+                "participation-constraints"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "Which of the following correctly describes the relationship between a database schema and a database instance?",
+              "options": [
+                "The schema is the structure and constraints; the instance is the data satisfying those constraints",
+                "The schema changes frequently; the instance is fixed",
+                "They are synonyms for the same concept",
+                "The schema is the data; the instance is the structure"
+              ],
+              "answer": 0,
+              "explanation": "The schema defines structure and constraints; the instance is the actual data at a point in time that satisfies those constraints.",
+              "tags": [
+                "schema-vs-instance"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "What problem does the information principle of the relational model solve?",
+              "options": [
+                "It ensures all data is represented as explicit values in relations, with no hidden pointers or links",
+                "It ensures all queries run in polynomial time",
+                "It prevents null values from appearing in any relation",
+                "It eliminates the need for physical storage"
+              ],
+              "answer": 0,
+              "explanation": "The information principle states that all information is represented as values in relations, eliminating hidden navigational structures.",
+              "tags": [
+                "relational-model",
+                "information-principle"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "An ER diagram has an entity set Student with a multi-valued attribute Hobbies. How should this be translated to the relational model?",
+              "options": [
+                "Add one column per possible hobby to the Student table",
+                "Multi-valued attributes cannot be represented in any relational schema",
+                "Store all hobbies as a comma-separated string in one column",
+                "Create a separate relation with columns (StudentID, Hobby), where StudentID is a foreign key"
+              ],
+              "answer": 3,
+              "explanation": "A separate relation is created, with each hobby as a separate tuple referencing the student. This satisfies the atomicity requirement.",
+              "tags": [
+                "ER-translation",
+                "1NF"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "Which constraint is implicitly enforced by declaring an attribute as part of a PRIMARY KEY?",
+              "options": [
+                "DEFAULT",
+                "NOT NULL and UNIQUE",
+                "CHECK (value > 0)",
+                "FOREIGN KEY"
+              ],
+              "answer": 1,
+              "explanation": "PRIMARY KEY implies both NOT NULL (no nulls allowed) and UNIQUE (no duplicate values).",
+              "tags": [
+                "constraints",
+                "primary-key"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "Logical data independence is primarily achieved through:",
+              "options": [
+                "Triggers",
+                "Views",
+                "Foreign keys",
+                "Indexes"
+              ],
+              "answer": 1,
+              "explanation": "Views insulate applications from changes to the logical schema by presenting a stable external interface.",
+              "tags": [
+                "data-independence",
+                "views"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "Which of the following is true about modifications in the relational model?",
+              "options": [
+                "Modifications never need to check constraints",
+                "Only insertions can violate constraints; deletions and updates cannot",
+                "Constraints are checked only at the end of a transaction, not per operation",
+                "Every modification must maintain all declared constraints or be rejected"
+              ],
+              "answer": 3,
+              "explanation": "Each modification (insert, delete, update) must maintain all constraints. Violating modifications are rejected.",
+              "tags": [
+                "modifications",
+                "constraints"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "Relation R has attributes {A, B, C, D, E}. If {A, B} is a candidate key, which of the following MUST also be a superkey?",
+              "options": [
+                "{C, D, E}",
+                "{B, C}",
+                "{A, B, C, D}",
+                "{A}"
+              ],
+              "answer": 2,
+              "explanation": "Any superset of a candidate key is a superkey. {A, B, C, D} contains {A, B} and is therefore a superkey.",
+              "tags": [
+                "keys",
+                "superkeys"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "What happens when a DBMS attempts to insert a tuple with a null primary key value?",
+              "options": [
+                "The null is treated as a valid key value",
+                "The DBMS generates a unique value automatically",
+                "The insert is rejected because primary keys cannot be null",
+                "The insert succeeds but the tuple cannot be queried"
+              ],
+              "answer": 2,
+              "explanation": "Primary key attributes are implicitly NOT NULL. Any attempt to insert a null primary key value is rejected.",
+              "tags": [
+                "constraints",
+                "primary-key",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "In the context of ER-to-relational translation, descriptive attributes of a one-to-many relationship are placed:",
+              "options": [
+                "In a separate relationship relation",
+                "They are discarded during translation",
+                "In the 'many' side entity's relation (along with the foreign key)",
+                "In the 'one' side entity's relation"
+              ],
+              "answer": 2,
+              "explanation": "For one-to-many relationships merged into the 'many' side's table, descriptive attributes also move to the 'many' side.",
+              "tags": [
+                "ER-translation",
+                "one-to-many"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "Which of the following describes the 'one table per leaf subclass' approach to ISA translation?",
+              "options": [
+                "The superclass table contains all attributes; subclass tables have only foreign keys",
+                "All entities are stored in a single table with type discriminator columns",
+                "Each entity in the hierarchy gets its own table, connected by foreign keys",
+                "Each leaf subclass gets a table containing both inherited and subclass-specific attributes; there is no superclass table"
+              ],
+              "answer": 3,
+              "explanation": "In the one-table-per-leaf approach, each leaf subclass table contains all inherited attributes plus its own specific attributes. There is no separate superclass table.",
+              "tags": [
+                "ER-translation",
+                "ISA"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "Which of the following is a valid reason for choosing one candidate key over another as the primary key?",
+              "options": [
+                "The chosen key should be stable (unlikely to change) and simple to use",
+                "The primary key must always have the fewest attributes",
+                "The candidate key with the most attributes is always preferred",
+                "The primary key must be an integer"
+              ],
+              "answer": 0,
+              "explanation": "Primary key choice is a design decision based on factors like stability, simplicity, and convention \u2014 not strict rules about size or data type.",
+              "tags": [
+                "keys",
+                "primary-key"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "A relation has schema R(StudentID, CourseID, Grade) with primary key {StudentID, CourseID}. A new tuple (101, 'EECS484', 'A') is inserted when (101, 'EECS484', 'B') already exists. What happens?",
+              "options": [
+                "The insert replaces the existing tuple",
+                "The insert is rejected due to primary key violation",
+                "The insert succeeds, creating a duplicate",
+                "The insert succeeds because the Grade values differ"
+              ],
+              "answer": 1,
+              "explanation": "The primary key {StudentID, CourseID} already has the values (101, 'EECS484'). Inserting another tuple with the same primary key violates uniqueness.",
+              "tags": [
+                "constraints",
+                "primary-key",
+                "modifications"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "Which of the following is NOT a property of the relational model that distinguishes it from the network data model?",
+              "options": [
+                "The logical schema is independent of the physical storage",
+                "All queries must be written in SQL",
+                "Data is represented as flat tables of atomic values",
+                "Relationships are captured through foreign keys, not physical pointers"
+              ],
+              "answer": 1,
+              "explanation": "SQL is a language for interacting with relational databases, but it is not a defining property of the relational model itself. The model predates standardized SQL.",
+              "tags": [
+                "relational-model",
+                "history"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "A relation Enrollment(StudentID, CourseID, Semester) has a foreign key StudentID referencing Students(StudentID). If the Students table is empty, which of the following is true?",
+              "options": [
+                "Enrollment can only contain tuples with null StudentID values (if allowed)",
+                "Enrollment can still contain tuples with non-null StudentID values",
+                "The foreign key constraint is automatically dropped",
+                "Enrollment must also be empty"
+              ],
+              "answer": 0,
+              "explanation": "With no students, any non-null StudentID in Enrollment would violate referential integrity. Only null values (if permitted) or no tuples at all are valid.",
+              "tags": [
+                "referential-integrity",
+                "foreign-keys"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "EECS 484 quiz format for database management systems study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

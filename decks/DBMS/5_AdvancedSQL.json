@@ -1,0 +1,1166 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week6",
+      "title": "Week 6: Advanced SQL \u2014 Complex Queries, Constraints, and Triggers",
+      "scope": "Null values and three-valued logic, outer joins (left, right, full), integrity constraints (NOT NULL, UNIQUE, PRIMARY KEY, CHECK, FOREIGN KEY with referential actions), assertions, triggers (event-condition-action, row-level vs. statement-level, BEFORE/AFTER), views (updatable views, materialized views).",
+      "readings": [
+        "Ramakrishnan & Gehrke, Chapter 5 (null values, outer joins, complex integrity constraints, triggers, views)"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "Null in SQL is a special value that belongs to every data type's domain.",
+              "answer": false,
+              "explanation": "Null is not a value \u2014 it is a marker for 'unknown' or 'inapplicable.' It can appear in any column (unless NOT NULL is declared) but is not a member of any domain.",
+              "tags": [
+                "null"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "In SQL's three-valued logic, any comparison involving null evaluates to UNKNOWN.",
+              "answer": true,
+              "explanation": "Comparing any value (including null itself) to null using =, <>, <, etc. yields UNKNOWN \u2014 the third truth value.",
+              "tags": [
+                "null",
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "Null is equal to null in SQL: the expression NULL = NULL evaluates to TRUE.",
+              "answer": false,
+              "explanation": "NULL = NULL evaluates to UNKNOWN, not TRUE. Null is not equal to anything, including itself.",
+              "tags": [
+                "null",
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "In three-valued logic, TRUE AND UNKNOWN evaluates to UNKNOWN.",
+              "answer": true,
+              "explanation": "UNKNOWN might be TRUE or FALSE. TRUE AND TRUE = TRUE, TRUE AND FALSE = FALSE, so the result is indeterminate: UNKNOWN.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "In three-valued logic, FALSE AND UNKNOWN evaluates to UNKNOWN.",
+              "answer": false,
+              "explanation": "FALSE AND anything is FALSE, regardless of the other operand. FALSE AND UNKNOWN = FALSE.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "In three-valued logic, TRUE OR UNKNOWN evaluates to TRUE.",
+              "answer": true,
+              "explanation": "TRUE OR anything is TRUE, regardless of the other operand.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "WHERE and HAVING pass rows where the predicate evaluates to either TRUE or UNKNOWN.",
+              "answer": false,
+              "explanation": "WHERE and HAVING only pass rows where the predicate is TRUE. Rows evaluating to UNKNOWN are filtered out, just like FALSE.",
+              "tags": [
+                "3VL",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "The query WHERE A <> 5 returns rows where A is null.",
+              "answer": false,
+              "explanation": "null <> 5 evaluates to UNKNOWN. WHERE rejects UNKNOWN, so rows with A = null are excluded.",
+              "tags": [
+                "null",
+                "3VL",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "IS NULL is the only correct way to test whether an attribute's value is null in SQL.",
+              "answer": true,
+              "explanation": "IS NULL always returns TRUE or FALSE. Using = NULL yields UNKNOWN and never works as intended.",
+              "tags": [
+                "null",
+                "IS-NULL"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "Aggregate functions like SUM, AVG, MIN, and MAX include null values in their computation.",
+              "answer": false,
+              "explanation": "Aggregate functions ignore nulls. They operate only on non-null values.",
+              "tags": [
+                "aggregation",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "COUNT(*) and COUNT(A) always return the same value for any table and column A.",
+              "answer": false,
+              "explanation": "COUNT(*) counts all rows. COUNT(A) counts only non-null values of A. They differ whenever A contains nulls.",
+              "tags": [
+                "COUNT",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "AVG ignores nulls, so AVG over {10, null, 20} returns 15.0, not 10.0.",
+              "answer": true,
+              "explanation": "AVG sums the non-null values (10+20=30) and divides by the count of non-null values (2), yielding 15.0.",
+              "tags": [
+                "AVG",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "An inner join preserves unmatched rows by padding them with null values.",
+              "answer": false,
+              "explanation": "Inner join discards unmatched rows. Outer joins preserve them by padding with nulls.",
+              "tags": [
+                "inner-join",
+                "outer-join"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "A LEFT OUTER JOIN retains all rows from the left table, padding unmatched rows with nulls for the right table's attributes.",
+              "answer": true,
+              "explanation": "LEFT OUTER JOIN keeps every row from the left operand; unmatched rows get nulls for all right-side attributes.",
+              "tags": [
+                "outer-join",
+                "LEFT"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "A FULL OUTER JOIN returns only the rows that have matches on both sides.",
+              "answer": false,
+              "explanation": "FULL OUTER JOIN returns all matches plus all unmatched rows from both sides (padded with nulls). That describes an inner join, not a full outer join.",
+              "tags": [
+                "outer-join",
+                "FULL"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "Placing a filter condition on the right table's attributes in WHERE (instead of ON) can convert a LEFT OUTER JOIN into an inner join.",
+              "answer": true,
+              "explanation": "A WHERE predicate on the right table evaluates to FALSE when those attributes are null (from padding), eliminating the padded rows.",
+              "tags": [
+                "outer-join",
+                "ON-vs-WHERE"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "The UNIQUE constraint allows multiple null values in the constrained column.",
+              "answer": true,
+              "explanation": "UNIQUE requires all non-null values to be distinct. Nulls are not considered equal to each other, so multiple nulls are permitted.",
+              "tags": [
+                "UNIQUE",
+                "constraints"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "PRIMARY KEY combines NOT NULL and UNIQUE: at most one primary key per table, but it may span multiple columns.",
+              "answer": true,
+              "explanation": "PRIMARY KEY = NOT NULL + UNIQUE. A table has at most one PK, but the PK can be a composite of multiple columns.",
+              "tags": [
+                "PRIMARY-KEY",
+                "constraints"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "A CHECK constraint that evaluates to UNKNOWN on a row causes the row to be rejected.",
+              "answer": false,
+              "explanation": "CHECK treats UNKNOWN as passing (not failing). A row is rejected only if CHECK evaluates to FALSE.",
+              "tags": [
+                "CHECK",
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "A FOREIGN KEY constraint requires that every non-null value in the foreign key column matches an existing value in the referenced primary key column.",
+              "answer": true,
+              "explanation": "This is referential integrity: FK values must either be null (if allowed) or match an existing PK value.",
+              "tags": [
+                "FOREIGN-KEY",
+                "referential-integrity"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "The referential action CASCADE on DELETE causes the DBMS to reject the deletion of a referenced row.",
+              "answer": false,
+              "explanation": "CASCADE propagates the deletion \u2014 it deletes the referencing rows, not rejects the operation. NO ACTION (the default) is what rejects.",
+              "tags": [
+                "CASCADE",
+                "referential-actions"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "The referential action SET NULL on DELETE sets the foreign key values to null when the referenced row is deleted.",
+              "answer": true,
+              "explanation": "SET NULL changes the FK column(s) to null, breaking the reference without deleting the referencing rows.",
+              "tags": [
+                "SET-NULL",
+                "referential-actions"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "CASCADE on DELETE can trigger a chain of deletions across multiple tables.",
+              "answer": true,
+              "explanation": "If table A cascades to B and B cascades to C, deleting a row in A can cause deletions in B and then C.",
+              "tags": [
+                "CASCADE",
+                "referential-actions"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "An ASSERTION in SQL can express a constraint that spans multiple tables, unlike a CHECK constraint.",
+              "answer": true,
+              "explanation": "CREATE ASSERTION defines a database-wide predicate. CHECK constraints (in standard SQL) only reference the current row.",
+              "tags": [
+                "ASSERTION",
+                "constraints"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "Most commercial DBMSs efficiently support assertions, making them the preferred mechanism for cross-table constraints.",
+              "answer": false,
+              "explanation": "Most DBMSs do not efficiently support assertions. Triggers are the practical alternative for cross-table invariants.",
+              "tags": [
+                "ASSERTION"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "A trigger is automatically executed by the DBMS in response to a specified event on a table.",
+              "answer": true,
+              "explanation": "Triggers follow the event-condition-action model: the DBMS fires them automatically when the specified event occurs.",
+              "tags": [
+                "triggers",
+                "ECA"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "A BEFORE trigger fires after the modification has been applied to the table.",
+              "answer": false,
+              "explanation": "A BEFORE trigger fires before the modification is written. AFTER triggers fire after the modification is applied.",
+              "tags": [
+                "triggers",
+                "BEFORE-AFTER"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "In a row-level trigger, NEW refers to the new version of the row (for INSERT and UPDATE) and OLD refers to the previous version (for UPDATE and DELETE).",
+              "answer": true,
+              "explanation": "NEW is available for INSERT/UPDATE; OLD is available for UPDATE/DELETE. They provide access to the row's state before and after the change.",
+              "tags": [
+                "triggers",
+                "NEW-OLD"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "NEW and OLD are available in statement-level triggers just as they are in row-level triggers.",
+              "answer": false,
+              "explanation": "NEW and OLD are only available in row-level triggers. Statement-level triggers use transition tables (REFERENCING NEW TABLE AS / OLD TABLE AS).",
+              "tags": [
+                "triggers",
+                "row-vs-statement"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "A statement-level trigger fires once per SQL statement, regardless of how many rows are affected.",
+              "answer": true,
+              "explanation": "Statement-level triggers fire once for the entire triggering statement, unlike row-level triggers that fire per modified row.",
+              "tags": [
+                "triggers",
+                "row-vs-statement"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Trigger cascading \u2014 where one trigger's action fires another trigger \u2014 cannot occur in SQL.",
+              "answer": false,
+              "explanation": "Trigger cascading can and does occur. A trigger's action may modify tables that have their own triggers, creating chains.",
+              "tags": [
+                "triggers",
+                "cascading"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "Declarative constraints (PRIMARY KEY, FOREIGN KEY, CHECK) should be preferred over triggers whenever they can express the required constraint.",
+              "answer": true,
+              "explanation": "Declarative constraints are simpler, more transparent, and easier to reason about than triggers. Triggers are for constraints that cannot be expressed declaratively.",
+              "tags": [
+                "triggers",
+                "constraints",
+                "best-practices"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "A view in SQL stores a physical copy of the query result that must be refreshed when base data changes.",
+              "answer": false,
+              "explanation": "A regular view stores only the query definition, not data. It is evaluated each time it is referenced. Materialized views store physical copies.",
+              "tags": [
+                "views"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "A view can only appear in the FROM clause of a query; it cannot be used in subqueries or joined with other tables.",
+              "answer": false,
+              "explanation": "Views can be used anywhere a base table can appear \u2014 in FROM, in subqueries, in joins, etc. They are fully interchangeable with base tables in SELECT statements.",
+              "tags": [
+                "views"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "All views are updatable \u2014 you can always INSERT, UPDATE, or DELETE through any view.",
+              "answer": false,
+              "explanation": "Only certain views are updatable. Views using DISTINCT, GROUP BY, aggregation, or multiple tables are generally not updatable.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "A view that selects from a single base table, includes the primary key, and uses no aggregation or DISTINCT is generally updatable.",
+              "answer": true,
+              "explanation": "These conditions allow the DBMS to unambiguously translate view modifications into base table operations.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "A materialized view stores the query result physically, trading storage space for faster read performance.",
+              "answer": true,
+              "explanation": "Materialized views precompute and store results, making reads faster at the cost of storage and refresh overhead.",
+              "tags": [
+                "materialized-views"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "Materialized views never need to be refreshed because they automatically stay in sync with base data.",
+              "answer": false,
+              "explanation": "Materialized views must be refreshed when base data changes \u2014 either immediately (on commit) or periodically (on demand). They can become stale.",
+              "tags": [
+                "materialized-views"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "Views provide logical data independence by insulating applications from changes to the base table schema.",
+              "answer": true,
+              "explanation": "If a base table is restructured, the view definition can be updated to present the same interface, shielding applications.",
+              "tags": [
+                "views",
+                "data-independence"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "Views can support access control by granting users SELECT access to a view without granting access to the underlying base tables.",
+              "answer": true,
+              "explanation": "A view can expose only certain columns or rows, and permissions can be granted on the view independently.",
+              "tags": [
+                "views",
+                "access-control"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "The expression NOT UNKNOWN evaluates to TRUE in SQL's three-valued logic.",
+              "answer": false,
+              "explanation": "NOT UNKNOWN = UNKNOWN. Negating UNKNOWN does not produce TRUE or FALSE.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "UNKNOWN OR UNKNOWN evaluates to TRUE in three-valued logic.",
+              "answer": false,
+              "explanation": "UNKNOWN OR UNKNOWN = UNKNOWN. Neither operand is TRUE, so the disjunction cannot be determined.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "A trigger can be used to maintain derived data, such as keeping a summary table up to date when base data changes.",
+              "answer": true,
+              "explanation": "This is a common use of triggers: automatically updating aggregated or denormalized data in response to base table modifications.",
+              "tags": [
+                "triggers",
+                "uses"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "The default referential action in SQL when a referenced row is deleted is CASCADE.",
+              "answer": false,
+              "explanation": "The default is NO ACTION, which rejects the deletion if referencing rows exist. CASCADE must be explicitly specified.",
+              "tags": [
+                "referential-actions",
+                "FOREIGN-KEY"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "A CHECK constraint in standard SQL can reference columns from other tables.",
+              "answer": false,
+              "explanation": "Standard SQL CHECK constraints can only reference columns in the current row of the current table. Cross-table checks require assertions or triggers.",
+              "tags": [
+                "CHECK",
+                "constraints"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "The view update problem arises because some views cannot unambiguously translate modifications into base table operations.",
+              "answer": true,
+              "explanation": "When a view involves joins, aggregation, or DISTINCT, the intended base table change may be ambiguous. This is a fundamental limitation.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "A BEFORE trigger can modify the incoming data before it is written to the table.",
+              "answer": true,
+              "explanation": "BEFORE triggers execute before the modification, allowing the trigger to change NEW values or reject the operation entirely.",
+              "tags": [
+                "triggers",
+                "BEFORE-AFTER"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "Null equals 0 in SQL \u2014 they are interchangeable in arithmetic expressions.",
+              "answer": false,
+              "explanation": "Null is not 0. Any arithmetic with null (e.g., null + 5) yields null, not 5. They are fundamentally different.",
+              "tags": [
+                "null"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "Evaluate the following predicate under three-valued logic and state whether a row with A = null and B = 3 passes the WHERE clause: WHERE A > 5 OR B = 3.",
+              "model_answer": "A > 5 evaluates to UNKNOWN (null > 5). B = 3 evaluates to TRUE. UNKNOWN OR TRUE = TRUE. The row passes the WHERE clause because the overall predicate is TRUE.",
+              "tags": [
+                "3VL",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "Explain why WHERE A <> 5 does not return rows where A is null. How would you modify the query to include those rows?",
+              "model_answer": "null <> 5 evaluates to UNKNOWN. WHERE only passes TRUE, so UNKNOWN is rejected. To include null rows: WHERE A <> 5 OR A IS NULL. This explicitly handles the null case with IS NULL, which returns TRUE for null values.",
+              "tags": [
+                "null",
+                "3VL",
+                "IS-NULL"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "Explain the difference between a LEFT OUTER JOIN and an inner join. When would you choose one over the other?",
+              "model_answer": "An inner join returns only rows with matches on both sides \u2014 unmatched rows are discarded. A LEFT OUTER JOIN returns all rows from the left table; unmatched left rows appear with nulls for the right table's columns. Use a left outer join when you need to preserve all left-side rows (e.g., list all customers even if they have no orders). Use an inner join when only matched pairs are meaningful.",
+              "tags": [
+                "outer-join",
+                "inner-join"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "Explain why placing a filter condition on the right table in WHERE (instead of ON) can convert a LEFT OUTER JOIN into an inner join.",
+              "model_answer": "In a LEFT OUTER JOIN, unmatched left rows are padded with nulls for right-table attributes. If WHERE contains a condition on a right-table attribute (e.g., WHERE S.status = 'active'), it evaluates to UNKNOWN on padded rows (since the right attributes are null). WHERE rejects UNKNOWN, eliminating the padded rows. The effect is the same as an inner join. Placing the condition in ON avoids this problem: ON filters before padding, so unmatched rows are still preserved.",
+              "tags": [
+                "outer-join",
+                "ON-vs-WHERE"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Describe the four referential actions available for FOREIGN KEY constraints in SQL and explain what each does when a referenced row is deleted.",
+              "model_answer": "NO ACTION (default): reject the deletion if any referencing rows exist. CASCADE: delete all referencing rows automatically. SET NULL: set the foreign key column(s) in referencing rows to null. SET DEFAULT: set the foreign key column(s) to their declared default value. Each handles the referential integrity violation differently, with NO ACTION being the safest default and CASCADE being the most dangerous (potential chain deletions).",
+              "tags": [
+                "referential-actions",
+                "FOREIGN-KEY"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "Explain the event-condition-action model of SQL triggers.",
+              "model_answer": "A trigger has three components: (1) Event \u2014 specifies what table operation activates the trigger (INSERT, UPDATE, or DELETE on a specific table), (2) Condition \u2014 an optional WHEN predicate that further restricts when the action executes, (3) Action \u2014 one or more SQL statements to execute when the event occurs and the condition is met. The trigger also has a timing (BEFORE or AFTER) and a granularity (FOR EACH ROW or FOR EACH STATEMENT).",
+              "tags": [
+                "triggers",
+                "ECA"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "Explain the difference between a row-level trigger and a statement-level trigger. When is NEW/OLD available?",
+              "model_answer": "A row-level trigger (FOR EACH ROW) fires once per modified row and has access to NEW (the new row state, for INSERT/UPDATE) and OLD (the old row state, for UPDATE/DELETE). A statement-level trigger (FOR EACH STATEMENT) fires once per triggering SQL statement regardless of row count. NEW/OLD are not available in statement-level triggers; they use transition tables instead (REFERENCING NEW TABLE AS / OLD TABLE AS).",
+              "tags": [
+                "triggers",
+                "row-vs-statement"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "What are the risks of using triggers extensively in a database system?",
+              "model_answer": "Key risks include: (1) Trigger cascading \u2014 one trigger can fire others, creating hard-to-predict chains or cycles. (2) Implicit behavior \u2014 a simple INSERT may silently cause additional modifications, rejections, or side effects in other tables. (3) Debugging difficulty \u2014 unexpected failures or behaviors are hard to trace because triggers operate behind the scenes. General guidance: use triggers only for enforcement and auditing; prefer declarative constraints whenever possible.",
+              "tags": [
+                "triggers",
+                "risks"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "What is a view, and how does it differ from a base table? Give three benefits of using views.",
+              "model_answer": "A view is a named query stored in the database catalog. Unlike a base table, a regular view does not store data \u2014 it is evaluated each time it is referenced. Three benefits: (1) Query simplification \u2014 encapsulate complex joins or aggregations behind a simple name. (2) Logical data independence \u2014 insulate applications from schema changes to base tables. (3) Access control \u2014 grant users access to a view without granting access to the underlying base tables.",
+              "tags": [
+                "views"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "Under what conditions is a view generally updatable? What makes a view non-updatable?",
+              "model_answer": "A view is generally updatable if it: selects from a single base table, includes the base table's primary key, and does not use DISTINCT, GROUP BY, HAVING, aggregation, or computed expressions that prevent tracing back to a unique base row. A view is non-updatable if it involves joins over multiple tables, aggregation, DISTINCT, or any construct that makes the base-table modification ambiguous.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "Explain the complete three-valued truth table for AND with all nine input combinations.",
+              "model_answer": "TRUE AND TRUE = TRUE. TRUE AND FALSE = FALSE. TRUE AND UNKNOWN = UNKNOWN. FALSE AND TRUE = FALSE. FALSE AND FALSE = FALSE. FALSE AND UNKNOWN = FALSE. UNKNOWN AND TRUE = UNKNOWN. UNKNOWN AND FALSE = FALSE. UNKNOWN AND UNKNOWN = UNKNOWN. The key insight: FALSE dominates (FALSE AND anything = FALSE); otherwise, UNKNOWN propagates.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "A CHECK constraint specifies CHECK (salary > 0). A row is inserted with salary = null. Is the row accepted or rejected? Why?",
+              "model_answer": "The row is accepted. The condition salary > 0 evaluates to UNKNOWN when salary is null. CHECK treats UNKNOWN as passing (not failing) \u2014 a row is rejected only when CHECK evaluates to FALSE. This means null values can bypass CHECK constraints.",
+              "tags": [
+                "CHECK",
+                "null",
+                "3VL"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "Explain the difference between a regular view and a materialized view. What is the trade-off?",
+              "model_answer": "A regular view stores only the query definition and is evaluated each time it is referenced \u2014 always up to date but may be slow for complex queries. A materialized view stores the query result physically \u2014 faster reads but requires refresh when base data changes (either immediately or periodically). The trade-off: materialized views exchange storage and refresh overhead for read performance, with the risk of staleness if refresh is deferred.",
+              "tags": [
+                "views",
+                "materialized-views"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Explain why A = NULL is always wrong in SQL and what to use instead.",
+              "model_answer": "A = NULL evaluates to UNKNOWN regardless of A's value \u2014 even if A is null, because NULL = NULL is UNKNOWN, not TRUE. This means the condition never passes in WHERE. Use IS NULL instead: A IS NULL returns TRUE when A is null and FALSE otherwise, always producing a definitive Boolean result.",
+              "tags": [
+                "null",
+                "IS-NULL"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "Write a row-level AFTER INSERT trigger on a table Orders that inserts a log entry into AuditLog with the new order's id and the current timestamp.",
+              "model_answer": "CREATE TRIGGER log_new_order AFTER INSERT ON Orders FOR EACH ROW INSERT INTO AuditLog (order_id, log_time) VALUES (NEW.id, CURRENT_TIMESTAMP); This trigger fires after each row inserted into Orders, using NEW.id to access the inserted row's id and CURRENT_TIMESTAMP for the current time.",
+              "tags": [
+                "triggers",
+                "AFTER",
+                "NEW"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "A table has FOREIGN KEY (dept_id) REFERENCES Departments(id) ON DELETE CASCADE. What happens when a department is deleted?",
+              "model_answer": "All rows in the referencing table whose dept_id matches the deleted department's id are automatically deleted. If those rows are themselves referenced by other tables with CASCADE, the deletions propagate further. This chain can span multiple tables, which is why CASCADE must be used with caution.",
+              "tags": [
+                "CASCADE",
+                "referential-actions"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What does NULL = NULL evaluate to in SQL?",
+              "options": [
+                "TRUE",
+                "UNKNOWN",
+                "Error",
+                "FALSE"
+              ],
+              "answer": 1,
+              "explanation": "Any comparison with NULL yields UNKNOWN \u2014 even comparing NULL to itself.",
+              "tags": [
+                "null",
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "What does FALSE AND UNKNOWN evaluate to in three-valued logic?",
+              "options": [
+                "FALSE",
+                "Error",
+                "TRUE",
+                "UNKNOWN"
+              ],
+              "answer": 0,
+              "explanation": "FALSE AND anything = FALSE. FALSE dominates in AND.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "What does TRUE OR UNKNOWN evaluate to?",
+              "options": [
+                "UNKNOWN",
+                "NULL",
+                "TRUE",
+                "FALSE"
+              ],
+              "answer": 2,
+              "explanation": "TRUE OR anything = TRUE. TRUE dominates in OR.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "Which rows does WHERE A <> 5 return?",
+              "options": [
+                "Rows where A is not 5, including rows where A is null",
+                "Rows where A is not 5, excluding rows where A is null",
+                "Only rows where A is null",
+                "All rows"
+              ],
+              "answer": 1,
+              "explanation": "null <> 5 = UNKNOWN, which WHERE rejects. Only rows with non-null A values different from 5 pass.",
+              "tags": [
+                "null",
+                "3VL",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "What is the correct way to test for null in SQL?",
+              "options": [
+                "WHERE A == NULL",
+                "WHERE A = NULL",
+                "WHERE A EQUALS NULL",
+                "WHERE A IS NULL"
+              ],
+              "answer": 3,
+              "explanation": "IS NULL is the only correct test. A = NULL yields UNKNOWN and never works.",
+              "tags": [
+                "IS-NULL",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "AVG over the values {10, null, 20} returns:",
+              "options": [
+                "30.0",
+                "null",
+                "15.0",
+                "10.0"
+              ],
+              "answer": 2,
+              "explanation": "AVG ignores null. Sum = 30, count = 2, result = 15.0.",
+              "tags": [
+                "AVG",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "If a group contains only nulls for column A, what does COUNT(A) return?",
+              "options": [
+                "The number of rows in the group",
+                "null",
+                "0",
+                "Error"
+              ],
+              "answer": 2,
+              "explanation": "COUNT(A) counts non-null values. With all nulls, there are zero non-null values, so it returns 0.",
+              "tags": [
+                "COUNT",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "Which outer join retains all rows from the left table?",
+              "options": [
+                "CROSS JOIN",
+                "RIGHT OUTER JOIN",
+                "FULL OUTER JOIN",
+                "LEFT OUTER JOIN"
+              ],
+              "answer": 3,
+              "explanation": "LEFT OUTER JOIN preserves all left-table rows, padding unmatched ones with nulls for right-table attributes.",
+              "tags": [
+                "outer-join",
+                "LEFT"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "What happens when you place a filter on the right table's attributes in WHERE instead of ON in a LEFT OUTER JOIN?",
+              "options": [
+                "The outer join effectively becomes an inner join",
+                "Only the padded rows are returned",
+                "Nothing \u2014 WHERE and ON are interchangeable",
+                "The query produces a syntax error"
+              ],
+              "answer": 0,
+              "explanation": "WHERE evaluates padded nulls as UNKNOWN and rejects them, eliminating unmatched rows and collapsing to an inner join.",
+              "tags": [
+                "outer-join",
+                "ON-vs-WHERE"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "Which constraint allows multiple null values in a column?",
+              "options": [
+                "CHECK",
+                "PRIMARY KEY",
+                "UNIQUE",
+                "NOT NULL"
+              ],
+              "answer": 2,
+              "explanation": "UNIQUE requires distinct non-null values but permits multiple nulls (nulls are not considered equal).",
+              "tags": [
+                "UNIQUE",
+                "constraints"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "A CHECK constraint evaluates to UNKNOWN on a row. What happens?",
+              "options": [
+                "The row is rejected",
+                "The constraint is disabled for that row",
+                "Error",
+                "The row is accepted \u2014 UNKNOWN is treated as passing"
+              ],
+              "answer": 3,
+              "explanation": "CHECK rejects only FALSE. UNKNOWN is treated as passing, so the row is accepted.",
+              "tags": [
+                "CHECK",
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "What is the default referential action when a referenced row is deleted?",
+              "options": [
+                "NO ACTION",
+                "SET NULL",
+                "CASCADE",
+                "SET DEFAULT"
+              ],
+              "answer": 0,
+              "explanation": "The default is NO ACTION: the DBMS rejects the deletion if any referencing rows exist.",
+              "tags": [
+                "referential-actions"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "What does ON DELETE CASCADE do?",
+              "options": [
+                "Rejects the deletion if referencing rows exist",
+                "Sets the foreign key to null",
+                "Logs the deletion and continues",
+                "Deletes the referencing rows automatically"
+              ],
+              "answer": 3,
+              "explanation": "CASCADE propagates the deletion by automatically deleting all rows that reference the deleted row.",
+              "tags": [
+                "CASCADE"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "Why are assertions rarely used in practice?",
+              "options": [
+                "They have been removed from the SQL standard",
+                "Most DBMSs do not support them efficiently",
+                "They cannot express cross-table constraints",
+                "They are less powerful than CHECK constraints"
+              ],
+              "answer": 1,
+              "explanation": "Assertions are theoretically powerful but most commercial DBMSs lack efficient support. Triggers are used instead.",
+              "tags": [
+                "ASSERTION"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Which trigger timing allows modification of the incoming data before it is written?",
+              "options": [
+                "FOR EACH STATEMENT",
+                "INSTEAD OF",
+                "BEFORE",
+                "AFTER"
+              ],
+              "answer": 2,
+              "explanation": "BEFORE triggers fire before the modification is applied, allowing the trigger to change NEW values or reject the operation.",
+              "tags": [
+                "triggers",
+                "BEFORE-AFTER"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "In a row-level trigger, which reference provides access to the newly inserted row's values?",
+              "options": [
+                "THIS",
+                "CURRENT",
+                "OLD",
+                "NEW"
+              ],
+              "answer": 3,
+              "explanation": "NEW refers to the new row state in INSERT and UPDATE triggers. OLD refers to the previous state.",
+              "tags": [
+                "triggers",
+                "NEW-OLD"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "Which of the following is a valid use of triggers?",
+              "options": [
+                "Performing all query optimization",
+                "Enforcing cross-table constraints that CHECK cannot express",
+                "Defining relation schemas",
+                "Replacing all application logic with database triggers"
+              ],
+              "answer": 1,
+              "explanation": "Triggers are appropriate for enforcing constraints beyond what declarative mechanisms support, and for auditing.",
+              "tags": [
+                "triggers",
+                "uses"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "A view is:",
+              "options": [
+                "A physical copy of a table stored on disk",
+                "A named query stored in the database catalog",
+                "A temporary table that exists only during a session",
+                "An index on a base table"
+              ],
+              "answer": 1,
+              "explanation": "A view is a stored query definition \u2014 it does not store data unless materialized.",
+              "tags": [
+                "views"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "Which of the following makes a view generally NOT updatable?",
+              "options": [
+                "Using DISTINCT or GROUP BY",
+                "Including the primary key in the view",
+                "Having a WHERE clause",
+                "Selecting from a single base table"
+              ],
+              "answer": 0,
+              "explanation": "DISTINCT, GROUP BY, aggregation, and multi-table joins prevent the DBMS from unambiguously mapping view modifications to base table operations.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "What is the main trade-off of materialized views?",
+              "options": [
+                "Faster reads at the cost of storage and refresh overhead",
+                "They cannot be queried like regular tables",
+                "They are always out of date",
+                "They do not support joins"
+              ],
+              "answer": 0,
+              "explanation": "Materialized views precompute results for fast reads, but require storage and must be refreshed when base data changes.",
+              "tags": [
+                "materialized-views"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "What does NOT UNKNOWN evaluate to?",
+              "options": [
+                "UNKNOWN",
+                "NULL",
+                "FALSE",
+                "TRUE"
+              ],
+              "answer": 0,
+              "explanation": "NOT UNKNOWN = UNKNOWN. Negation does not resolve the indeterminacy.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "UNKNOWN AND UNKNOWN evaluates to:",
+              "options": [
+                "UNKNOWN",
+                "NULL",
+                "FALSE",
+                "TRUE"
+              ],
+              "answer": 0,
+              "explanation": "Neither operand is FALSE (which would dominate), so the result remains UNKNOWN.",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "Which benefit does a view NOT directly provide?",
+              "options": [
+                "Access control",
+                "Logical data independence",
+                "Query simplification",
+                "Faster query execution (for regular non-materialized views)"
+              ],
+              "answer": 3,
+              "explanation": "Regular views do not improve performance \u2014 they are re-evaluated each time. Only materialized views provide a speed benefit.",
+              "tags": [
+                "views"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "A table has FOREIGN KEY (mgr_id) REFERENCES Employees(id) ON DELETE SET NULL. If an employee who is a manager is deleted, what happens to rows referencing them?",
+              "options": [
+                "Those rows have mgr_id set to the default value",
+                "The deletion is rejected",
+                "Those rows have mgr_id set to null",
+                "Those rows are deleted"
+              ],
+              "answer": 2,
+              "explanation": "SET NULL changes the FK column to null in all referencing rows when the referenced row is deleted.",
+              "tags": [
+                "SET-NULL",
+                "referential-actions"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "Which of the following correctly evaluates FALSE OR UNKNOWN?",
+              "options": [
+                "FALSE",
+                "Error",
+                "TRUE",
+                "UNKNOWN"
+              ],
+              "answer": 3,
+              "explanation": "FALSE OR UNKNOWN = UNKNOWN. FALSE does not dominate in OR (only TRUE dominates).",
+              "tags": [
+                "3VL"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "A BEFORE INSERT trigger can:",
+              "options": [
+                "Access the OLD row values",
+                "Modify the NEW row values before they are written",
+                "Fire after the insert completes",
+                "Only read the new row but not modify it"
+              ],
+              "answer": 1,
+              "explanation": "BEFORE triggers execute before the modification, allowing changes to NEW. OLD is not available for INSERT (there is no previous row).",
+              "tags": [
+                "triggers",
+                "BEFORE-AFTER"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "Statement-level triggers access sets of affected rows through:",
+              "options": [
+                "The CURRENT_ROW keyword",
+                "Transition tables (REFERENCING NEW TABLE AS / OLD TABLE AS)",
+                "The NEW and OLD row references",
+                "They cannot access affected rows at all"
+              ],
+              "answer": 1,
+              "explanation": "Statement-level triggers do not have per-row NEW/OLD. They use transition tables to see the complete set of affected rows.",
+              "tags": [
+                "triggers",
+                "row-vs-statement"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "The view update problem is:",
+              "options": [
+                "Some views cannot support modifications because the base table change is ambiguous",
+                "Views are too slow to update",
+                "Views cannot be dropped once created",
+                "Only administrators can update views"
+              ],
+              "answer": 0,
+              "explanation": "When a view involves joins, aggregation, or DISTINCT, the DBMS cannot determine the correct base table modification.",
+              "tags": [
+                "views",
+                "updatable-views"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "What does the UNIQUE constraint allow that PRIMARY KEY does not?",
+              "options": [
+                "Multiple constraints per table",
+                "Foreign key references",
+                "Composite keys",
+                "Null values in the constrained column"
+              ],
+              "answer": 3,
+              "explanation": "UNIQUE allows multiple nulls. PRIMARY KEY implies NOT NULL, prohibiting any nulls.",
+              "tags": [
+                "UNIQUE",
+                "PRIMARY-KEY",
+                "constraints"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "If SUM(salary) is applied to a group where all salary values are null, what is returned?",
+              "options": [
+                "null",
+                "Error",
+                "0",
+                "The count of rows"
+              ],
+              "answer": 0,
+              "explanation": "SUM ignores nulls. With nothing to sum, the result is null, not 0.",
+              "tags": [
+                "SUM",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "A trigger that logs every deletion from a table for auditing purposes should use:",
+              "options": [
+                "An AFTER DELETE trigger that reads OLD",
+                "A BEFORE INSERT trigger",
+                "A BEFORE DELETE trigger that reads NEW",
+                "A statement-level SELECT trigger"
+              ],
+              "answer": 0,
+              "explanation": "AFTER DELETE with OLD captures the deleted row's values for logging. NEW is not available for DELETE. AFTER ensures the deletion actually occurred.",
+              "tags": [
+                "triggers",
+                "AFTER",
+                "OLD"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "Which of the following is NULL IS NULL?",
+              "options": [
+                "Error",
+                "TRUE",
+                "FALSE",
+                "UNKNOWN"
+              ],
+              "answer": 1,
+              "explanation": "IS NULL always returns TRUE or FALSE. NULL IS NULL evaluates to TRUE because the value is indeed null.",
+              "tags": [
+                "IS-NULL",
+                "null"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "JSON quiz format for EECS 484 study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

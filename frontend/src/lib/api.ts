@@ -45,6 +45,13 @@ export async function clearHistory(): Promise<void> {
   await fetch(`${BASE}/history/clear`, { method: "POST" });
 }
 
+export async function fetchModules(): Promise<string[]> {
+  const res = await fetch(`${BASE}/modules`);
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.modules;
+}
+
 export async function fetchQuizzes(): Promise<QuizSummary[]> {
   const res = await fetch(`${BASE}/quizzes`);
   if (!res.ok) throw new Error(await res.text());
@@ -67,10 +74,14 @@ export async function fetchQuiz(quizId: string): Promise<Quiz> {
 
 export async function ingestQuiz(
   file: File,
-): Promise<{ status: string; filename: string; quiz_ids: string[]; total_questions: number }> {
+  module: string,
+): Promise<{ status: string; filename: string; module: string; quiz_ids: string[]; total_questions: number }> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${BASE}/quizzes/ingest`, { method: "POST", body: form });
+  const res = await fetch(`${BASE}/quizzes/ingest?module=${encodeURIComponent(module)}`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? "Upload failed");
@@ -80,8 +91,9 @@ export async function ingestQuiz(
 
 export async function ingestQuizPath(
   path: string,
-): Promise<{ status: string; filename: string; quiz_ids: string[]; total_questions: number }> {
-  const res = await fetch(`${BASE}/quizzes/ingest`, {
+  module: string,
+): Promise<{ status: string; filename: string; module: string; quiz_ids: string[]; total_questions: number }> {
+  const res = await fetch(`${BASE}/quizzes/ingest?module=${encodeURIComponent(module)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path }),
@@ -126,6 +138,7 @@ export async function deleteQuestions(
   }
   return res.json();
 }
+
 /**
  * Send a question and receive streamed tokens via SSE.
  *

@@ -1,0 +1,1183 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week5-6",
+      "title": "Weeks 5\u20136: SQL \u2014 Basic and Intermediate Queries",
+      "scope": "SELECT-FROM-WHERE, conceptual evaluation order, set operations, nested queries (IN, NOT IN, EXISTS, NOT EXISTS, ANY, ALL), aggregation (COUNT, SUM, AVG, MIN, MAX), GROUP BY, HAVING, ORDER BY, bag vs. set semantics.",
+      "readings": [
+        "Ramakrishnan & Gehrke, Chapter 5 (through nested queries and aggregation)"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "SQL is a declarative language: the programmer specifies what result is desired, and the DBMS determines how to compute it.",
+              "answer": true,
+              "explanation": "SQL describes the desired result. The DBMS's query optimizer chooses the execution strategy.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "SQL is directly inspired by relational algebra, not relational calculus.",
+              "answer": false,
+              "explanation": "SQL is inspired by relational calculus (specifically TRC). Its SELECT-FROM-WHERE structure mirrors the declarative style of the calculus, not the procedural style of algebra.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "By default, SQL uses set semantics: duplicate rows are automatically eliminated from query results.",
+              "answer": false,
+              "explanation": "SQL uses bag semantics by default \u2014 duplicates are retained. You must use DISTINCT to force set semantics.",
+              "tags": [
+                "bag-semantics"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "The DISTINCT keyword forces the elimination of duplicate rows from a query result.",
+              "answer": true,
+              "explanation": "DISTINCT converts SQL's default bag semantics to set semantics by removing duplicate rows.",
+              "tags": [
+                "DISTINCT",
+                "bag-semantics"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "Listing multiple tables in the FROM clause computes their union, not their cross-product.",
+              "answer": false,
+              "explanation": "FROM computes the cross-product (Cartesian product) of listed tables, not their union. Union requires UNION.",
+              "tags": [
+                "FROM",
+                "cross-product"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "Table aliases are optional in all SQL queries, even when the same table appears more than once in FROM.",
+              "answer": false,
+              "explanation": "Aliases are required when the same table appears multiple times in FROM (self-join) to distinguish the two references.",
+              "tags": [
+                "aliases",
+                "self-join"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "The conceptual evaluation order of a SQL query begins with SELECT, then FROM, then WHERE.",
+              "answer": false,
+              "explanation": "The conceptual order is FROM \u2192 WHERE \u2192 GROUP BY \u2192 HAVING \u2192 SELECT \u2192 DISTINCT \u2192 ORDER BY. SELECT is evaluated near the end, not first.",
+              "tags": [
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "In the conceptual evaluation order, WHERE is evaluated before GROUP BY.",
+              "answer": true,
+              "explanation": "WHERE filters individual rows (step 2), and GROUP BY partitions the survivors into groups (step 3).",
+              "tags": [
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "The WHERE clause can contain aggregate functions like COUNT(*) > 5.",
+              "answer": false,
+              "explanation": "Aggregate functions cannot appear in WHERE. WHERE filters individual rows before groups exist. Aggregate conditions belong in HAVING.",
+              "tags": [
+                "WHERE",
+                "HAVING",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "HAVING filters groups after aggregation, while WHERE filters individual rows before aggregation.",
+              "answer": true,
+              "explanation": "This is the fundamental distinction: WHERE runs at step 2 (before grouping), HAVING at step 4 (after grouping).",
+              "tags": [
+                "WHERE",
+                "HAVING"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "ORDER BY is part of the relational model and guarantees a deterministic tuple ordering.",
+              "answer": false,
+              "explanation": "Ordering is not part of the relational model (relations are unordered sets). ORDER BY is a presentation-layer operation.",
+              "tags": [
+                "ORDER-BY"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Without an ORDER BY clause, the DBMS may return rows in any order, and different executions of the same query may produce different orderings.",
+              "answer": true,
+              "explanation": "Without ORDER BY, the result order is undefined. Do not assume any default ordering.",
+              "tags": [
+                "ORDER-BY"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "SELECT * returns all attributes from all tables listed in FROM.",
+              "answer": true,
+              "explanation": "The * is a wildcard that expands to every attribute of the cross-product produced by FROM.",
+              "tags": [
+                "SELECT"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "Column aliases defined with AS in SELECT can be referenced in the WHERE clause of the same query.",
+              "answer": false,
+              "explanation": "In the conceptual evaluation order, WHERE (step 2) is evaluated before SELECT (step 5), so aliases defined in SELECT are not yet available in WHERE.",
+              "tags": [
+                "aliases",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "The LIKE predicate uses * to match any sequence of characters and ? to match a single character.",
+              "answer": false,
+              "explanation": "SQL uses % for any sequence and _ for a single character. The * and ? wildcards are from file-system glob patterns, not SQL.",
+              "tags": [
+                "LIKE",
+                "predicates"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "The BETWEEN predicate is exclusive: BETWEEN 5 AND 10 does not include the values 5 and 10 themselves.",
+              "answer": false,
+              "explanation": "BETWEEN is inclusive: A BETWEEN 5 AND 10 is equivalent to A >= 5 AND A <= 10, including both endpoints.",
+              "tags": [
+                "BETWEEN",
+                "predicates"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "UNION, INTERSECT, and EXCEPT in SQL correspond to \u222a, \u2229, and \u2212 in relational algebra.",
+              "answer": true,
+              "explanation": "These SQL set operations directly mirror their algebraic counterparts.",
+              "tags": [
+                "set-operations"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "By default, SQL's UNION eliminates duplicates, but UNION ALL retains them.",
+              "answer": true,
+              "explanation": "UNION uses set semantics (deduplication). The ALL modifier switches to bag semantics (no deduplication).",
+              "tags": [
+                "set-operations",
+                "UNION"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "UNION ALL is generally slower than UNION because it must check for and handle duplicates.",
+              "answer": false,
+              "explanation": "UNION ALL is faster because it skips the deduplication step. UNION is slower due to the overhead of removing duplicates.",
+              "tags": [
+                "set-operations",
+                "UNION"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "The two subqueries in a UNION must return the same number of columns with compatible data types.",
+              "answer": true,
+              "explanation": "This is the union-compatibility requirement, matching the algebraic requirement for union.",
+              "tags": [
+                "set-operations",
+                "union-compatibility"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "A subquery used with IN returns a single value that the outer query compares against.",
+              "answer": false,
+              "explanation": "A subquery with IN returns a set (or bag) of values. IN tests whether the outer value appears anywhere in that set.",
+              "tags": [
+                "IN",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "NOT IN behaves correctly and predictably even when the subquery result contains null values.",
+              "answer": false,
+              "explanation": "NOT IN with nulls in the subquery is a notorious pitfall. If any value is null, every NOT IN comparison yields UNKNOWN, causing the entire predicate to fail for all rows.",
+              "tags": [
+                "NOT-IN",
+                "null",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "EXISTS returns TRUE if the subquery produces at least one row, regardless of what values those rows contain.",
+              "answer": true,
+              "explanation": "EXISTS tests for row existence only \u2014 it does not examine the actual values in the subquery result.",
+              "tags": [
+                "EXISTS",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "A correlated subquery references attributes from the outer query and is conceptually re-evaluated for each outer row.",
+              "answer": true,
+              "explanation": "The correlation (reference to the outer query) means the subquery's result can change for each outer tuple.",
+              "tags": [
+                "correlated-subqueries"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "EXISTS and NOT EXISTS are affected by null values in the same way that IN and NOT IN are.",
+              "answer": false,
+              "explanation": "EXISTS/NOT EXISTS test for row existence, not value equality, so they are not affected by nulls. This makes them safer than IN/NOT IN when nulls may be present.",
+              "tags": [
+                "EXISTS",
+                "NOT-IN",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "The expression v > ALL (subquery) returns TRUE if v is greater than at least one value in the subquery result.",
+              "answer": false,
+              "explanation": "v > ALL requires v to be greater than EVERY value in the subquery. 'At least one' is the semantics of ANY, not ALL.",
+              "tags": [
+                "ALL",
+                "ANY",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "If the subquery result is empty, v > ALL (subquery) returns TRUE due to vacuous truth.",
+              "answer": true,
+              "explanation": "With no values to violate the condition, ALL is vacuously satisfied. An empty set means the condition holds for every element (of which there are none).",
+              "tags": [
+                "ALL",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "If the subquery result is empty, v > ANY (subquery) returns TRUE.",
+              "answer": false,
+              "explanation": "ANY returns FALSE on an empty subquery \u2014 there is no value that satisfies the condition.",
+              "tags": [
+                "ANY",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "COUNT(*) and COUNT(A) always return the same value for any table and column A.",
+              "answer": false,
+              "explanation": "COUNT(*) counts all rows. COUNT(A) counts only non-null values of A. They differ whenever A contains nulls.",
+              "tags": [
+                "COUNT",
+                "null",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "If all values of attribute A in a group are null, then AVG(A) returns 0.",
+              "answer": false,
+              "explanation": "When all values are null, AVG returns null, not 0. Aggregate functions ignore nulls, so with nothing to average, the result is null.",
+              "tags": [
+                "AVG",
+                "aggregation",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "In a GROUP BY query, the SELECT clause may only contain grouped attributes, aggregate expressions, or constants.",
+              "answer": true,
+              "explanation": "Referencing a non-grouped, non-aggregated attribute is undefined \u2014 the DBMS would not know which row's value to return.",
+              "tags": [
+                "GROUP-BY",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "GROUP BY partitions the FROM-WHERE result into groups before any aggregation occurs.",
+              "answer": true,
+              "explanation": "GROUP BY (step 3) follows WHERE (step 2) and precedes HAVING (step 4) and SELECT (step 5) in the conceptual order.",
+              "tags": [
+                "GROUP-BY",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "HAVING can reference individual (non-aggregated) column values just like WHERE can.",
+              "answer": false,
+              "explanation": "HAVING is meant for conditions on aggregates and grouped attributes. Conditions on individual rows belong in WHERE, which runs before grouping.",
+              "tags": [
+                "HAVING",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "COUNT(DISTINCT A) counts the number of distinct non-null values of attribute A.",
+              "answer": true,
+              "explanation": "DISTINCT inside COUNT first removes duplicates and nulls, then counts the remaining unique values.",
+              "tags": [
+                "COUNT",
+                "DISTINCT",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "Aggregate functions can be nested inside other aggregate functions in standard SQL, such as AVG(MAX(A)).",
+              "answer": false,
+              "explanation": "Standard SQL does not allow nesting one aggregate inside another in a single query block. You would need a subquery or derived table.",
+              "tags": [
+                "aggregation"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "A join condition in WHERE (e.g., R.id = S.id) and a filter condition (e.g., R.salary > 50000) play different logical roles, even though both appear in the same WHERE clause.",
+              "answer": true,
+              "explanation": "Join conditions combine rows from different tables correctly; filter conditions restrict based on values. They serve different purposes but coexist in WHERE.",
+              "tags": [
+                "WHERE",
+                "join-conditions"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "The operator precedence in SQL's WHERE clause is: OR has higher precedence than AND.",
+              "answer": false,
+              "explanation": "The precedence is NOT > AND > OR. AND binds tighter than OR. Use parentheses to override when needed.",
+              "tags": [
+                "WHERE",
+                "precedence"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "ORDER BY can reference column aliases defined in the SELECT clause.",
+              "answer": true,
+              "explanation": "ORDER BY (step 7) is evaluated after SELECT (step 5), so aliases are available.",
+              "tags": [
+                "ORDER-BY",
+                "aliases",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "EXCEPT ALL removes one copy of each matching row from the left operand for every copy in the right operand.",
+              "answer": true,
+              "explanation": "EXCEPT ALL uses bag subtraction semantics \u2014 each right-side duplicate cancels one left-side duplicate.",
+              "tags": [
+                "EXCEPT",
+                "set-operations",
+                "bag-semantics"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "A query using IN can always be rewritten using EXISTS, and vice versa.",
+              "answer": true,
+              "explanation": "IN and EXISTS are logically equivalent for expressing membership tests, though EXISTS is safer with nulls.",
+              "tags": [
+                "IN",
+                "EXISTS",
+                "equivalence"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "SQL's SELECT-FROM-WHERE corresponds to relational calculus: FROM declares tuple variables, WHERE is the predicate, SELECT is the projection.",
+              "answer": true,
+              "explanation": "This mapping directly mirrors TRC: FROM = relation membership atoms, WHERE = formula, SELECT = output attributes.",
+              "tags": [
+                "foundations",
+                "calculus-connection"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "In SQL, the expression SELECT salary * 1.1 FROM Employees is invalid because SELECT cannot contain arithmetic expressions.",
+              "answer": false,
+              "explanation": "SELECT can contain computed expressions including arithmetic, string operations, and CASE expressions.",
+              "tags": [
+                "SELECT",
+                "expressions"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "Multiple ORDER BY attributes create a lexicographic (multi-level) sort: the first attribute is the primary sort key, the second breaks ties, and so on.",
+              "answer": true,
+              "explanation": "ORDER BY A, B sorts primarily by A, then by B within groups that share the same A value.",
+              "tags": [
+                "ORDER-BY"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "A non-correlated subquery is re-evaluated once for each row of the outer query.",
+              "answer": false,
+              "explanation": "A non-correlated subquery does not reference the outer query, so it is evaluated once and the result is reused. Only correlated subqueries are conceptually re-evaluated per outer row.",
+              "tags": [
+                "subqueries",
+                "correlated-subqueries"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "The CASE expression in SQL allows conditional logic within a SELECT clause.",
+              "answer": true,
+              "explanation": "CASE provides if-then-else logic inline within queries, producing different output values based on conditions.",
+              "tags": [
+                "CASE",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "SUM and AVG treat null values as 0 when computing their results.",
+              "answer": false,
+              "explanation": "SUM and AVG ignore nulls entirely \u2014 they are not treated as 0. AVG over {10, null, 20} returns 15, not 10.",
+              "tags": [
+                "aggregation",
+                "null"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "When no GROUP BY is specified, aggregate functions in SELECT treat the entire result of FROM-WHERE as a single group.",
+              "answer": true,
+              "explanation": "Without GROUP BY, the whole table (after WHERE filtering) is one implicit group, and the aggregate produces a single output row.",
+              "tags": [
+                "GROUP-BY",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "SQL's bag semantics means that SELECT A FROM R may return more rows than there are distinct values of A in R.",
+              "answer": true,
+              "explanation": "Without DISTINCT, duplicate values of A are retained. If 100 rows share the same A value, all 100 appear in the result.",
+              "tags": [
+                "bag-semantics",
+                "SELECT"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "State the full conceptual evaluation order of a SQL query, listing all seven steps.",
+              "model_answer": "1. FROM (compute cross-product of tables), 2. WHERE (filter rows), 3. GROUP BY (partition into groups), 4. HAVING (filter groups), 5. SELECT (project attributes, compute expressions), 6. DISTINCT (eliminate duplicates if specified), 7. ORDER BY (sort result). This order defines query semantics regardless of how the DBMS actually executes the query.",
+              "tags": [
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "Explain the difference between bag semantics and set semantics in SQL. Which is the default, and how do you switch to the other?",
+              "model_answer": "Bag semantics retains duplicate rows; set semantics eliminates them. SQL uses bag semantics by default \u2014 queries may return duplicate rows. Adding DISTINCT to SELECT forces set semantics by removing duplicates. For set operations, UNION/INTERSECT/EXCEPT default to set semantics; adding ALL switches them to bag semantics.",
+              "tags": [
+                "bag-semantics",
+                "DISTINCT"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "Explain why NOT IN can produce unexpected results when the subquery contains null values. What happens mechanistically?",
+              "model_answer": "When the subquery result contains a null, every comparison 'v = null' yields UNKNOWN. NOT IN expands to v <> x1 AND v <> x2 AND \u2026 AND v <> null. Since v <> null is UNKNOWN, and TRUE AND UNKNOWN = UNKNOWN, the entire NOT IN predicate evaluates to UNKNOWN. WHERE rejects UNKNOWN, so no rows pass \u2014 even rows that are genuinely not in the subquery result. This is why EXISTS/NOT EXISTS is safer: they test row existence, not value equality.",
+              "tags": [
+                "NOT-IN",
+                "null",
+                "three-valued-logic"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "What is the difference between WHERE and HAVING? Give an example of a condition that belongs in each.",
+              "model_answer": "WHERE filters individual rows before grouping (step 2); HAVING filters groups after aggregation (step 4). WHERE cannot reference aggregate functions; HAVING can. Example WHERE condition: WHERE salary > 50000 (filters individual employee rows). Example HAVING condition: HAVING COUNT(*) > 5 (keeps only groups with more than 5 members). Placing an aggregate in WHERE is a syntax error.",
+              "tags": [
+                "WHERE",
+                "HAVING",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Explain the difference between COUNT(*), COUNT(A), and COUNT(DISTINCT A).",
+              "model_answer": "COUNT(*) counts all rows regardless of null values. COUNT(A) counts only rows where attribute A is not null. COUNT(DISTINCT A) counts the number of distinct non-null values of A. For example, given values {10, null, 10, 20}: COUNT(*) = 4, COUNT(A) = 3, COUNT(DISTINCT A) = 2.",
+              "tags": [
+                "COUNT",
+                "aggregation",
+                "null"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "Why are table aliases required for self-joins? Give a brief example scenario.",
+              "model_answer": "When the same table appears twice in FROM, the DBMS needs to distinguish the two references. Aliases provide unique names for each copy. Example: to find pairs of employees in the same department, you write FROM Employees E1, Employees E2 WHERE E1.dept = E2.dept AND E1.id < E2.id. Without aliases E1 and E2, the DBMS cannot tell which reference to Employees each attribute belongs to.",
+              "tags": [
+                "aliases",
+                "self-join"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "Explain why ORDER BY is not part of the relational model. What practical consequence does this have?",
+              "model_answer": "The relational model defines relations as sets of tuples with no inherent ordering. ORDER BY is a presentation-layer operation outside the model \u2014 it imposes an order on query output for display purposes. The practical consequence: without ORDER BY, the DBMS may return rows in any order, and the order may change between executions. Never assume a default ordering even if results appear sorted.",
+              "tags": [
+                "ORDER-BY",
+                "relational-model"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "What does it mean for a subquery to be 'correlated'? How does this affect its evaluation?",
+              "model_answer": "A correlated subquery references one or more attributes from the outer query. Because its result depends on the current outer row, it is conceptually re-evaluated for each row of the outer query. This can be expensive. A non-correlated subquery has no such reference and can be evaluated once and reused.",
+              "tags": [
+                "correlated-subqueries"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "Explain the behavior of v > ALL (subquery) when the subquery result is empty. Why?",
+              "model_answer": "When the subquery result is empty, v > ALL returns TRUE. This is vacuous truth: the condition 'v is greater than every value in the set' is trivially satisfied because there are no values to violate it. This parallels the logical convention that a universally quantified statement over an empty domain is true.",
+              "tags": [
+                "ALL",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "A student writes SELECT dept, name, COUNT(*) FROM Employees GROUP BY dept. Explain the error.",
+              "model_answer": "The attribute 'name' is neither a grouped attribute nor an aggregate expression. With GROUP BY dept, each group contains multiple employees with different names. The DBMS cannot determine which name to return for each group. In standard SQL, this is an error. The fix is to either add name to GROUP BY, apply an aggregate to name (e.g., MIN(name)), or remove name from SELECT.",
+              "tags": [
+                "GROUP-BY",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "Rewrite the following query using EXISTS instead of IN: SELECT name FROM Students WHERE id IN (SELECT sid FROM Enrolled WHERE cid = 'EECS484').",
+              "model_answer": "SELECT name FROM Students S WHERE EXISTS (SELECT 1 FROM Enrolled E WHERE E.sid = S.id AND E.cid = 'EECS484'). The EXISTS version introduces a correlated subquery that checks whether at least one matching enrollment row exists for each student. This is safer than IN when nulls may be present.",
+              "tags": [
+                "IN",
+                "EXISTS",
+                "subqueries"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "What is the difference between UNION and UNION ALL? When would you prefer one over the other?",
+              "model_answer": "UNION eliminates duplicate rows from the combined result (set semantics). UNION ALL retains all rows including duplicates (bag semantics). Prefer UNION ALL when you know duplicates cannot occur or when you want to preserve them, since it avoids the overhead of deduplication and is faster. Use UNION when you need guaranteed uniqueness in the result.",
+              "tags": [
+                "UNION",
+                "set-operations"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "Explain why the conceptual evaluation order matters for understanding which clauses can reference column aliases.",
+              "model_answer": "Column aliases are defined in SELECT (step 5). Clauses evaluated before SELECT \u2014 namely FROM (1), WHERE (2), GROUP BY (3), and HAVING (4) \u2014 cannot reference these aliases because they do not yet exist. Only ORDER BY (step 7), which runs after SELECT, can reference column aliases. This is why you cannot write WHERE alias_name = 5 if alias_name is defined in SELECT.",
+              "tags": [
+                "evaluation-order",
+                "aliases"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Explain the logical correspondence between SQL's EXISTS and the existential quantifier (\u2203) in TRC.",
+              "model_answer": "EXISTS (subquery) returns TRUE if the subquery produces at least one row \u2014 directly mirroring \u2203s(R(s) \u2227 condition) in TRC, which is true if at least one tuple s in R satisfies the condition. NOT EXISTS corresponds to \u00ac\u2203. The correlation between the outer query and the subquery mirrors how the free variable in TRC references the outer tuple variable.",
+              "tags": [
+                "EXISTS",
+                "TRC",
+                "calculus-connection"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "A group has values {10, null, 20} for attribute salary. What do SUM(salary), AVG(salary), and COUNT(salary) return?",
+              "model_answer": "SUM(salary) = 30 (ignores null, sums 10 + 20). AVG(salary) = 15.0 (ignores null, averages 10 and 20 over count 2, not 3). COUNT(salary) = 2 (counts non-null values only). COUNT(*) would return 3 since it counts rows regardless of nulls.",
+              "tags": [
+                "aggregation",
+                "null"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "What is the result of SELECT A FROM R EXCEPT ALL SELECT A FROM S, given R contains {1,1,1,2} and S contains {1,2,2}?",
+              "model_answer": "EXCEPT ALL uses bag subtraction: for each value, subtract the count in S from the count in R. Value 1: R has 3 copies, S has 1 \u2192 2 copies remain. Value 2: R has 1 copy, S has 2 \u2192 0 copies remain. Result: {1, 1}.",
+              "tags": [
+                "EXCEPT",
+                "set-operations",
+                "bag-semantics"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What is the first step in the conceptual evaluation order of a SQL query?",
+              "options": [
+                "ORDER BY",
+                "SELECT",
+                "FROM",
+                "WHERE"
+              ],
+              "answer": 2,
+              "explanation": "FROM (computing the cross-product of listed tables) is step 1 in the conceptual evaluation order.",
+              "tags": [
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "Which SQL keyword forces duplicate elimination in a query result?",
+              "options": [
+                "DISTINCT",
+                "ALL",
+                "UNIQUE",
+                "HAVING"
+              ],
+              "answer": 0,
+              "explanation": "DISTINCT removes duplicate rows from the result, switching from bag to set semantics.",
+              "tags": [
+                "DISTINCT"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "What does SQL use by default: bag semantics or set semantics?",
+              "options": [
+                "It depends on the DBMS vendor",
+                "Neither \u2014 SQL has no concept of duplicates",
+                "Set semantics \u2014 duplicates are always eliminated",
+                "Bag semantics \u2014 duplicates are retained unless DISTINCT is used"
+              ],
+              "answer": 3,
+              "explanation": "SQL defaults to bag semantics. Duplicates are kept unless DISTINCT is explicitly specified.",
+              "tags": [
+                "bag-semantics"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "A student writes: SELECT name AS n FROM Emp WHERE n = 'Alice'. What happens?",
+              "options": [
+                "Returns an empty result",
+                "Returns rows where name is 'Alice'",
+                "Error: column alias n cannot be referenced in WHERE",
+                "Returns all rows because n is undefined and treated as TRUE"
+              ],
+              "answer": 2,
+              "explanation": "WHERE is evaluated before SELECT in the conceptual order, so the alias n does not yet exist. This is a syntax error.",
+              "tags": [
+                "aliases",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "What does NOT IN return when the subquery result contains a null value?",
+              "options": [
+                "TRUE for rows not in the non-null values",
+                "It depends on the DBMS \u2014 behavior is undefined",
+                "UNKNOWN for all rows, so no rows pass WHERE",
+                "FALSE for all rows"
+              ],
+              "answer": 2,
+              "explanation": "Any comparison with null yields UNKNOWN. Since NOT IN expands to a conjunction of inequalities, and UNKNOWN propagates through AND, the entire predicate is UNKNOWN for every outer row.",
+              "tags": [
+                "NOT-IN",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "Which of the following correctly describes EXISTS?",
+              "options": [
+                "Returns the count of rows in the subquery",
+                "Returns TRUE if the subquery produces at least one row, regardless of values",
+                "Returns TRUE if the subquery result contains at least one non-null value",
+                "Returns TRUE only if every row in the subquery satisfies the condition"
+              ],
+              "answer": 1,
+              "explanation": "EXISTS checks for row existence \u2014 whether at least one row is returned. It does not examine the values.",
+              "tags": [
+                "EXISTS"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "What does v > ALL (subquery) return when the subquery result is empty?",
+              "options": [
+                "Error \u2014 ALL requires a non-empty subquery",
+                "FALSE \u2014 there are no values to be greater than",
+                "NULL \u2014 the result is undefined on empty sets",
+                "TRUE \u2014 the condition is vacuously satisfied"
+              ],
+              "answer": 3,
+              "explanation": "With no values to violate the condition, ALL is vacuously true.",
+              "tags": [
+                "ALL",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "What does v > ANY (subquery) return when the subquery result is empty?",
+              "options": [
+                "Error",
+                "NULL",
+                "TRUE \u2014 vacuously satisfied",
+                "FALSE \u2014 there is no value to satisfy the condition"
+              ],
+              "answer": 3,
+              "explanation": "ANY requires at least one value satisfying the condition. With an empty set, no such value exists, so it returns FALSE.",
+              "tags": [
+                "ANY"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "Which aggregate function counts rows regardless of null values?",
+              "options": [
+                "COUNT(DISTINCT A)",
+                "SUM(A)",
+                "COUNT(*)",
+                "COUNT(A)"
+              ],
+              "answer": 2,
+              "explanation": "COUNT(*) counts all rows. COUNT(A) and COUNT(DISTINCT A) ignore nulls in column A.",
+              "tags": [
+                "COUNT",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "Given values {10, null, 20} for column salary, what does AVG(salary) return?",
+              "options": [
+                "null",
+                "15.0",
+                "30.0",
+                "10.0"
+              ],
+              "answer": 1,
+              "explanation": "AVG ignores nulls. It averages 10 and 20 (sum=30, count=2), returning 15.0.",
+              "tags": [
+                "AVG",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "A query has GROUP BY dept. Which of the following is valid in the SELECT clause?",
+              "options": [
+                "SELECT dept, COUNT(*)",
+                "SELECT dept, name",
+                "SELECT dept, name, COUNT(*)",
+                "SELECT name, salary"
+              ],
+              "answer": 0,
+              "explanation": "Only grouped attributes and aggregates may appear in SELECT. dept is grouped and COUNT(*) is an aggregate.",
+              "tags": [
+                "GROUP-BY",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "Where does the condition COUNT(*) > 3 belong?",
+              "options": [
+                "In the HAVING clause",
+                "In the SELECT clause",
+                "In the FROM clause",
+                "In the WHERE clause"
+              ],
+              "answer": 0,
+              "explanation": "Aggregate conditions belong in HAVING, which filters groups after aggregation. WHERE cannot contain aggregates.",
+              "tags": [
+                "HAVING",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "What is the difference between UNION and UNION ALL?",
+              "options": [
+                "There is no difference \u2014 they are synonyms",
+                "UNION eliminates duplicates; UNION ALL retains them",
+                "UNION sorts the result; UNION ALL does not",
+                "UNION ALL eliminates duplicates; UNION retains them"
+              ],
+              "answer": 1,
+              "explanation": "UNION removes duplicates (set semantics). UNION ALL keeps all rows (bag semantics) and is faster.",
+              "tags": [
+                "UNION",
+                "set-operations"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "SQL's IN operator corresponds to which concept from relational calculus?",
+              "options": [
+                "Universal quantification (\u2200)",
+                "Existential quantification (\u2203)",
+                "Division",
+                "Set difference"
+              ],
+              "answer": 1,
+              "explanation": "IN tests membership: 'there exists a value in the subquery matching v' \u2014 directly corresponding to \u2203.",
+              "tags": [
+                "IN",
+                "calculus-connection"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Which approach is safer in the presence of nulls for testing non-membership?",
+              "options": [
+                "EXCEPT",
+                "NOT EXISTS",
+                "NOT IN",
+                "v <> ALL (subquery)"
+              ],
+              "answer": 1,
+              "explanation": "NOT EXISTS tests for row existence, not value equality, so it is unaffected by nulls. NOT IN fails when nulls are present.",
+              "tags": [
+                "NOT-EXISTS",
+                "NOT-IN",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "What does the LIKE pattern 'A%n' match?",
+              "options": [
+                "Any string containing 'A' followed by 'n'",
+                "Any string that starts with 'A' and ends with 'n'",
+                "Only the string 'An'",
+                "Any string starting with 'A' of exactly 3 characters ending in 'n'"
+              ],
+              "answer": 1,
+              "explanation": "% matches any sequence of characters (including empty). So 'A%n' matches strings starting with A and ending with n.",
+              "tags": [
+                "LIKE",
+                "predicates"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "In which step of the conceptual evaluation order is DISTINCT applied?",
+              "options": [
+                "Step 6, after SELECT but before ORDER BY",
+                "Step 7, as the very last step",
+                "Step 2, immediately after WHERE",
+                "Step 5, during SELECT"
+              ],
+              "answer": 0,
+              "explanation": "DISTINCT is step 6: it removes duplicates from the SELECT result before ORDER BY (step 7) sorts the output.",
+              "tags": [
+                "DISTINCT",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "What happens when you reference a non-grouped, non-aggregated attribute in SELECT with GROUP BY?",
+              "options": [
+                "The attribute is silently dropped from the result",
+                "The DBMS returns null for that attribute",
+                "It is a syntax error in standard SQL",
+                "The DBMS returns the first value it encounters"
+              ],
+              "answer": 2,
+              "explanation": "Standard SQL rejects this as an error because the value is undefined \u2014 multiple rows in the group have different values for that attribute.",
+              "tags": [
+                "GROUP-BY",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "If a group contains only nulls for column A, what does SUM(A) return?",
+              "options": [
+                "null",
+                "0",
+                "The count of nulls",
+                "Error"
+              ],
+              "answer": 0,
+              "explanation": "SUM ignores nulls. With nothing to sum, the result is null, not 0.",
+              "tags": [
+                "SUM",
+                "null",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "Which of the following is true about ORDER BY?",
+              "options": [
+                "ORDER BY can only reference attributes in the SELECT clause",
+                "ORDER BY can reference column aliases defined in SELECT",
+                "ORDER BY eliminates duplicates",
+                "ORDER BY is evaluated before GROUP BY"
+              ],
+              "answer": 1,
+              "explanation": "ORDER BY (step 7) runs after SELECT (step 5), so column aliases are available. It does not deduplicate.",
+              "tags": [
+                "ORDER-BY",
+                "aliases"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "A correlated subquery is one that:",
+              "options": [
+                "Uses aggregate functions in the outer query",
+                "Appears in the FROM clause instead of WHERE",
+                "Returns exactly one row",
+                "References attributes from the outer query inside the subquery"
+              ],
+              "answer": 3,
+              "explanation": "Correlation means the subquery references the outer query's attributes, making it dependent on the current outer row.",
+              "tags": [
+                "correlated-subqueries"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "Given: SELECT dept, COUNT(*) AS cnt FROM Emp GROUP BY dept HAVING cnt > 5. Is this valid in standard SQL?",
+              "options": [
+                "Yes \u2014 but only if dept is a primary key",
+                "Yes \u2014 HAVING can reference SELECT aliases",
+                "No \u2014 HAVING cannot reference aliases defined in SELECT; use HAVING COUNT(*) > 5 instead",
+                "No \u2014 HAVING cannot contain any comparison operators"
+              ],
+              "answer": 2,
+              "explanation": "In standard SQL, HAVING (step 4) runs before SELECT (step 5), so the alias cnt is not yet defined. The correct form is HAVING COUNT(*) > 5.",
+              "tags": [
+                "HAVING",
+                "aliases",
+                "evaluation-order"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "Which predicate correctly tests whether a value is null?",
+              "options": [
+                "WHERE A == NULL",
+                "WHERE A IS NULL",
+                "WHERE A LIKE NULL",
+                "WHERE A = NULL"
+              ],
+              "answer": 1,
+              "explanation": "IS NULL is the only correct test. A = NULL evaluates to UNKNOWN (not TRUE) because any comparison with null yields UNKNOWN.",
+              "tags": [
+                "IS-NULL",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "What is the precedence order for SQL's logical operators?",
+              "options": [
+                "NOT > OR > AND",
+                "NOT > AND > OR",
+                "AND > OR > NOT",
+                "OR > AND > NOT"
+              ],
+              "answer": 1,
+              "explanation": "NOT has the highest precedence, then AND, then OR. Use parentheses to override when needed.",
+              "tags": [
+                "precedence",
+                "WHERE"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "What does EXCEPT ALL do with bags R = {1,1,1,2} and S = {1,2,2}?",
+              "options": [
+                "{1,1} \u2014 subtracts counts per value",
+                "{} \u2014 empty because all values in R appear in S",
+                "{1} \u2014 removes all copies of matching values",
+                "{1,1,1} \u2014 removes only values where S has more copies"
+              ],
+              "answer": 0,
+              "explanation": "EXCEPT ALL subtracts per-value: 1 has 3\u22121=2 copies remaining; 2 has 1\u22122=0 copies. Result: {1,1}.",
+              "tags": [
+                "EXCEPT",
+                "bag-semantics"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "Which SQL construct provides conditional (if-then-else) logic within a SELECT clause?",
+              "options": [
+                "COALESCE",
+                "IF \u2026 THEN \u2026 ELSE",
+                "CASE \u2026 WHEN \u2026 THEN \u2026 ELSE \u2026 END",
+                "SWITCH \u2026 CASE"
+              ],
+              "answer": 2,
+              "explanation": "CASE expressions provide inline conditional logic in SQL queries.",
+              "tags": [
+                "CASE",
+                "SELECT"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "Why is EXISTS/NOT EXISTS generally preferred over IN/NOT IN for subqueries?",
+              "options": [
+                "EXISTS supports more data types than IN",
+                "EXISTS is faster for all query sizes",
+                "EXISTS handles null values safely; NOT IN breaks when nulls are present",
+                "EXISTS can use indexes but IN cannot"
+              ],
+              "answer": 2,
+              "explanation": "The primary reason is null safety. NOT IN fails unpredictably when the subquery contains nulls; NOT EXISTS is unaffected.",
+              "tags": [
+                "EXISTS",
+                "NOT-IN",
+                "null"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "What is the minimum number of rows returned by SELECT COUNT(*) FROM R (where R exists but may be empty)?",
+              "options": [
+                "It depends on the GROUP BY clause",
+                "NULL",
+                "1 row \u2014 COUNT(*) always returns exactly one row (the value 0 if R is empty)",
+                "0 rows \u2014 the query returns nothing if R is empty"
+              ],
+              "answer": 2,
+              "explanation": "Without GROUP BY, the entire table is one implicit group. COUNT(*) returns 0 for an empty table, but the query always produces exactly one output row.",
+              "tags": [
+                "COUNT",
+                "aggregation"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "Which of the following about BETWEEN is correct?",
+              "options": [
+                "BETWEEN is not valid in standard SQL",
+                "BETWEEN 5 AND 10 is inclusive: it matches 5, 6, 7, 8, 9, 10",
+                "BETWEEN 5 AND 10 includes 5 but excludes 10",
+                "BETWEEN 5 AND 10 is exclusive: it matches 6, 7, 8, 9"
+              ],
+              "answer": 1,
+              "explanation": "BETWEEN is inclusive on both endpoints. A BETWEEN 5 AND 10 is equivalent to A >= 5 AND A <= 10.",
+              "tags": [
+                "BETWEEN",
+                "predicates"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "A self-join requires:",
+              "options": [
+                "A subquery in the FROM clause",
+                "Table aliases to distinguish the two references to the same table",
+                "The SELF JOIN keyword",
+                "Two different tables with the same schema"
+              ],
+              "answer": 1,
+              "explanation": "A self-join uses the same table twice in FROM, so aliases are required to distinguish the two copies.",
+              "tags": [
+                "self-join",
+                "aliases"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "What does the _ wildcard match in a LIKE pattern?",
+              "options": [
+                "Any sequence of zero or more characters",
+                "Exactly one character",
+                "An underscore literal",
+                "A null value"
+              ],
+              "answer": 1,
+              "explanation": "_ matches exactly one character. % matches any sequence (including empty). To match a literal underscore, use an escape character.",
+              "tags": [
+                "LIKE",
+                "predicates"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "If no GROUP BY is present and SELECT contains COUNT(*), how many rows does the query return?",
+              "options": [
+                "Exactly one row",
+                "The same number of rows as the input table",
+                "Zero rows if the table is empty",
+                "One row for each distinct value"
+              ],
+              "answer": 0,
+              "explanation": "Without GROUP BY, the entire table is treated as a single group, producing exactly one output row with the aggregate result.",
+              "tags": [
+                "GROUP-BY",
+                "aggregation"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "JSON quiz format for EECS 484 study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

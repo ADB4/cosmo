@@ -1,0 +1,1128 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week4",
+      "title": "Week 4: Relational Algebra",
+      "scope": "Core operators (\u03c3, \u03c0, \u222a, \u2212, \u00d7, \u03c1), derived operators (\u2229, \u22c8_\u03b8, \u22c8), division, expression trees, algebraic equivalences, extended operators, limits.",
+      "readings": [
+        "Ramakrishnan & Gehrke, Chapter 4 (relational algebra sections)"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "Relational algebra is a procedural query language: each query specifies a sequence of operations to perform.",
+              "answer": true,
+              "explanation": "Unlike relational calculus (declarative), relational algebra specifies how to compute the result step by step.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "Relational algebra is declarative: a query describes the desired result without specifying the computation steps.",
+              "answer": false,
+              "explanation": "Relational algebra is procedural. Relational calculus is the declarative counterpart.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "Every relational algebra operator takes one or two relations as input and produces a relation as output.",
+              "answer": true,
+              "explanation": "This is the closure property: the output of every operator is a relation, enabling arbitrary composition.",
+              "tags": [
+                "closure"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "The closure property of relational algebra means that operators cannot be composed \u2014 each must be applied independently.",
+              "answer": false,
+              "explanation": "Closure means the opposite: because every operator produces a relation, operators can be composed arbitrarily.",
+              "tags": [
+                "closure"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "The selection operator \u03c3 can increase the number of tuples in the result beyond what the input relation contains.",
+              "answer": false,
+              "explanation": "Selection can only filter (remove) tuples \u2014 it can never increase cardinality. The result is always a subset of (or equal to) the input.",
+              "tags": [
+                "selection"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The result of a selection \u03c3_condition(R) may have more tuples than R.",
+              "answer": false,
+              "explanation": "Selection can only retain or eliminate tuples \u2014 it never adds new ones. The cardinality can decrease or stay the same, but never increase.",
+              "tags": [
+                "selection"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "Selection is commutative: \u03c3_p(\u03c3_q(R)) = \u03c3_q(\u03c3_p(R)).",
+              "answer": true,
+              "explanation": "The order of applying selection conditions does not matter; both produce tuples satisfying both p and q.",
+              "tags": [
+                "selection",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "Projection (\u03c0) under relational algebra's set semantics may produce fewer tuples than the input relation.",
+              "answer": true,
+              "explanation": "Removing attributes may create duplicate tuples, which are eliminated under set semantics.",
+              "tags": [
+                "projection",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "Projection in relational algebra retains duplicate tuples in the result, just like SQL's SELECT without DISTINCT.",
+              "answer": false,
+              "explanation": "Relational algebra uses set semantics \u2014 duplicates are eliminated. SQL uses bag semantics by default.",
+              "tags": [
+                "projection",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "Union (\u222a) requires that both operand relations be union-compatible: same number of attributes with corresponding domains.",
+              "answer": true,
+              "explanation": "Without union-compatibility, the result would not have a well-defined single schema.",
+              "tags": [
+                "union"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "The cross-product R \u00d7 S produces a result whose cardinality equals |R| + |S|.",
+              "answer": false,
+              "explanation": "Cross-product produces |R| \u00d7 |S| tuples (multiplication), not |R| + |S| (addition). Each tuple of R is paired with every tuple of S.",
+              "tags": [
+                "cross-product"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Set difference (\u2212) is commutative: R \u2212 S always equals S \u2212 R.",
+              "answer": false,
+              "explanation": "Set difference is not commutative. R \u2212 S returns tuples in R but not in S; S \u2212 R returns tuples in S but not in R. These are generally different sets.",
+              "tags": [
+                "set-difference"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "Set difference is the only non-monotone core operator in relational algebra.",
+              "answer": true,
+              "explanation": "Adding tuples to S can remove tuples from R \u2212 S. All other core operators are monotone: adding input tuples can only add (or maintain) output tuples.",
+              "tags": [
+                "set-difference",
+                "monotonicity"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "The cross-product R \u00d7 S produces |R| + |S| tuples.",
+              "answer": false,
+              "explanation": "Cross-product produces |R| \u00d7 |S| tuples (multiplication, not addition). Every tuple in R is paired with every tuple in S.",
+              "tags": [
+                "cross-product"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "Union-compatibility means the two operand relations must have the same relation name.",
+              "answer": false,
+              "explanation": "Union-compatibility requires the same number of attributes with corresponding compatible domains. The relation names are irrelevant.",
+              "tags": [
+                "union",
+                "set-difference"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "If R and S have attributes with the same name, cross-product can be computed directly without any renaming.",
+              "answer": false,
+              "explanation": "Name collisions must be resolved via renaming (\u03c1) before or during cross-product so that attributes can be distinguished.",
+              "tags": [
+                "cross-product",
+                "rename"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "The rename operator (\u03c1) changes the data in a relation.",
+              "answer": false,
+              "explanation": "Rename only changes the names of the relation and/or its attributes. The data (tuples) remain unchanged.",
+              "tags": [
+                "rename"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "Rename (\u03c1) is necessary when performing a self-join \u2014 joining a relation with itself.",
+              "answer": true,
+              "explanation": "Without renaming, the attributes of the two copies would have identical names, making it impossible to distinguish them in conditions.",
+              "tags": [
+                "rename",
+                "self-join"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "Intersection (\u2229) is a core operator that cannot be derived from the five primitive operators.",
+              "answer": false,
+              "explanation": "Intersection is a derived operator: R \u2229 S = R \u2212 (R \u2212 S).",
+              "tags": [
+                "intersection",
+                "derived-operators"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "Theta-join (\u22c8_\u03b8) is defined as a cross-product followed by a selection: \u03c3_\u03b8(R \u00d7 S).",
+              "answer": true,
+              "explanation": "This is the definition of theta-join \u2014 it combines all tuple pairs and then filters by condition \u03b8.",
+              "tags": [
+                "theta-join"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "A theta-join R \u22c8_\u03b8 S is a primitive (core) operator that cannot be expressed using other operators.",
+              "answer": false,
+              "explanation": "Theta-join is a derived operator: R \u22c8_\u03b8 S = \u03c3_\u03b8(R \u00d7 S). It is shorthand for cross-product followed by selection.",
+              "tags": [
+                "theta-join",
+                "derived-operators"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "Natural join (\u22c8) joins two relations on all attributes that share the same name, retaining one copy of each shared attribute.",
+              "answer": true,
+              "explanation": "Natural join automatically equijoins on common attribute names and projects out the duplicate columns.",
+              "tags": [
+                "natural-join"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "If relations R and S share no attribute names, their natural join is equivalent to their cross-product.",
+              "answer": true,
+              "explanation": "With no common attributes, there are no equality conditions to enforce, so natural join degenerates to cross-product.",
+              "tags": [
+                "natural-join",
+                "edge-cases"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "If relations R and S share all attribute names, their natural join is equivalent to their intersection.",
+              "answer": true,
+              "explanation": "When all attributes are shared, natural join retains only tuples appearing in both relations \u2014 which is intersection.",
+              "tags": [
+                "natural-join",
+                "edge-cases"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "Division (\u00f7) is used to answer 'there exists' queries.",
+              "answer": false,
+              "explanation": "Division answers 'for all' queries. Existential ('there exists') queries use joins or selections.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "The division R \u00f7 S finds all tuples t such that for every tuple s in S, the combination \u27e8t, s\u27e9 appears in R.",
+              "answer": true,
+              "explanation": "This is the definition of division: it finds values in R associated with every value in S.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "The natural join of R and S, when they share no attribute names, returns an empty relation.",
+              "answer": false,
+              "explanation": "When R and S share no attribute names, natural join degenerates to cross-product (every tuple of R paired with every tuple of S), not an empty relation.",
+              "tags": [
+                "natural-join",
+                "edge-cases"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "Two relational algebra expressions are equivalent if they produce the same result on at least one database instance.",
+              "answer": false,
+              "explanation": "Equivalence requires producing the same result on every valid database instance, not just one.",
+              "tags": [
+                "equivalences"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "Pushing a selection down in an expression tree (applying it before a join) is a valid optimization because it reduces intermediate relation sizes.",
+              "answer": true,
+              "explanation": "If a selection condition references only one input relation, applying it before the join reduces the number of tuples entering the join.",
+              "tags": [
+                "equivalences",
+                "optimization"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "Join is commutative: R \u22c8 S = S \u22c8 R.",
+              "answer": true,
+              "explanation": "Natural join (and theta-join) are commutative \u2014 the order of operands does not affect the result.",
+              "tags": [
+                "natural-join",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Join is associative: (R \u22c8 S) \u22c8 T = R \u22c8 (S \u22c8 T).",
+              "answer": true,
+              "explanation": "Natural join is associative, which allows the query optimizer to choose the most efficient join order.",
+              "tags": [
+                "natural-join",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "Standard (classical) relational algebra supports aggregation functions like COUNT and SUM.",
+              "answer": false,
+              "explanation": "Aggregation and grouping are extended operators, not part of the classical relational algebra.",
+              "tags": [
+                "extended-operators"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "The grouping operator (\u03b3) groups tuples by specified attributes and applies aggregate functions to each group.",
+              "answer": true,
+              "explanation": "\u03b3 extends relational algebra with grouping and aggregation capabilities needed for real query processing.",
+              "tags": [
+                "extended-operators",
+                "grouping"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "Outer joins are part of the classical five core operators of relational algebra.",
+              "answer": false,
+              "explanation": "Outer joins are extended operators that preserve unmatched tuples by padding with null. They are not among the five core operators.",
+              "tags": [
+                "extended-operators",
+                "outer-joins"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "Relational algebra can express transitive closure queries, such as finding all ancestors of a node in a hierarchy.",
+              "answer": false,
+              "explanation": "Transitive closure requires recursion, which is beyond the expressive power of relational algebra.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "Relational algebra is relationally complete: it can express every query that safe relational calculus can express.",
+              "answer": true,
+              "explanation": "Relational completeness means algebra and safe calculus have identical expressive power (Codd's theorem).",
+              "tags": [
+                "relational-completeness"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "Relational algebra can express transitive closure \u2014 for example, finding all ancestors of a person in a family tree.",
+              "answer": false,
+              "explanation": "Transitive closure requires recursion, which relational algebra cannot express. This is a fundamental limitation of the algebra.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "The result schema of a theta-join R \u22c8_\u03b8 S is the concatenation of R's and S's schemas.",
+              "answer": true,
+              "explanation": "Theta-join (like cross-product) produces a result whose schema includes all attributes from both operands.",
+              "tags": [
+                "theta-join"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "An expression tree in relational algebra has base relations as its leaves and operators as its internal nodes.",
+              "answer": true,
+              "explanation": "Leaves are the input relations; internal nodes apply operators; the root produces the final result.",
+              "tags": [
+                "expression-trees"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "Different expression trees that are algebraically equivalent always have the same execution cost.",
+              "answer": false,
+              "explanation": "Equivalent trees produce the same result but may have very different intermediate sizes and therefore different costs. This is why optimization matters.",
+              "tags": [
+                "equivalences",
+                "optimization"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "The five core operators of relational algebra are: selection, projection, union, intersection, and cross-product.",
+              "answer": false,
+              "explanation": "The five core operators are selection, projection, union, set difference, and cross-product. Intersection is derived, not core. Rename is sometimes counted as the sixth primitive.",
+              "tags": [
+                "core-operators"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "Set difference subtracts individual attribute values from tuples, reducing their width.",
+              "answer": false,
+              "explanation": "Set difference removes entire tuples from R that appear in S. It does not modify attribute values or schema width.",
+              "tags": [
+                "set-difference"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "The non-monotonicity of set difference limits the ability to compute results incrementally in query optimization.",
+              "answer": true,
+              "explanation": "Because adding tuples to S can shrink R \u2212 S, incremental computation strategies that assume more input means more output do not apply.",
+              "tags": [
+                "set-difference",
+                "monotonicity",
+                "optimization"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "Cross-product is commutative and associative.",
+              "answer": true,
+              "explanation": "R \u00d7 S = S \u00d7 R (up to attribute ordering), and (R \u00d7 S) \u00d7 T = R \u00d7 (S \u00d7 T).",
+              "tags": [
+                "cross-product"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "A left outer join (\u27d5) discards unmatched tuples from the left relation.",
+              "answer": false,
+              "explanation": "A left outer join retains all tuples from the left relation. Unmatched left tuples are padded with null for the right side's attributes.",
+              "tags": [
+                "outer-joins"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "If a query asks 'find all suppliers who supply every part,' the appropriate relational algebra operator is division.",
+              "answer": true,
+              "explanation": "'Supply every part' is a 'for all' query \u2014 exactly what division is designed for.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "Combining two projections \u03c0_A(\u03c0_B(R)) is equivalent to \u03c0_A(R) when A \u2286 B.",
+              "answer": true,
+              "explanation": "If A is a subset of B, projecting onto B first and then onto A produces the same result as projecting directly onto A.",
+              "tags": [
+                "projection",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "Relational algebra provides the theoretical foundation for query optimization in a DBMS.",
+              "answer": true,
+              "explanation": "The DBMS translates SQL into algebraic expressions and uses algebraic equivalence rules to find efficient execution plans.",
+              "tags": [
+                "optimization",
+                "foundations"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "What is the closure property of relational algebra, and why is it important?",
+              "model_answer": "The closure property states that every relational algebra operator takes one or two relations as input and produces a relation as output. This is important because it enables arbitrary composition: the output of one operator can be used as the input to another, allowing complex queries to be built from simple operators.",
+              "tags": [
+                "closure"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "Explain the difference between selection (\u03c3) and projection (\u03c0). Which filters rows and which filters columns?",
+              "model_answer": "Selection (\u03c3) filters rows (tuples): it takes a relation and a condition, and returns only the tuples satisfying that condition. The schema is unchanged. Projection (\u03c0) filters columns (attributes): it takes a relation and a list of attributes, and returns only those attributes for each tuple. Under set semantics, duplicates are eliminated.",
+              "tags": [
+                "selection",
+                "projection"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "Why is set difference (\u2212) the only non-monotone core operator? What does non-monotonicity mean in this context?",
+              "model_answer": "An operator is monotone if adding tuples to the input can only add tuples to the output (or leave it unchanged). Set difference R \u2212 S is non-monotone because adding tuples to S can remove tuples from the result. All other core operators (\u03c3, \u03c0, \u222a, \u00d7) are monotone: more input never shrinks the output. Non-monotonicity matters for optimization because incremental computation strategies don't apply.",
+              "tags": [
+                "set-difference",
+                "monotonicity"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "Derive intersection (\u2229) from the five core operators.",
+              "model_answer": "R \u2229 S = R \u2212 (R \u2212 S). First compute R \u2212 S (tuples in R but not in S), then subtract that from R, leaving only tuples that are in both R and S.",
+              "tags": [
+                "intersection",
+                "derived-operators"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Define theta-join in terms of core operators. What is the relationship between theta-join, equijoin, and natural join?",
+              "model_answer": "Theta-join R \u22c8_\u03b8 S = \u03c3_\u03b8(R \u00d7 S) \u2014 cross-product followed by selection on condition \u03b8. An equijoin is a theta-join where all conditions in \u03b8 are equalities. Natural join is an equijoin on all common attribute names followed by projection to remove duplicate columns.",
+              "tags": [
+                "theta-join",
+                "equijoin",
+                "natural-join"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "Explain what happens when two relations with no common attribute names are natural-joined. What about when they share all attribute names?",
+              "model_answer": "If R and S share no attribute names, natural join has no equality conditions to enforce, so it degenerates to cross-product (every tuple of R paired with every tuple of S). If they share all attribute names, natural join retains only tuples that are identical in both relations, which is intersection.",
+              "tags": [
+                "natural-join",
+                "edge-cases"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "What kind of query does the division operator (\u00f7) answer? Give an example in English.",
+              "model_answer": "Division answers 'for all' queries: it finds all values in one relation that are associated with every value in another relation. Example: 'Find all students who have taken every required course' \u2014 divide the Enrollment relation by the RequiredCourses relation.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "Write the derivation of R \u00f7 S using the five core operators. Briefly explain each step.",
+              "model_answer": "R \u00f7 S = \u03c0_{A\u2212B}(R) \u2212 \u03c0_{A\u2212B}((\u03c0_{A\u2212B}(R) \u00d7 S) \u2212 R). Step 1: \u03c0_{A\u2212B}(R) gets all candidate values. Step 2: \u03c0_{A\u2212B}(R) \u00d7 S creates all possible pairings. Step 3: Subtract R to find pairings that do NOT exist. Step 4: Project to get candidates that fail for at least one S tuple. Step 5: Subtract from all candidates to keep only those that succeed for every S tuple.",
+              "tags": [
+                "division",
+                "derived-operators"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "Explain what 'pushing selection down' means in the context of query optimization, and why it improves performance.",
+              "model_answer": "Pushing selection down means applying a selection condition as early as possible in the expression tree \u2014 before joins or cross-products rather than after. This reduces the size of intermediate relations, making subsequent operations (especially joins) faster because they process fewer tuples.",
+              "tags": [
+                "equivalences",
+                "optimization"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "Why does relational algebra need extended operators like the grouping operator (\u03b3) and outer joins? What can these express that the core operators cannot?",
+              "model_answer": "The five core operators cannot perform aggregation (COUNT, SUM, AVG, MIN, MAX) or grouping. The grouping operator (\u03b3) adds this capability. Outer joins preserve unmatched tuples by padding with null \u2014 a behavior the core operators (which use set semantics without null padding) cannot express. These extensions are essential for real-world query processing.",
+              "tags": [
+                "extended-operators"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "Give an example of a query that relational algebra cannot express, and explain why.",
+              "model_answer": "Transitive closure \u2014 e.g., 'find all ancestors of employee X in an organizational hierarchy.' This requires following chains of parent-child relationships of arbitrary length, which amounts to recursion. Relational algebra has no recursion or fixpoint operator, so it cannot compute results that require an unbounded number of joins.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "Explain why rename (\u03c1) is necessary for self-joins.",
+              "model_answer": "A self-join joins a relation with itself. Without renaming, both copies would have identical attribute names, making it impossible to distinguish between attributes of the first copy and the second copy in join conditions or projections. Rename gives the two copies different names so they can be referenced separately.",
+              "tags": [
+                "rename",
+                "self-join"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "What does it mean for two relational algebra expressions to be 'algebraically equivalent'?",
+              "model_answer": "Two expressions are algebraically equivalent if they produce exactly the same result (the same set of tuples) on every valid database instance. Equivalence over just one instance is not sufficient \u2014 the expressions must agree universally.",
+              "tags": [
+                "equivalences"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Why does the DBMS translate SQL queries into relational algebra expression trees?",
+              "model_answer": "The DBMS translates SQL into algebraic expression trees because relational algebra has well-defined equivalence rules (pushing selections, reordering joins, etc.) that the query optimizer can apply to find the most efficient execution plan. The algebraic representation makes it possible to systematically explore alternative plans.",
+              "tags": [
+                "optimization",
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "A relation R has 100 tuples and a relation S has 50 tuples. What is the maximum number of tuples in R \u00d7 S? In R \u2229 S (assuming union-compatibility)?",
+              "model_answer": "R \u00d7 S has exactly 100 \u00d7 50 = 5,000 tuples (every pair). R \u2229 S has at most min(100, 50) = 50 tuples (it can contain only tuples present in both, limited by the smaller relation).",
+              "tags": [
+                "cross-product",
+                "intersection"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "Explain the difference between a core (primitive) operator and a derived operator in relational algebra. Give one example of each.",
+              "model_answer": "A core operator cannot be expressed in terms of the other core operators \u2014 it is primitive. Example: set difference (\u2212). A derived operator is syntactic shorthand for a combination of core operators. Example: theta-join (\u22c8_\u03b8) is derived as \u03c3_\u03b8(R \u00d7 S). Derived operators add convenience but no new expressive power.",
+              "tags": [
+                "core-operators",
+                "derived-operators"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "Which operator filters tuples (rows) based on a condition?",
+              "options": [
+                "Selection (\u03c3)",
+                "Projection (\u03c0)",
+                "Union (\u222a)",
+                "Rename (\u03c1)"
+              ],
+              "answer": 0,
+              "explanation": "Selection filters rows; projection filters columns.",
+              "tags": [
+                "selection"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "Which operator filters attributes (columns) from a relation?",
+              "options": [
+                "Cross-product (\u00d7)",
+                "Set difference (\u2212)",
+                "Selection (\u03c3)",
+                "Projection (\u03c0)"
+              ],
+              "answer": 3,
+              "explanation": "Projection retains only the specified attributes, removing the rest.",
+              "tags": [
+                "projection"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "What is the result schema of \u03c3_{A>5}(R) compared to the schema of R?",
+              "options": [
+                "It contains all attributes of R",
+                "It depends on the condition",
+                "It contains only attribute A",
+                "It contains all attributes of R except A"
+              ],
+              "answer": 0,
+              "explanation": "Selection does not change the schema \u2014 only the set of tuples changes.",
+              "tags": [
+                "selection"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "Relation R has 200 tuples and relation S has 150 tuples. What is the cardinality of R \u00d7 S?",
+              "options": [
+                "200",
+                "It depends on the schema",
+                "30,000",
+                "350"
+              ],
+              "answer": 2,
+              "explanation": "Cross-product pairs every tuple of R with every tuple of S: 200 \u00d7 150 = 30,000.",
+              "tags": [
+                "cross-product"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "Which of the following is NOT one of the five core (primitive) operators of relational algebra?",
+              "options": [
+                "Union (\u222a)",
+                "Selection (\u03c3)",
+                "Intersection (\u2229)",
+                "Set difference (\u2212)"
+              ],
+              "answer": 2,
+              "explanation": "Intersection is a derived operator: R \u2229 S = R \u2212 (R \u2212 S). The five core operators are \u03c3, \u03c0, \u222a, \u2212, and \u00d7.",
+              "tags": [
+                "core-operators"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "Theta-join R \u22c8_\u03b8 S is equivalent to:",
+              "options": [
+                "R \u222a S where \u03b8 holds",
+                "\u03c3_\u03b8(R \u00d7 S)",
+                "\u03c0_\u03b8(R \u00d7 S)",
+                "R \u2212 S filtered by \u03b8"
+              ],
+              "answer": 1,
+              "explanation": "Theta-join is defined as cross-product followed by selection on condition \u03b8.",
+              "tags": [
+                "theta-join"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "What distinguishes an equijoin from a general theta-join?",
+              "options": [
+                "Equijoin eliminates duplicate columns automatically",
+                "Equijoin uses only equality conditions between attributes of the two relations",
+                "Equijoin uses only inequality conditions",
+                "Equijoin can only join two relations with the same schema"
+              ],
+              "answer": 1,
+              "explanation": "An equijoin is a theta-join where every condition in \u03b8 is an equality.",
+              "tags": [
+                "equijoin"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "Relations R(A, B) and S(B, C) are natural-joined. The result schema is:",
+              "options": [
+                "(A, C)",
+                "(A, B, B, C)",
+                "(B)",
+                "(A, B, C)"
+              ],
+              "answer": 3,
+              "explanation": "Natural join equijoins on the common attribute B and retains one copy, producing schema (A, B, C).",
+              "tags": [
+                "natural-join"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "Relations R(A, B) and S(C, D) share no attribute names. What is R \u22c8 S (natural join)?",
+              "options": [
+                "R \u00d7 S (cross-product)",
+                "The empty relation",
+                "An error \u2014 natural join requires shared attributes",
+                "R \u2229 S"
+              ],
+              "answer": 0,
+              "explanation": "With no shared attributes, there are no equality conditions, so natural join degenerates to cross-product.",
+              "tags": [
+                "natural-join",
+                "edge-cases"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "Which relational algebra operator answers the query 'Find all students who have taken every required course'?",
+              "options": [
+                "Projection (\u03c0)",
+                "Division (\u00f7)",
+                "Union (\u222a)",
+                "Selection (\u03c3)"
+              ],
+              "answer": 1,
+              "explanation": "'Every required course' is a 'for all' pattern, which is exactly what division computes.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "In the division R \u00f7 S, what is the schema of the result?",
+              "options": [
+                "S's attributes minus R's attributes",
+                "The same as S's schema",
+                "R's attributes minus S's attributes",
+                "The same as R's schema"
+              ],
+              "answer": 2,
+              "explanation": "Division removes S's attributes from the result, keeping only the attributes of R that are not in S.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "Which of the following is true about set difference?",
+              "options": [
+                "R \u2212 S requires R and S to have different schemas",
+                "R \u2212 S is commutative",
+                "R \u2212 S is the only non-monotone core operator",
+                "R \u2212 S = S \u2212 R always"
+              ],
+              "answer": 2,
+              "explanation": "Set difference is non-commutative and is the only non-monotone core operator.",
+              "tags": [
+                "set-difference"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "Why is rename (\u03c1) needed before computing R \u00d7 R (self-cross-product)?",
+              "options": [
+                "To reduce the size of the result",
+                "To avoid attribute name collisions between the two copies of R",
+                "To change R's data type",
+                "Rename is not actually needed for self-cross-product"
+              ],
+              "answer": 1,
+              "explanation": "Both copies of R have identical attribute names. Rename gives distinct names so attributes can be referenced unambiguously.",
+              "tags": [
+                "rename",
+                "self-join"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "Which optimization technique reduces intermediate relation sizes by applying filters early?",
+              "options": [
+                "Join reordering",
+                "Pushing projection up",
+                "Pushing selection down",
+                "Materializing all intermediate results"
+              ],
+              "answer": 2,
+              "explanation": "Pushing selection down applies filtering conditions before joins, reducing the number of tuples in intermediate results.",
+              "tags": [
+                "optimization",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Two algebraically equivalent expression trees:",
+              "options": [
+                "Always have the same execution cost",
+                "Produce the same result on every valid database instance but may differ in cost",
+                "Always have different results",
+                "Must use the same operators"
+              ],
+              "answer": 1,
+              "explanation": "Equivalence means identical results on all instances, but different trees can have very different intermediate sizes and costs.",
+              "tags": [
+                "equivalences"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "Which of the following queries CANNOT be expressed in relational algebra?",
+              "options": [
+                "Find the employee with the highest salary",
+                "Find all employees earning more than their manager",
+                "Find all pairs of students in the same department",
+                "Find all ancestors of a given employee in an org hierarchy"
+              ],
+              "answer": 3,
+              "explanation": "Finding all ancestors requires transitive closure (arbitrary-length path traversal), which is beyond relational algebra's expressive power.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "The grouping operator (\u03b3) is:",
+              "options": [
+                "One of the five core operators",
+                "A derived operator expressible using \u03c3, \u03c0, \u222a, \u2212, \u00d7",
+                "Another name for the division operator",
+                "An extended operator not part of classical relational algebra"
+              ],
+              "answer": 3,
+              "explanation": "Grouping/aggregation is an extension to classical relational algebra, needed for COUNT, SUM, AVG, etc.",
+              "tags": [
+                "extended-operators"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "A left outer join (R \u27d5 S) retains:",
+              "options": [
+                "All tuples from R, padding unmatched ones with null for S's attributes",
+                "Only tuples from R that have no match in S",
+                "All tuples from S, padding unmatched ones with null for R's attributes",
+                "Only matched tuples from both sides"
+              ],
+              "answer": 0,
+              "explanation": "Left outer join preserves all tuples from the left relation (R). Unmatched R tuples are padded with null.",
+              "tags": [
+                "outer-joins"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "Intersection R \u2229 S can be derived as:",
+              "options": [
+                "\u03c3_true(R \u222a S)",
+                "R \u222a (R \u2212 S)",
+                "R \u2212 (R \u2212 S)",
+                "(R \u00d7 S) \u2212 R"
+              ],
+              "answer": 2,
+              "explanation": "R \u2212 (R \u2212 S) removes from R the tuples not in S, leaving only tuples in both.",
+              "tags": [
+                "intersection",
+                "derived-operators"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "Relation R has schema (A, B, C). What is the schema of \u03c0_{A,C}(R)?",
+              "options": [
+                "(A, C)",
+                "(A, B)",
+                "(B)",
+                "(A, B, C)"
+              ],
+              "answer": 0,
+              "explanation": "Projection retains only the listed attributes, so the result schema is (A, C).",
+              "tags": [
+                "projection"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "Which property of relational algebra enables the DBMS to reorder joins for optimization?",
+              "options": [
+                "Projection eliminates duplicates",
+                "Join is commutative and associative",
+                "Selection is idempotent",
+                "Set difference is non-commutative"
+              ],
+              "answer": 1,
+              "explanation": "Because join is both commutative and associative, the optimizer can evaluate joins in any order to minimize cost.",
+              "tags": [
+                "equivalences",
+                "optimization"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "If R has 5 attributes and S has 3 attributes, how many attributes does R \u00d7 S have?",
+              "options": [
+                "3",
+                "8",
+                "15",
+                "5"
+              ],
+              "answer": 1,
+              "explanation": "Cross-product concatenates the schemas: 5 + 3 = 8 attributes.",
+              "tags": [
+                "cross-product"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "Which of the following is the correct reading of R \u00f7 S?",
+              "options": [
+                "All tuples in R that match at least one tuple in S",
+                "The quotient of |R| divided by |S|",
+                "All tuples in R that match no tuples in S",
+                "All tuples (projected on R's extra attributes) associated with every tuple in S"
+              ],
+              "answer": 3,
+              "explanation": "Division finds values in R (on the non-S attributes) that are paired with every tuple in S.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "Relational completeness means:",
+              "options": [
+                "A language can express every possible computation",
+                "A language can express exactly the queries that safe relational calculus can express",
+                "A language supports all five core operators",
+                "A language can express recursive queries"
+              ],
+              "answer": 1,
+              "explanation": "A language is relationally complete if it can express all queries expressible in safe relational calculus (equivalently, relational algebra).",
+              "tags": [
+                "relational-completeness"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "\u03c3_{A>5 \u2227 B<10}(R) is equivalent to:",
+              "options": [
+                "\u03c3_{A>5}(R) \u2212 \u03c3_{B<10}(R)",
+                "\u03c3_{A>5}(\u03c3_{B<10}(R))",
+                "\u03c0_{A,B}(R)",
+                "\u03c3_{A>5}(R) \u222a \u03c3_{B<10}(R)"
+              ],
+              "answer": 1,
+              "explanation": "A conjunctive selection can be decomposed into cascaded selections: \u03c3_{A>5 \u2227 B<10}(R) = \u03c3_{A>5}(\u03c3_{B<10}(R)).",
+              "tags": [
+                "selection",
+                "equivalences"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "Which operator is needed to combine tuples from two union-compatible relations while eliminating duplicates?",
+              "options": [
+                "Selection (\u03c3)",
+                "Cross-product (\u00d7)",
+                "Theta-join (\u22c8_\u03b8)",
+                "Union (\u222a)"
+              ],
+              "answer": 3,
+              "explanation": "Union combines tuples from both relations and eliminates duplicates under set semantics.",
+              "tags": [
+                "union"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "In an expression tree, what do the leaf nodes represent?",
+              "options": [
+                "Constants",
+                "Operators",
+                "Final results",
+                "Base (input) relations"
+              ],
+              "answer": 3,
+              "explanation": "Leaves are the input relations; internal nodes are operators; the root is the final result.",
+              "tags": [
+                "expression-trees"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "R has 10 tuples and S has 10 union-compatible tuples with 3 tuples in common. How many tuples are in R \u222a S?",
+              "options": [
+                "20",
+                "10",
+                "3",
+                "17"
+              ],
+              "answer": 3,
+              "explanation": "Union eliminates duplicates: 10 + 10 \u2212 3 = 17 distinct tuples.",
+              "tags": [
+                "union"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "Using the same R and S from the previous question, how many tuples are in R \u2212 S?",
+              "options": [
+                "10",
+                "17",
+                "7",
+                "3"
+              ],
+              "answer": 2,
+              "explanation": "R \u2212 S removes from R the 3 tuples also in S: 10 \u2212 3 = 7.",
+              "tags": [
+                "set-difference"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "A query asks: 'Find all parts supplied by every supplier.' Which relational algebra operator is most directly applicable?",
+              "options": [
+                "Selection",
+                "Division",
+                "Union",
+                "Projection"
+              ],
+              "answer": 1,
+              "explanation": "'Every supplier' is a 'for all' query, directly answered by division.",
+              "tags": [
+                "division"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "Which of the following is true about the result of a projection \u03c0_{A}(R) when many tuples in R have the same A value?",
+              "options": [
+                "The query is rejected because of duplicates",
+                "Only the first occurrence of each A value is kept",
+                "All duplicates are eliminated \u2014 the result contains each distinct A value once",
+                "All duplicate A values are retained"
+              ],
+              "answer": 2,
+              "explanation": "Under set semantics, projection eliminates duplicate tuples. Each distinct A value appears exactly once.",
+              "tags": [
+                "projection",
+                "set-semantics"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "Which of the following correctly lists ONLY core (primitive) operators of relational algebra?",
+              "options": [
+                "\u03c3, \u03c0, \u22c8, \u2212, \u00f7",
+                "\u03c3, \u03c0, \u222a, \u2229, \u00d7",
+                "\u03c3, \u03c0, \u222a, \u22c8_\u03b8, \u00d7",
+                "\u03c3, \u03c0, \u222a, \u2212, \u00d7"
+              ],
+              "answer": 3,
+              "explanation": "The five core operators are selection (\u03c3), projection (\u03c0), union (\u222a), set difference (\u2212), and cross-product (\u00d7).",
+              "tags": [
+                "core-operators"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "EECS 484 quiz format for database management systems study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

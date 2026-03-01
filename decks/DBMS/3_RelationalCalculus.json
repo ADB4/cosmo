@@ -1,0 +1,1151 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week5",
+      "title": "Week 5: Relational Calculus",
+      "scope": "Tuple Relational Calculus (TRC), Domain Relational Calculus (DRC), safety, Codd's theorem, calculus-to-SQL correspondence.",
+      "readings": [
+        "Ramakrishnan & Gehrke, Chapter 4 (relational calculus sections)"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness \u2014 do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "Relational calculus is a declarative query language: it describes the desired result without specifying how to compute it.",
+              "answer": true,
+              "explanation": "Unlike relational algebra (procedural), the calculus specifies what, not how.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-2",
+              "question": "Relational calculus is a procedural query language, just like relational algebra.",
+              "answer": false,
+              "explanation": "Relational calculus is declarative. Relational algebra is the procedural counterpart.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "TF-3",
+              "question": "SQL is directly inspired by relational calculus, particularly the Tuple Relational Calculus.",
+              "answer": true,
+              "explanation": "SQL's SELECT-FROM-WHERE structure maps directly to TRC patterns.",
+              "tags": [
+                "foundations",
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "TF-4",
+              "question": "In Tuple Relational Calculus (TRC), variables range over individual attribute values.",
+              "answer": false,
+              "explanation": "In TRC, variables range over entire tuples. It is Domain Relational Calculus (DRC) where variables range over individual values.",
+              "tags": [
+                "TRC",
+                "DRC"
+              ]
+            },
+            {
+              "id": "TF-5",
+              "question": "In Domain Relational Calculus (DRC), variables range over entire tuples, just like in TRC.",
+              "answer": false,
+              "explanation": "In DRC, variables range over individual attribute values (domain values), not whole tuples. TRC is the variant where variables range over tuples.",
+              "tags": [
+                "DRC"
+              ]
+            },
+            {
+              "id": "TF-6",
+              "question": "The general form of a TRC query is { t | P(t) }, meaning 'the set of all tuples t such that P does NOT hold.'",
+              "answer": false,
+              "explanation": "The correct reading is 'the set of all tuples t such that P holds.' The formula P defines the condition that qualifying tuples must satisfy, not the condition they must fail.",
+              "tags": [
+                "TRC",
+                "syntax"
+              ]
+            },
+            {
+              "id": "TF-7",
+              "question": "In TRC, a free variable is one that is bound by a quantifier (\u2203 or \u2200) inside the formula.",
+              "answer": false,
+              "explanation": "A free variable is NOT bound by any quantifier. Bound variables are those introduced by \u2203 or \u2200. In { t | P(t) }, t is free.",
+              "tags": [
+                "TRC",
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "TF-8",
+              "question": "In a TRC query { t | P(t) }, only the free variables appear in the result; bound variables are internal to the formula.",
+              "answer": true,
+              "explanation": "The result consists of assignments to free variables. Bound variables (quantified by \u2203 or \u2200) do not appear in the output.",
+              "tags": [
+                "TRC",
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "TF-9",
+              "question": "The TRC formula R(t) asserts that tuple variable t is NOT a member of relation R.",
+              "answer": false,
+              "explanation": "R(t) is a positive membership assertion \u2014 it states that t IS a tuple in R. Negating membership requires \u00acR(t).",
+              "tags": [
+                "TRC",
+                "atomic-formulas"
+              ]
+            },
+            {
+              "id": "TF-10",
+              "question": "The implication connective P \u21d2 Q is equivalent to P \u2227 Q.",
+              "answer": false,
+              "explanation": "P \u21d2 Q is equivalent to \u00acP \u2228 Q, not P \u2227 Q. This distinction is critical for universal quantification.",
+              "tags": [
+                "connectives",
+                "implication"
+              ]
+            },
+            {
+              "id": "TF-11",
+              "question": "The implication connective P \u21d2 Q is logically equivalent to \u00acP \u2228 Q.",
+              "answer": true,
+              "explanation": "This equivalence is fundamental: implication is true when P is false or Q is true.",
+              "tags": [
+                "connectives",
+                "implication"
+              ]
+            },
+            {
+              "id": "TF-12",
+              "question": "Existential quantification \u2203s(R(s) \u2227 Q(s,t)) means 'for all tuples s in R, Q holds.'",
+              "answer": false,
+              "explanation": "\u2203 means 'there exists' \u2014 at least one tuple s in R satisfies Q. 'For all' uses \u2200.",
+              "tags": [
+                "TRC",
+                "existential"
+              ]
+            },
+            {
+              "id": "TF-13",
+              "question": "Universal quantification \u2200s(R(s) \u21d2 Q(s,t)) means 'for every tuple s in R, condition Q holds.'",
+              "answer": true,
+              "explanation": "The implication ensures only tuples actually in R are considered. If s is not in R, the implication is vacuously true.",
+              "tags": [
+                "TRC",
+                "universal"
+              ]
+            },
+            {
+              "id": "TF-14",
+              "question": "Using \u2227 instead of \u21d2 with universal quantification \u2014 writing \u2200s(R(s) \u2227 Q(s,t)) \u2014 is correct and produces meaningful results.",
+              "answer": false,
+              "explanation": "\u2200s(R(s) \u2227 Q(s,t)) asserts that every tuple in the entire universe is in R and satisfies Q, which is almost always false, yielding an empty result.",
+              "tags": [
+                "TRC",
+                "universal",
+                "common-pitfall"
+              ]
+            },
+            {
+              "id": "TF-15",
+              "question": "Existential quantification in TRC corresponds to join or membership testing in relational algebra.",
+              "answer": true,
+              "explanation": "\u2203s(R(s) \u2227 condition) is the calculus analog of joining with R or testing membership.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "TF-16",
+              "question": "Universal quantification in TRC corresponds to the division operator in relational algebra.",
+              "answer": true,
+              "explanation": "'For all' queries in TRC (using \u2200 with \u21d2) correspond directly to division in algebra.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence",
+                "division"
+              ]
+            },
+            {
+              "id": "TF-17",
+              "question": "Selection \u03c3_{A=c}(R) can be expressed in TRC as { t | R(t) \u2228 t.A = c }, using disjunction.",
+              "answer": false,
+              "explanation": "Selection requires conjunction (\u2227), not disjunction (\u2228). The correct expression is { t | R(t) \u2227 t.A = c }. Using \u2228 would return all tuples in R plus any tuple where A = c regardless of relation membership.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "TF-18",
+              "question": "Set difference R \u2212 S can be expressed in TRC as { t | R(t) \u2227 \u00acS(t) }.",
+              "answer": true,
+              "explanation": "This selects tuples that are in R but not in S \u2014 the definition of set difference.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "TF-19",
+              "question": "In DRC, relation membership is expressed as R(x1, x2, \u2026, xk), where domain variables correspond positionally to R's attributes.",
+              "answer": true,
+              "explanation": "DRC uses positional binding: the i-th variable corresponds to the i-th attribute of R.",
+              "tags": [
+                "DRC",
+                "syntax"
+              ]
+            },
+            {
+              "id": "TF-20",
+              "question": "TRC and DRC have different expressive power \u2014 TRC can express queries that DRC cannot.",
+              "answer": false,
+              "explanation": "TRC and DRC are equivalent in expressive power for safe queries. Neither is more powerful than the other.",
+              "tags": [
+                "TRC",
+                "DRC",
+                "equivalence"
+              ]
+            },
+            {
+              "id": "TF-21",
+              "question": "DRC is conceptually closer to SQL's structure than TRC, because SQL variables range over domain values.",
+              "answer": false,
+              "explanation": "TRC is closer to SQL. SQL's FROM clause introduces tuple variables that range over entire tables (like TRC tuple variables), and WHERE applies predicates to those variables. DRC is closer to QBE.",
+              "tags": [
+                "TRC",
+                "DRC",
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "TF-22",
+              "question": "DRC is conceptually closer to QBE (Query By Example) than TRC is.",
+              "answer": true,
+              "explanation": "QBE uses domain-level variables in a grid, directly mirroring DRC's approach of ranging over attribute values.",
+              "tags": [
+                "DRC",
+                "QBE"
+              ]
+            },
+            {
+              "id": "TF-23",
+              "question": "The query { t | \u00acR(t) } is safe because it returns all tuples not in R.",
+              "answer": false,
+              "explanation": "This query is unsafe \u2014 its result is infinite because it includes every possible tuple (from the entire universe) not in R.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "TF-24",
+              "question": "An unsafe query is one whose result could be infinite, making it impossible for a DBMS to evaluate.",
+              "answer": true,
+              "explanation": "Safety requires that results be drawn from the active domain (finite set of constants in the database).",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "TF-25",
+              "question": "A query is safe as long as its result is a subset of some named relation in the database.",
+              "answer": false,
+              "explanation": "Safety requires that every value in the result (and during evaluation) is drawn from the active domain, but the result need not be a subset of any single relation. For example, a safe join produces tuples not found in either input relation.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "TF-26",
+              "question": "The query { t | S(t) \u2227 \u00acR(t) } is safe, assuming S is a named relation.",
+              "answer": true,
+              "explanation": "The variable t is range-restricted to tuples in S, ensuring the result is finite.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "TF-27",
+              "question": "Negation (\u00ac) and universal quantification (\u2200) are the most common sources of unsafe queries.",
+              "answer": true,
+              "explanation": "Both can introduce unrestricted variable ranges: \u00acR(t) is unbounded, and \u2200 over unrestricted domains is problematic.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "TF-28",
+              "question": "Codd's theorem states that relational algebra is strictly more powerful than safe relational calculus.",
+              "answer": false,
+              "explanation": "Codd's theorem states they are equivalent \u2014 neither is more powerful than the other for safe queries.",
+              "tags": [
+                "Codd-theorem"
+              ]
+            },
+            {
+              "id": "TF-29",
+              "question": "Codd's theorem establishes that relational algebra and safe relational calculus (both TRC and DRC) are equivalent in expressive power.",
+              "answer": true,
+              "explanation": "They define exactly the same class of queries \u2014 this is the foundational equivalence result.",
+              "tags": [
+                "Codd-theorem"
+              ]
+            },
+            {
+              "id": "TF-30",
+              "question": "A language is 'relationally complete' if it can express every query that relational algebra can express.",
+              "answer": true,
+              "explanation": "Relational completeness is the standard benchmark for query language expressiveness.",
+              "tags": [
+                "relational-completeness"
+              ]
+            },
+            {
+              "id": "TF-31",
+              "question": "Relational calculus can express transitive closure queries.",
+              "answer": false,
+              "explanation": "Neither calculus nor algebra can express transitive closure \u2014 it requires recursion.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "TF-32",
+              "question": "Relational calculus can express aggregation (COUNT, SUM, AVG) in its pure form.",
+              "answer": false,
+              "explanation": "Aggregation is beyond pure relational calculus, just as it is beyond classical relational algebra.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "TF-33",
+              "question": "In TRC, a compound formula P \u2227 Q requires both P and Q to hold simultaneously.",
+              "answer": true,
+              "explanation": "Conjunction (\u2227) is logical AND: both conjuncts must be true.",
+              "tags": [
+                "connectives"
+              ]
+            },
+            {
+              "id": "TF-34",
+              "question": "In TRC, a compound formula P \u2228 Q requires both P and Q to hold simultaneously.",
+              "answer": false,
+              "explanation": "Disjunction (\u2228) is logical OR: at least one of P or Q must hold, not necessarily both.",
+              "tags": [
+                "connectives"
+              ]
+            },
+            {
+              "id": "TF-35",
+              "question": "The output variable in a TRC query must be declared to range over a specific relation via a membership atom like R(t).",
+              "answer": true,
+              "explanation": "The output variable must be bound to a relation to ensure the query is well-defined and safe.",
+              "tags": [
+                "TRC",
+                "syntax"
+              ]
+            },
+            {
+              "id": "TF-36",
+              "question": "In DRC, all variables in the output head must be free variables; all other variables must be bound by quantifiers.",
+              "answer": true,
+              "explanation": "Free variables define the result schema; any variable appearing in the formula but not in the output must be quantified.",
+              "tags": [
+                "DRC",
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "TF-37",
+              "question": "SQL's EXISTS corresponds to existential quantification (\u2203) in TRC.",
+              "answer": true,
+              "explanation": "EXISTS tests whether a subquery returns at least one row \u2014 exactly matching \u2203.",
+              "tags": [
+                "SQL-connection",
+                "existential"
+              ]
+            },
+            {
+              "id": "TF-38",
+              "question": "SQL's NOT EXISTS corresponds to universal quantification (\u2200) in TRC.",
+              "answer": false,
+              "explanation": "NOT EXISTS corresponds to \u00ac\u2203 (negated existential), not directly to \u2200. However, 'for all' queries can be expressed using double negation: \u00ac\u2203s(R(s) \u2227 \u00acQ(s,t)).",
+              "tags": [
+                "SQL-connection",
+                "universal"
+              ]
+            },
+            {
+              "id": "TF-39",
+              "question": "Correlated subqueries in SQL correspond to simple selection (\u03c3) in relational algebra, not to quantification.",
+              "answer": false,
+              "explanation": "Correlated subqueries correspond to nested quantification in TRC (\u2203 or \u2200), not to simple selection. EXISTS maps to \u2203, NOT EXISTS maps to \u00ac\u2203, and 'for all' patterns map to \u2200.",
+              "tags": [
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "TF-40",
+              "question": "Every algebraic expression has an equivalent TRC expression (for safe queries), and vice versa.",
+              "answer": true,
+              "explanation": "This bidirectional equivalence is the content of Codd's theorem.",
+              "tags": [
+                "Codd-theorem",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "TF-41",
+              "question": "The active domain of a database instance includes all possible values from every attribute domain.",
+              "answer": false,
+              "explanation": "The active domain is the finite set of constants actually appearing in the database instance (and the query). It does not include all possible domain values.",
+              "tags": [
+                "safety",
+                "active-domain"
+              ]
+            },
+            {
+              "id": "TF-42",
+              "question": "A bound variable in TRC can appear in the result of the query.",
+              "answer": false,
+              "explanation": "Bound variables (those quantified by \u2203 or \u2200) are internal to the formula and do not appear in the output.",
+              "tags": [
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "TF-43",
+              "question": "The TRC projection of R onto attributes A and B requires an existential quantifier to bind the full tuple variable.",
+              "answer": true,
+              "explanation": "Projection in TRC introduces \u2203s(R(s) \u2227 t.A = s.A \u2227 t.B = s.B), where s ranges over R and t has only A, B.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "TF-44",
+              "question": "DRC queries tend to be more verbose than equivalent TRC queries because each attribute requires its own variable.",
+              "answer": true,
+              "explanation": "TRC uses one variable per tuple; DRC needs a separate variable for each attribute, making queries longer.",
+              "tags": [
+                "DRC",
+                "TRC"
+              ]
+            },
+            {
+              "id": "TF-45",
+              "question": "A TRC query with \u2200s(R(s) \u21d2 Q(s,t)) returns results even when R is empty.",
+              "answer": true,
+              "explanation": "When R is empty, the implication R(s) \u21d2 Q(s,t) is vacuously true for all s, so \u2200 is satisfied. Every candidate t passes.",
+              "tags": [
+                "universal",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "TF-46",
+              "question": "In TRC, \u00ac(\u2203s(R(s) \u2227 \u00acQ(s,t))) is logically equivalent to \u2200s(R(s) \u21d2 Q(s,t)).",
+              "answer": true,
+              "explanation": "By De Morgan and implication equivalence: \u00ac\u2203s(R(s) \u2227 \u00acQ) = \u2200s(\u00ac(R(s) \u2227 \u00acQ)) = \u2200s(\u00acR(s) \u2228 Q) = \u2200s(R(s) \u21d2 Q). This is the double-negation trick used in SQL with NOT EXISTS.",
+              "tags": [
+                "universal",
+                "connectives"
+              ]
+            },
+            {
+              "id": "TF-47",
+              "question": "In TRC, the comparison t.A = s.B is not a valid atomic formula because it compares attributes from two different tuple variables.",
+              "answer": false,
+              "explanation": "Comparing attributes across tuple variables is perfectly valid and is the standard way to express join conditions in TRC. t.A = s.B is a valid comparison atom.",
+              "tags": [
+                "TRC",
+                "atomic-formulas"
+              ]
+            },
+            {
+              "id": "TF-48",
+              "question": "For this course, DRC is more important than TRC because SQL maps more directly onto DRC.",
+              "answer": false,
+              "explanation": "TRC is more important for this course because SQL's FROM-WHERE-SELECT structure maps directly onto TRC, not DRC. DRC is more related to QBE.",
+              "tags": [
+                "TRC",
+                "DRC",
+                "SQL-connection"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "Explain the fundamental difference between relational algebra and relational calculus.",
+              "model_answer": "Relational algebra is procedural: a query specifies a sequence of operations (selection, projection, join, etc.) to compute the result. Relational calculus is declarative: a query describes properties the result must satisfy without specifying how to compute it. Despite this difference, they are equivalent in expressive power for safe queries (Codd's theorem).",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "What is the difference between a free variable and a bound variable in TRC? Which appears in the query result?",
+              "model_answer": "A free variable is not quantified by \u2203 or \u2200 \u2014 it defines the output schema of the query. A bound variable is introduced by a quantifier and is internal to the formula. Only free variables appear in the result; bound variables do not.",
+              "tags": [
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "Why must universal quantification (\u2200) in TRC use implication (\u21d2) rather than conjunction (\u2227)? What goes wrong if you use \u2227?",
+              "model_answer": "\u2200s(R(s) \u21d2 Q(s,t)) correctly says 'for every s in R, Q holds.' The implication is vacuously true for tuples not in R, which is correct. Using \u2227 instead \u2014 \u2200s(R(s) \u2227 Q(s,t)) \u2014 asserts that every tuple in the entire universe is both in R and satisfies Q. Since most tuples are not in R, this is almost always false, producing an empty result.",
+              "tags": [
+                "universal",
+                "implication"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "Write a TRC query for: 'Find all tuples in relation Employees where Salary > 50000.'",
+              "model_answer": "{ t | Employees(t) \u2227 t.Salary > 50000 }. This declares t as a tuple in Employees and filters by the salary condition.",
+              "tags": [
+                "TRC",
+                "selection"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "Write a TRC query for the set difference R \u2212 S (assuming R and S are union-compatible).",
+              "model_answer": "{ t | R(t) \u2227 \u00acS(t) }. This selects all tuples that are in R but not in S.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "Explain what makes a relational calculus query 'unsafe.' Give an example of an unsafe query and show how to fix it.",
+              "model_answer": "A query is unsafe if its result could be infinite \u2014 i.e., it includes values not drawn from the active domain (the constants in the database). Example: { t | \u00acR(t) } is unsafe because it asks for all tuples in the universe not in R. Fix: { t | S(t) \u2227 \u00acR(t) } restricts t to tuples in S, making the result finite and safe.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "SA-7",
+              "question": "State Codd's theorem and explain its significance.",
+              "model_answer": "Codd's theorem states that relational algebra and safe relational calculus (both TRC and DRC) are equivalent in expressive power: they define exactly the same class of queries. Its significance is that it provides a benchmark \u2014 any query language that can express everything relational algebra can is called 'relationally complete.'",
+              "tags": [
+                "Codd-theorem"
+              ]
+            },
+            {
+              "id": "SA-8",
+              "question": "Explain how SQL's SELECT-FROM-WHERE maps onto TRC components.",
+              "model_answer": "FROM introduces tuple variables and their relation membership (the R(t), S(s) atoms in TRC). WHERE is the formula P with conditions (\u2227, \u2228, \u00ac, comparisons, nested quantification via EXISTS/NOT EXISTS). SELECT specifies the output attributes (the free variables / projection in TRC). The conceptual mapping: FROM = declare variables, WHERE = the predicate, SELECT = the result.",
+              "tags": [
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "SA-9",
+              "question": "Compare TRC and DRC: how do their variables differ, and which is closer to SQL?",
+              "model_answer": "TRC variables range over whole tuples (one variable per relation), while DRC variables range over individual attribute values (one variable per attribute). TRC is closer to SQL because SQL's FROM introduces tuple variables that range over tables, and WHERE applies predicates to those tuple variables \u2014 exactly the TRC pattern. DRC is closer to QBE.",
+              "tags": [
+                "TRC",
+                "DRC"
+              ]
+            },
+            {
+              "id": "SA-10",
+              "question": "What is the active domain, and why does it matter for query safety?",
+              "model_answer": "The active domain is the finite set of all constants that appear in the current database instance or in the query itself. Safety requires that every value in the query's result be drawn from the active domain. This ensures the result is always finite and can be computed by a DBMS. Without this restriction, queries like { t | \u00acR(t) } would produce infinite results.",
+              "tags": [
+                "safety",
+                "active-domain"
+              ]
+            },
+            {
+              "id": "SA-11",
+              "question": "How does the TRC expression for a 'for all' query relate to SQL's NOT EXISTS?",
+              "model_answer": "A 'for all' query \u2200s(R(s) \u21d2 Q(s,t)) is logically equivalent to \u00ac\u2203s(R(s) \u2227 \u00acQ(s,t)) via De Morgan's laws. In SQL, this becomes NOT EXISTS (SELECT * FROM R WHERE NOT Q) \u2014 a double negation pattern. The outer NOT EXISTS checks that no counterexample exists.",
+              "tags": [
+                "universal",
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "SA-12",
+              "question": "Explain why \u2200s(R(s) \u21d2 Q(s,t)) is vacuously true when R is empty. Is this behavior correct?",
+              "model_answer": "When R is empty, there are no tuples s in R, so the implication R(s) \u21d2 Q(s,t) is vacuously true for all s (a false antecedent makes the implication true). This means every candidate t satisfies the \u2200. This is correct logically \u2014 'every element of the empty set satisfies P' is true by convention \u2014 but it can produce surprising results that students must watch for.",
+              "tags": [
+                "universal",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "SA-13",
+              "question": "Name two things that neither relational algebra nor relational calculus can express in their pure forms.",
+              "model_answer": "(1) Transitive closure \u2014 e.g., finding all ancestors in a hierarchy requires recursion. (2) Aggregation \u2014 e.g., COUNT, SUM, AVG require extended operators not in the pure formalism. Both limitations are shared by algebra and calculus equally.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "SA-14",
+              "question": "Write a TRC expression for: 'Find all students who are enrolled in every course offered by the CS department.' Assume relations Student(SID, Name), Enrollment(SID, CID), and CSCourse(CID).",
+              "model_answer": "{ t | Student(t) \u2227 \u2200s(CSCourse(s) \u21d2 \u2203u(Enrollment(u) \u2227 u.SID = t.SID \u2227 u.CID = s.CID)) }. For every CS course s, there must exist an enrollment tuple u linking the student t to that course.",
+              "tags": [
+                "TRC",
+                "universal",
+                "division"
+              ]
+            },
+            {
+              "id": "SA-15",
+              "question": "What is range restriction, and why is it important for query safety?",
+              "model_answer": "Range restriction means that every variable contributing to the query's output is constrained to take values from a named relation (or through comparisons with constants and other range-restricted variables). It ensures all output values come from the active domain, making the result finite. Without range restriction, variables could range over the infinite universe of all possible values.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "SA-16",
+              "question": "Explain the difference between \u2203 and \u2200 in TRC, and give the relational algebra counterpart of each.",
+              "model_answer": "\u2203 (existential quantification) asserts that at least one tuple satisfying a condition exists \u2014 it corresponds to join or membership testing in algebra. \u2200 (universal quantification) asserts that a condition holds for every tuple in a relation \u2014 it corresponds to division in algebra. The key syntactic difference is that \u2200 requires implication (\u21d2) while \u2203 uses conjunction (\u2227).",
+              "tags": [
+                "TRC",
+                "existential",
+                "universal",
+                "algebra-correspondence"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "Relational calculus is:",
+              "options": [
+                "Imperative \u2014 it uses loops and conditionals",
+                "Procedural \u2014 it specifies a sequence of operations",
+                "Object-oriented \u2014 it operates on objects and methods",
+                "Declarative \u2014 it specifies what the result should look like"
+              ],
+              "answer": 3,
+              "explanation": "Relational calculus is declarative: it describes the desired result without specifying computation steps.",
+              "tags": [
+                "foundations"
+              ]
+            },
+            {
+              "id": "MC-2",
+              "question": "In TRC, variables range over:",
+              "options": [
+                "Individual attribute values",
+                "Relation schemas",
+                "Database instances",
+                "Entire tuples"
+              ],
+              "answer": 3,
+              "explanation": "TRC tuple variables range over entire tuples of a relation.",
+              "tags": [
+                "TRC"
+              ]
+            },
+            {
+              "id": "MC-3",
+              "question": "In DRC, variables range over:",
+              "options": [
+                "Relation names",
+                "Individual attribute values from domains",
+                "Entire tuples",
+                "Query results"
+              ],
+              "answer": 1,
+              "explanation": "DRC domain variables take individual values from attribute domains.",
+              "tags": [
+                "DRC"
+              ]
+            },
+            {
+              "id": "MC-4",
+              "question": "Which connective is P \u21d2 Q equivalent to?",
+              "options": [
+                "P \u2228 Q",
+                "P \u2227 Q",
+                "\u00acP \u2227 Q",
+                "\u00acP \u2228 Q"
+              ],
+              "answer": 3,
+              "explanation": "Implication P \u21d2 Q is logically equivalent to \u00acP \u2228 Q.",
+              "tags": [
+                "connectives",
+                "implication"
+              ]
+            },
+            {
+              "id": "MC-5",
+              "question": "The TRC query { t | R(t) \u2227 t.A = 5 } corresponds to which relational algebra operation?",
+              "options": [
+                "R \u00f7 S",
+                "\u03c3_{A=5}(R)",
+                "R \u2212 S",
+                "\u03c0_A(R)"
+              ],
+              "answer": 1,
+              "explanation": "The query filters tuples of R where A equals 5 \u2014 this is selection.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "MC-6",
+              "question": "The TRC query { t | R(t) \u2227 \u00acS(t) } corresponds to which relational algebra operation?",
+              "options": [
+                "R \u2212 S",
+                "R \u222a S",
+                "R \u00d7 S",
+                "R \u2229 S"
+              ],
+              "answer": 0,
+              "explanation": "Tuples in R but not in S \u2014 this is set difference.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "MC-7",
+              "question": "Which quantifier is used in TRC for 'for all' queries?",
+              "options": [
+                "\u2203 (there exists)",
+                "\u21d2 (implies)",
+                "\u2200 (for all)",
+                "\u00ac (not)"
+              ],
+              "answer": 2,
+              "explanation": "Universal quantification (\u2200) is used for 'for all' queries, combined with implication (\u21d2).",
+              "tags": [
+                "universal"
+              ]
+            },
+            {
+              "id": "MC-8",
+              "question": "What is wrong with the TRC formula \u2200s(R(s) \u2227 Q(s,t))?",
+              "options": [
+                "Nothing \u2014 it correctly expresses 'for all s in R, Q holds'",
+                "It has a syntax error",
+                "\u2200 cannot be used in TRC",
+                "It uses \u2227 instead of \u21d2, asserting every tuple in the universe is in R and satisfies Q"
+              ],
+              "answer": 3,
+              "explanation": "Using \u2227 with \u2200 asserts that every tuple everywhere is in R and satisfies Q, which is almost always false.",
+              "tags": [
+                "universal",
+                "common-pitfall"
+              ]
+            },
+            {
+              "id": "MC-9",
+              "question": "The query { t | \u00acR(t) } is:",
+              "options": [
+                "Unsafe \u2014 its result is infinite",
+                "Safe \u2014 it returns a finite set",
+                "A syntax error",
+                "Equivalent to R"
+              ],
+              "answer": 0,
+              "explanation": "It asks for every tuple not in R, which is an unbounded (infinite) set.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "MC-10",
+              "question": "How can the unsafe query { t | \u00acR(t) } be made safe?",
+              "options": [
+                "Add ORDER BY",
+                "Remove the negation entirely",
+                "Restrict t to a named relation: { t | S(t) \u2227 \u00acR(t) }",
+                "Replace \u00ac with \u2200"
+              ],
+              "answer": 2,
+              "explanation": "Binding t to S ensures it ranges over a finite set, making the result finite and safe.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "MC-11",
+              "question": "Codd's theorem states that:",
+              "options": [
+                "Relational algebra is strictly more powerful than relational calculus",
+                "Relational algebra and safe relational calculus are equivalent in expressive power",
+                "Relational calculus can express recursive queries",
+                "SQL is the most powerful query language"
+              ],
+              "answer": 1,
+              "explanation": "Codd's theorem establishes the equivalence of algebra and safe calculus.",
+              "tags": [
+                "Codd-theorem"
+              ]
+            },
+            {
+              "id": "MC-12",
+              "question": "A language is 'relationally complete' if it can express:",
+              "options": [
+                "Only selection and projection",
+                "Any computable function",
+                "Transitive closure and aggregation",
+                "Every query expressible in relational algebra (equivalently, safe relational calculus)"
+              ],
+              "answer": 3,
+              "explanation": "Relational completeness means matching the expressive power of relational algebra / safe calculus.",
+              "tags": [
+                "relational-completeness"
+              ]
+            },
+            {
+              "id": "MC-13",
+              "question": "Which SQL construct corresponds most directly to \u2203 (existential quantification) in TRC?",
+              "options": [
+                "ORDER BY",
+                "EXISTS",
+                "HAVING",
+                "GROUP BY"
+              ],
+              "answer": 1,
+              "explanation": "EXISTS tests if a subquery returns at least one row \u2014 matching \u2203.",
+              "tags": [
+                "SQL-connection",
+                "existential"
+              ]
+            },
+            {
+              "id": "MC-14",
+              "question": "The TRC 'for all' pattern \u2200s(R(s) \u21d2 Q(s,t)) is expressed in SQL using:",
+              "options": [
+                "ANY keyword",
+                "EXISTS with AND",
+                "NOT EXISTS with a negated inner condition",
+                "GROUP BY with HAVING COUNT(*) = (SELECT COUNT(*) FROM R)"
+              ],
+              "answer": 2,
+              "explanation": "\u2200s(R(s) \u21d2 Q) = \u00ac\u2203s(R(s) \u2227 \u00acQ), which maps to NOT EXISTS (SELECT * FROM R WHERE NOT Q).",
+              "tags": [
+                "SQL-connection",
+                "universal"
+              ]
+            },
+            {
+              "id": "MC-15",
+              "question": "Which of the following is true about TRC and DRC?",
+              "options": [
+                "DRC is more powerful than TRC",
+                "DRC cannot express joins",
+                "TRC is more powerful than DRC",
+                "They are equivalent in expressive power for safe queries"
+              ],
+              "answer": 3,
+              "explanation": "TRC and DRC are equally expressive for safe queries.",
+              "tags": [
+                "TRC",
+                "DRC",
+                "equivalence"
+              ]
+            },
+            {
+              "id": "MC-16",
+              "question": "In a TRC query, the variable introduced by \u2203s(...) is called:",
+              "options": [
+                "A schema variable",
+                "A bound variable",
+                "A free variable",
+                "A domain variable"
+              ],
+              "answer": 1,
+              "explanation": "Variables quantified by \u2203 or \u2200 are bound \u2014 they are internal and do not appear in the result.",
+              "tags": [
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "MC-17",
+              "question": "SQL's FROM clause most closely corresponds to which TRC component?",
+              "options": [
+                "Comparison predicates: t.A = c",
+                "Quantifiers: \u2203, \u2200",
+                "Relation membership atoms: R(t), S(s)",
+                "The output head { t | ... }"
+              ],
+              "answer": 2,
+              "explanation": "FROM introduces tuple variables that range over tables \u2014 matching TRC relation membership atoms.",
+              "tags": [
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "MC-18",
+              "question": "SQL's WHERE clause most closely corresponds to which TRC component?",
+              "options": [
+                "The predicate formula P(t) with conditions, connectives, and quantification",
+                "Relation membership atoms",
+                "The output head { t | ... }",
+                "The result schema"
+              ],
+              "answer": 0,
+              "explanation": "WHERE contains the filtering conditions, corresponding to the formula P in { t | P(t) }.",
+              "tags": [
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "MC-19",
+              "question": "Neither relational algebra nor relational calculus can express:",
+              "options": [
+                "Transitive closure (e.g., finding all ancestors)",
+                "Selection on a single attribute",
+                "Set difference",
+                "Join of two relations"
+              ],
+              "answer": 0,
+              "explanation": "Transitive closure requires recursion, which is beyond both algebra and calculus.",
+              "tags": [
+                "limits"
+              ]
+            },
+            {
+              "id": "MC-20",
+              "question": "DRC is conceptually closest to which query interface?",
+              "options": [
+                "SQL",
+                "QBE (Query By Example)",
+                "Datalog",
+                "Relational algebra"
+              ],
+              "answer": 1,
+              "explanation": "QBE uses domain-level variables in a grid format, directly mirroring DRC's approach.",
+              "tags": [
+                "DRC",
+                "QBE"
+              ]
+            },
+            {
+              "id": "MC-21",
+              "question": "In TRC, which of the following correctly expresses 'find employees who work in the same department as employee 101'?",
+              "options": [
+                "{ t | Employee(t) \u2227 \u2200s(Employee(s) \u21d2 t.Dept = s.Dept) }",
+                "{ t | \u00acEmployee(t) }",
+                "{ t | Employee(t) \u2227 \u2203s(Employee(s) \u2227 s.EmpID = 101 \u2227 t.Dept = s.Dept) }",
+                "{ t | Employee(t) \u2227 t.EmpID = 101 }"
+              ],
+              "answer": 2,
+              "explanation": "We need employees t whose department matches that of some employee s with EmpID 101.",
+              "tags": [
+                "TRC"
+              ]
+            },
+            {
+              "id": "MC-22",
+              "question": "What does it mean for \u2200 to be 'vacuously true' when the quantified relation is empty?",
+              "options": [
+                "The query returns an error",
+                "The result is always empty",
+                "The \u2200 condition fails for all candidates",
+                "The \u2200 condition is satisfied for all candidates because there are no counterexamples"
+              ],
+              "answer": 3,
+              "explanation": "When R is empty, \u2200s(R(s) \u21d2 Q(s,t)) is vacuously true: there are no s in R to violate Q, so every t passes.",
+              "tags": [
+                "universal",
+                "vacuous-truth"
+              ]
+            },
+            {
+              "id": "MC-23",
+              "question": "The formula \u00ac\u2203s(R(s) \u2227 \u00acQ(s,t)) is logically equivalent to:",
+              "options": [
+                "\u2200s(R(s) \u2227 Q(s,t))",
+                "\u2200s(R(s) \u21d2 Q(s,t))",
+                "\u2203s(R(s) \u2227 Q(s,t))",
+                "\u00ac\u2200s(R(s) \u21d2 Q(s,t))"
+              ],
+              "answer": 1,
+              "explanation": "By De Morgan and implication equivalence, \u00ac\u2203s(R(s) \u2227 \u00acQ) = \u2200s(\u00acR(s) \u2228 Q) = \u2200s(R(s) \u21d2 Q).",
+              "tags": [
+                "connectives",
+                "universal"
+              ]
+            },
+            {
+              "id": "MC-24",
+              "question": "Which of the following makes a TRC query potentially unsafe?",
+              "options": [
+                "Using conjunction (\u2227)",
+                "Using negation (\u00ac) on a relation membership without range restriction",
+                "Using a relation membership atom R(t)",
+                "Using equality comparisons"
+              ],
+              "answer": 1,
+              "explanation": "Unrestricted negation like { t | \u00acR(t) } produces an infinite result. Negation requires the variable to be range-restricted elsewhere.",
+              "tags": [
+                "safety"
+              ]
+            },
+            {
+              "id": "MC-25",
+              "question": "The TRC query { t | R(t) \u2227 \u2203s(S(s) \u2227 t.A = s.A) } is semantically closest to which algebra expression?",
+              "options": [
+                "R \u222a S",
+                "R \u22c8 S (natural join on A, projected to R's schema)",
+                "R \u2212 S",
+                "R \u00f7 S"
+              ],
+              "answer": 1,
+              "explanation": "The query finds tuples in R that match some tuple in S on attribute A \u2014 a semijoin, closely related to natural join projected onto R's attributes.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "MC-26",
+              "question": "How many truth values does TRC logic have?",
+              "options": [
+                "One: TRUE",
+                "Four: TRUE, FALSE, UNKNOWN, and NULL",
+                "Three: TRUE, FALSE, and UNKNOWN",
+                "Two: TRUE and FALSE"
+              ],
+              "answer": 3,
+              "explanation": "Standard TRC uses classical two-valued logic (TRUE and FALSE). Three-valued logic with UNKNOWN arises in SQL due to null values, not in pure TRC.",
+              "tags": [
+                "connectives"
+              ]
+            },
+            {
+              "id": "MC-27",
+              "question": "In a DRC query { \u27e8x, y\u27e9 | R(x, y, z) \u2227 z > 10 }, which variable is NOT in the output?",
+              "options": [
+                "y",
+                "All three are in the output",
+                "x",
+                "z"
+              ],
+              "answer": 3,
+              "explanation": "Only x and y are in the output head \u27e8x, y\u27e9. Variable z appears only in the formula and must be bound (here implicitly existentially quantified).",
+              "tags": [
+                "DRC",
+                "free-bound-variables"
+              ]
+            },
+            {
+              "id": "MC-28",
+              "question": "Which of the following is the correct TRC for \u03c0_{Name}(\u03c3_{Dept='CS'}(Employee))?",
+              "options": [
+                "{ t | \u00acEmployee(t) }",
+                "{ t(Name) | \u2203s(Employee(s) \u2227 s.Dept = 'CS' \u2227 t.Name = s.Name) }",
+                "{ t | \u2200s(Employee(s) \u21d2 s.Dept = 'CS') }",
+                "{ t | Employee(t) \u2227 t.Dept = 'CS' }"
+              ],
+              "answer": 1,
+              "explanation": "Selection on Dept='CS' followed by projection onto Name requires \u2203s to bind the full tuple and extract just Name.",
+              "tags": [
+                "TRC",
+                "algebra-correspondence"
+              ]
+            },
+            {
+              "id": "MC-29",
+              "question": "If a TRC query uses \u2200s(R(s) \u21d2 Q(s,t)), what happens when R contains exactly one tuple and Q is false for that tuple?",
+              "options": [
+                "The result is undefined",
+                "The query returns an error",
+                "The \u2200 is not satisfied \u2014 t fails this condition",
+                "The \u2200 is satisfied"
+              ],
+              "answer": 2,
+              "explanation": "There exists a counterexample: the one tuple in R for which Q is false. So \u2200 fails and t is excluded.",
+              "tags": [
+                "universal"
+              ]
+            },
+            {
+              "id": "MC-30",
+              "question": "SQL's NOT IN corresponds most closely to which TRC pattern?",
+              "options": [
+                "\u00ac\u2203s(R(s) \u2227 t.A = s.A)",
+                "R(t) \u2227 S(t)",
+                "\u2200s(R(s) \u21d2 Q(s,t))",
+                "\u2203s(R(s) \u2227 Q(s,t))"
+              ],
+              "answer": 0,
+              "explanation": "NOT IN tests that the value does not appear in the subquery result \u2014 equivalent to \u00ac\u2203 with an equality.",
+              "tags": [
+                "SQL-connection"
+              ]
+            },
+            {
+              "id": "MC-31",
+              "question": "Which of the following is an atomic formula in TRC?",
+              "options": [
+                "\u00acP",
+                "\u2203s(R(s))",
+                "R(t)",
+                "P \u2227 Q"
+              ],
+              "answer": 2,
+              "explanation": "R(t) is an atomic formula (relation membership). The others are compound formulas using connectives or quantifiers.",
+              "tags": [
+                "TRC",
+                "atomic-formulas"
+              ]
+            },
+            {
+              "id": "MC-32",
+              "question": "The primary practical advantage of understanding TRC for this course is:",
+              "options": [
+                "TRC is the fastest query language",
+                "TRC can express recursive queries that SQL cannot",
+                "TRC replaces the need to learn SQL",
+                "TRC directly explains why SQL's SELECT-FROM-WHERE, EXISTS, and NOT EXISTS work the way they do"
+              ],
+              "answer": 3,
+              "explanation": "TRC provides the theoretical foundation for SQL's structure and constructs.",
+              "tags": [
+                "SQL-connection",
+                "foundations"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "EECS 484 quiz format for database management systems study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

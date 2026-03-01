@@ -7,6 +7,7 @@ Run with:  python -m backend.server   (from project root)
 import json
 import logging
 import os
+from typing import Generator, Tuple
 
 from flask import Flask, Response, jsonify, request, stream_with_context
 from flask_cors import CORS
@@ -14,6 +15,7 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 
 from backend.config import (
+    ALLOWED_EXTENSIONS,
     CHAT_MODELS,
     CHAT_OPTIONS,
     CHUNK_OVERLAP,
@@ -58,6 +60,22 @@ def get_processor() -> DocumentProcessor:
     return _processor
 
 
+# ---------------------------------------------------------------------------
+# Deck file discovery — walks module subdirectories under DECK_DIR
+# ---------------------------------------------------------------------------
+
+def _iter_deck_files() -> Generator[Tuple[Path, str], None, None]:
+    """
+    Yield (filepath, module_name) for every .json file inside DECK_DIR subdirectories.
+    Only one level of nesting is supported: decks/<module>/<file>.json
+    Loose files directly in DECK_DIR are ignored (everything must be in a module folder).
+    """
+    for subdir in sorted(DECK_DIR.iterdir()):
+        if subdir.is_dir() and not subdir.name.startswith("."):
+            for fp in sorted(subdir.glob("*.json")):
+                yield fp, subdir.name
+
+
 # ===================================================================
 # Health / status
 # ===================================================================
@@ -99,6 +117,7 @@ def chat():
     question = data.get("question", "").strip()
     mode = data.get("mode", "qwen-7b")
     n_results = data.get("n_results", 8)
+    grounded = data.get("grounded", True)
 
     if not question:
         return jsonify({"error": "question is required"}), 400
@@ -109,7 +128,8 @@ def chat():
         try:
             proc = get_processor()
             for token in proc.ask_question(
-                question, mode=mode, n_results=n_results, history=_history
+                question, mode=mode, n_results=n_results, history=_history,
+                grounded=grounded,
             ):
                 yield f"data: {json.dumps({'token': token})}\n\n"
             yield "data: [DONE]\n\n"
@@ -225,10 +245,20 @@ def _validate_quiz_json(data: dict) -> str | None:
     return None
 
 
+@app.route("/api/modules", methods=["GET"])
+def list_modules():
+    """Return list of module subdirectories under DECK_DIR."""
+    modules = []
+    for subdir in sorted(DECK_DIR.iterdir()):
+        if subdir.is_dir() and not subdir.name.startswith("."):
+            modules.append(subdir.name)
+    return jsonify({"modules": modules})
+
+
 @app.route("/api/quizzes", methods=["GET"])
 def list_quizzes():
     results = []
-    for fp in sorted(DECK_DIR.glob("*.json")):
+    for fp, module in _iter_deck_files():
         try:
             with open(fp) as f:
                 data = json.load(f)
@@ -239,6 +269,7 @@ def list_quizzes():
                 )
                 results.append({
                     "file": fp.name,
+                    "module": module,
                     "id": quiz.get("id", fp.stem),
                     "title": quiz.get("title", fp.stem),
                     "scope": quiz.get("scope", ""),
@@ -255,7 +286,7 @@ def list_quizzes():
 
 @app.route("/api/quizzes/<quiz_id>", methods=["GET"])
 def get_quiz(quiz_id: str):
-    for fp in DECK_DIR.glob("*.json"):
+    for fp, _module in _iter_deck_files():
         try:
             with open(fp) as f:
                 data = json.load(f)
@@ -269,6 +300,24 @@ def get_quiz(quiz_id: str):
 
 @app.route("/api/quizzes/ingest", methods=["POST"])
 def ingest_quiz():
+    # Determine target module subdirectory
+    module = request.args.get("module", "").strip() or request.form.get("module", "").strip()
+    if not module:
+        # Try JSON body for path-based ingest
+        body = request.get_json(silent=True) or {}
+        module = body.get("module", "").strip()
+
+    if not module:
+        return jsonify({"error": "module is required (query param, form field, or JSON body)"}), 400
+
+    # Sanitize module name
+    safe_module = secure_filename(module)
+    if not safe_module:
+        return jsonify({"error": f"Invalid module name: {module}"}), 400
+
+    module_dir = DECK_DIR / safe_module
+    module_dir.mkdir(exist_ok=True)
+
     # Handle file upload
     if "file" in request.files:
         file = request.files["file"]
@@ -277,7 +326,7 @@ def ingest_quiz():
         safe_name = secure_filename(file.filename)
         if not safe_name.endswith(".json"):
             return jsonify({"error": "Only .json files accepted"}), 400
-        dest = DECK_DIR / safe_name
+        dest = module_dir / safe_name
         file.save(str(dest))
     else:
         # Handle path-based ingest
@@ -289,7 +338,7 @@ def ingest_quiz():
         if not src_path.exists():
             return jsonify({"error": f"File not found: {src}"}), 404
         safe_name = secure_filename(src_path.name)
-        dest = DECK_DIR / safe_name
+        dest = module_dir / safe_name
         import shutil
         shutil.copy2(str(src_path), str(dest))
 
@@ -306,7 +355,7 @@ def ingest_quiz():
         dest.unlink(missing_ok=True)
         return jsonify({"error": err}), 400
 
-    quiz_ids = [q.get("id", "?") for q in data["quizzes"]]
+    quiz_ids = [q.get("id", "?") for q in data.get("quizzes", [])]
     total_q = sum(
         len(s.get("questions", []))
         for q in data["quizzes"]
@@ -316,6 +365,7 @@ def ingest_quiz():
     return jsonify({
         "status": "ok",
         "filename": safe_name,
+        "module": safe_module,
         "quiz_ids": quiz_ids,
         "total_questions": total_q,
     })
@@ -405,10 +455,6 @@ def evaluate_answer():
         logger.exception("Evaluation error")
         return jsonify({"error": str(e)}), 500
 
-# ==========================================================================
-# ADD THIS ENDPOINT TO backend/server.py
-# Place it after the existing /api/quizzes/evaluate endpoint
-# ==========================================================================
 
 @app.route("/api/quizzes/<quiz_id>/questions", methods=["DELETE"])
 def delete_questions(quiz_id: str):
@@ -428,12 +474,12 @@ def delete_questions(quiz_id: str):
 
     ids_to_remove = set(question_ids)
 
-    # Find the file containing this quiz
+    # Find the file containing this quiz (searches module subdirectories)
     target_path = None
     target_data = None
     target_quiz_idx = None
 
-    for fp in DECK_DIR.glob("*.json"):
+    for fp, _module in _iter_deck_files():
         try:
             with open(fp) as f:
                 file_data = json.load(f)
@@ -483,6 +529,7 @@ def delete_questions(quiz_id: str):
         "removed": removed,
         "remaining": total_remaining,
     })
+
 
 # ===================================================================
 # Main
