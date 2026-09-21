@@ -52,6 +52,17 @@ export default function Apollo({ mode }: ApolloProps) {
     sa: filterBySection(allQuestions, "short_answer").length,
   }), [allQuestions]);
 
+  // When a deck loads, clamp the quiz-length counts to what's actually
+  // available (the Short preset, capped) so a small deck never shows
+  // "12 / 1" or "26 questions selected".
+  useEffect(() => {
+    if (allQuestions.length === 0) return;
+    const short = PRESETS.find((p) => p.id === "short")!;
+    setTfCount(Math.min(short.tf, available.tf));
+    setMcCount(Math.min(short.mc, available.mc));
+    setSaCount(Math.min(short.sa, available.sa));
+  }, [available, allQuestions.length]);
+
   // Modules = folders on disk (from /api/modules) merged with modules
   // derived from quizzes, so empty folders still show with "0 decks".
   const modules = useMemo(() => {
@@ -176,6 +187,10 @@ export default function Apollo({ mode }: ApolloProps) {
         title={quizTitle}
         module={selectedModule}
         quizId={selectedId}
+        fileName={
+          quizzes.find((q) => q.id === selectedId && q.module === selectedModule)?.file ??
+          `${selectedId}.json`
+        }
         questions={allQuestions}
         onExit={handleExit}
         onSaved={handleDebugSaved}
@@ -381,12 +396,13 @@ function QuizSlider({
   max: number;
   onChange: (n: number) => void;
 }) {
+  const shown = Math.min(value, max);
   return (
     <div className="quiz-slider">
       <div className="quiz-slider-header">
         <span className="quiz-slider-label">{label}</span>
         <span className="quiz-slider-value">
-          {value} / {max}
+          {shown} / {max}
         </span>
       </div>
       <input
@@ -394,8 +410,9 @@ function QuizSlider({
         className="quiz-slider-input"
         min={0}
         max={max}
-        value={value}
+        value={shown}
         onChange={(e) => onChange(Number(e.target.value))}
+        disabled={max === 0}
       />
     </div>
   );

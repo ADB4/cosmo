@@ -8,6 +8,8 @@ interface Props {
   title: string;
   module: string;
   quizId: string;
+  /** Deck filename, shown in the save confirmation. */
+  fileName: string;
   questions: NormalizedQuestion[];
   onExit: () => void;
   /** Called after a successful save so Apollo can refresh its data */
@@ -31,7 +33,7 @@ function formatTag(tag: string): string {
   return tag.replace(/-/g, " ");
 }
 
-  export default function DebugMode({ title: _title, module, quizId, questions, onExit, onSaved }: Props) {
+  export default function DebugMode({ title: _title, module, quizId, fileName, questions, onExit, onSaved }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -41,6 +43,7 @@ function formatTag(tag: string): string {
   const [markedForRemoval, setMarkedForRemoval] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const availableTags = useMemo(() => collectTags(questions), [questions]);
 
@@ -127,6 +130,7 @@ function formatTag(tag: string): string {
     if (markedForRemoval.size === 0) return;
     setSaving(true);
     setSaveMsg(null);
+    setConfirming(false);
     try {
       const result = await deleteQuestions(module, quizId, [...markedForRemoval]);
       setSaveMsg(`Removed ${result.removed.length} question${result.removed.length !== 1 ? "s" : ""}. ${result.remaining} remaining in file.`);
@@ -289,13 +293,27 @@ function formatTag(tag: string): string {
             <span className="debug-queue-title">
               {markedForRemoval.size} question{markedForRemoval.size !== 1 ? "s" : ""} marked for removal
             </span>
-            <button
-              className="debug-save-btn"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save JSON"}
-            </button>
+            {confirming ? (
+              <div className="debug-confirm">
+                <span className="debug-confirm-text">
+                  Delete {markedForRemoval.size} from <span className="debug-confirm-file">{module}/{fileName}</span>?
+                </span>
+                <button className="debug-save-btn" onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving..." : "Confirm"}
+                </button>
+                <button className="debug-cancel-btn" onClick={() => setConfirming(false)} disabled={saving}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                className="debug-save-btn"
+                onClick={() => setConfirming(true)}
+                disabled={saving}
+              >
+                Save JSON
+              </button>
+            )}
           </div>
           <div className="debug-queue-list">
             {markedList.map((q) => (

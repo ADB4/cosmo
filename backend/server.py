@@ -324,6 +324,7 @@ def list_quizzes():
                     "id": quiz.get("id", fp.stem),
                     "title": quiz.get("title", fp.stem),
                     "scope": quiz.get("scope", ""),
+                    "order": quiz.get("order"),
                     "total_questions": total_q,
                     "sections": [
                         {"type": s["type"], "count": len(s.get("questions", []))}
