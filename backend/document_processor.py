@@ -7,6 +7,7 @@ querying with semantic search, and streaming LLM answers via Ollama.
 
 import hashlib
 import logging
+import os
 import re
 from collections import deque
 from dataclasses import dataclass, field
@@ -460,6 +461,16 @@ class DocumentProcessor:
             metadata={"hnsw:space": "cosine"},
         )
         self.models = CHAT_MODELS
+        # Per-chunk embedding token cap follows THIS instance's embedding model
+        # (not the process-wide active one), so `reindex --embed-model X` uses
+        # X's profile. The COSMO_EMBED_MAX_TOKENS override only applies to the
+        # active model configured via COSMO_EMBED_MODEL.
+        from backend.config import EMBED_PROFILES
+        _profile = EMBED_PROFILES.get(self.embed_model, EMBED_PROFILES["nomic-embed-text"])
+        _max = _profile["max_tokens"]
+        if self.embed_model == EMBED_MODEL and "COSMO_EMBED_MAX_TOKENS" in os.environ:
+            _max = int(os.environ["COSMO_EMBED_MAX_TOKENS"])
+        self.embed_max_tokens = int(_max)
         # Lazily-created, reused across a batch so Marker loads its models once.
         self._marker: MarkerExtractor | None = None
 
@@ -613,13 +624,13 @@ class DocumentProcessor:
 
     # -- embedding ----------------------------------------------------------
     def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        from backend.config import EMBED_MAX_TOKENS
+        max_tokens = self.embed_max_tokens
 
         truncated = []
         for text in texts:
             tokens = self._tokenizer.encode(text)
-            if len(tokens) > EMBED_MAX_TOKENS:
-                tokens = tokens[:EMBED_MAX_TOKENS]
+            if len(tokens) > max_tokens:
+                tokens = tokens[:max_tokens]
                 truncated.append(self._tokenizer.decode(tokens))
             else:
                 truncated.append(text)
