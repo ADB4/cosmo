@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { ApolloView, QuizSummary, NormalizedQuestion, QuizPreset } from "../../lib/types";
-import { fetchQuizzes, fetchQuiz, ingestQuiz } from "../../lib/api";
+import { fetchQuizzes, fetchQuiz, fetchModules } from "../../lib/api";
 import { normalizeQuiz, filterBySection, sampleQuiz } from "../../lib/normalizeQuiz";
 import StudyMode from "./StudyMode";
 import QuizMode from "./QuizMode";
 import DebugMode from "./DebugMode";
+import DeckControls from "./DeckControls";
 
 const PRESETS: (QuizPreset & { id: string })[] = [
   { id: "short",  label: "Short",  tf: 12, mc: 10, sa: 4 },
@@ -37,9 +38,8 @@ export default function Apollo() {
   const [mcCount, setMcCount] = useState(10);
   const [saCount, setSaCount] = useState(4);
 
-  const [uploading, setUploading] = useState(false);
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  // Modules that exist as folders on disk (may be empty of decks)
+  const [diskModules, setDiskModules] = useState<string[]>([]);
 
   const available = useMemo(() => ({
     tf: filterBySection(allQuestions, "true_false").length,
@@ -47,9 +47,13 @@ export default function Apollo() {
     sa: filterBySection(allQuestions, "short_answer").length,
   }), [allQuestions]);
 
-  // Derive unique modules from quiz data
+  // Modules = folders on disk (from /api/modules) merged with modules
+  // derived from quizzes, so empty folders still show with "0 decks".
   const modules = useMemo(() => {
     const moduleMap = new Map<string, { deckCount: number; questionCount: number }>();
+    for (const m of diskModules) {
+      if (!moduleMap.has(m)) moduleMap.set(m, { deckCount: 0, questionCount: 0 });
+    }
     for (const q of quizzes) {
       const existing = moduleMap.get(q.module);
       if (existing) {
@@ -60,7 +64,9 @@ export default function Apollo() {
       }
     }
     return moduleMap;
-  }, [quizzes]);
+  }, [quizzes, diskModules]);
+
+  const moduleNames = useMemo(() => [...modules.keys()].sort(), [modules]);
 
   // Quizzes filtered to the selected module
   const moduleQuizzes = useMemo(() => {
@@ -72,7 +78,12 @@ export default function Apollo() {
     setLoading(true);
     setError(null);
     try {
-      setQuizzes(await fetchQuizzes());
+      const [qs, mods] = await Promise.all([
+        fetchQuizzes(),
+        fetchModules().catch(() => [] as string[]),
+      ]);
+      setQuizzes(qs);
+      setDiskModules(mods);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load quizzes");
     } finally {
@@ -100,24 +111,6 @@ export default function Apollo() {
     }
   }, []);
 
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!selectedModule) return;
-    setUploading(true);
-    setUploadMsg(null);
-    try {
-      const result = await ingestQuiz(file, selectedModule);
-      setUploadMsg(`Loaded ${result.total_questions} questions from ${result.filename}`);
-      loadQuizzes();
-    } catch (err) {
-      setUploadMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }, [loadQuizzes, selectedModule]);
-
   const handleExit = useCallback(() => {
     setView("select");
     setQuizQuestions([]);
@@ -131,7 +124,6 @@ export default function Apollo() {
   const handleBackToModules = useCallback(() => {
     setSelectedModule(null);
     setSelectedId(null);
-    setUploadMsg(null);
   }, []);
 
   const handleBackToQuizList = useCallback(() => {
@@ -255,11 +247,13 @@ export default function Apollo() {
         <p className="apollo-loading">Loading quizzes...</p>
       ) : error ? (
         <p className="apollo-error">{error}</p>
-      ) : quizzes.length === 0 ? (
-        <div className="apollo-empty">
-          <p className="apollo-empty-text">
-            No quizzes loaded yet. Upload a quiz JSON to get started.
+      ) : modules.size === 0 ? (
+        <div className="apollo-picker">
+          <h2 className="apollo-title">Apollo</h2>
+          <p className="apollo-desc">
+            No modules yet. Create one, then upload a deck JSON to get started.
           </p>
+          <DeckControls existingModules={moduleNames} onChanged={loadQuizzes} />
         </div>
       ) : (
         <>
@@ -282,6 +276,7 @@ export default function Apollo() {
                   </button>
                 ))}
               </div>
+              <DeckControls existingModules={moduleNames} onChanged={loadQuizzes} />
             </div>
           )}
 
@@ -293,27 +288,23 @@ export default function Apollo() {
               </button>
               <h2 className="apollo-title">{formatModuleName(selectedModule)}</h2>
               <p className="apollo-desc">Choose a deck to study or test</p>
-              <div className="apollo-quiz-list">
-                {moduleQuizzes.map((q) => (
-                  <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.module, q.id)}>
-                    <span className="apollo-quiz-item-title">{q.title}</span>
-                    <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Upload scoped to this module */}
-              <div className="apollo-upload-area">
-                <label className={`apollo-upload-btn ${uploading ? "apollo-upload-btn--busy" : ""}`}>
-                  {uploading ? "Processing..." : "Upload Quiz JSON"}
-                  <input ref={fileRef} type="file" accept=".json" onChange={handleUpload} disabled={uploading} hidden />
-                </label>
-                {uploadMsg && (
-                  <span className={`apollo-upload-msg ${uploadMsg.startsWith("Error") ? "apollo-upload-msg--error" : ""}`}>
-                    {uploadMsg}
-                  </span>
-                )}
-              </div>
+              {moduleQuizzes.length === 0 ? (
+                <p className="apollo-count">No decks in this module yet — upload one below.</p>
+              ) : (
+                <div className="apollo-quiz-list">
+                  {moduleQuizzes.map((q) => (
+                    <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.module, q.id)}>
+                      <span className="apollo-quiz-item-title">{q.title}</span>
+                      <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <DeckControls
+                existingModules={moduleNames}
+                onChanged={loadQuizzes}
+                initialModule={selectedModule}
+              />
             </div>
           )}
 

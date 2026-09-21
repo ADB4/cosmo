@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage, ModelMode } from "../../lib/types";
 import { streamChat, clearHistory } from "../../lib/api";
 import MessageBubble from "./MessageBubble";
+import KnowledgeBase from "./KnowledgeBase";
 
 interface ChatPanelProps {
   mode: ModelMode;
@@ -152,6 +153,7 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
   return (
     <div className="chat-panel">
+      <KnowledgeBase />
       <div className="chat-messages">
         {messages.map((msg) => (
           <MessageBubble
