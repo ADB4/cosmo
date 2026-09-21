@@ -156,6 +156,11 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .debug-save-btn{padding:5px 14px;border:1px solid var(--green);border-radius:4px;font-size:12px;font-weight:600;color:var(--green);background:transparent;transition:background .15s,color .15s}
 .debug-save-btn:hover:not(:disabled){background:var(--green);color:var(--bg)}
 .debug-save-btn:disabled{opacity:.5;cursor:wait}
+.debug-confirm{display:flex;align-items:center;gap:10px}
+.debug-confirm-text{font-size:12px;color:var(--text-dim)}
+.debug-confirm-file{color:var(--yellow)}
+.debug-cancel-btn{padding:5px 12px;border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-dim);background:transparent;transition:background .1s,color .1s}
+.debug-cancel-btn:hover:not(:disabled){background:var(--bg-hover);color:var(--text)}
 .debug-queue-list{display:flex;flex-direction:column;gap:4px}
 .debug-queue-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border-subtle)}
 .debug-queue-item-id{font-family:var(--font-mono,monospace);color:var(--red);font-weight:600;flex-shrink:0;min-width:50px}

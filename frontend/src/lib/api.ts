@@ -69,10 +69,14 @@ export async function fetchQuizzes(): Promise<QuizSummary[]> {
   const res = await fetch(`${BASE}/quizzes`);
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
-  return data.quizzes.sort((a: QuizSummary, b: QuizSummary) => {
-    const weekA = parseInt(a.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
-    const weekB = parseInt(b.title.match(/Week (\d+)/)?.[1] ?? '0', 10);
-    return weekA - weekB;
+  // Sort by an optional numeric `order` field, then by filename. Quizzes
+  // without an `order` sort after those that have one. (No more parsing
+  // "Week N" out of the title, which mis-sorted "Unit 1" and "Weeks 5–6".)
+  return (data.quizzes as QuizSummary[]).sort((a, b) => {
+    const oa = a.order ?? Number.POSITIVE_INFINITY;
+    const ob = b.order ?? Number.POSITIVE_INFINITY;
+    if (oa !== ob) return oa - ob;
+    return a.file.localeCompare(b.file, undefined, { numeric: true });
   });
 }
 

@@ -98,6 +98,8 @@ export interface QuizSummary {
   title: string;
   scope: string;
   module: string;
+  /** Optional explicit sort key from the quiz JSON; falls back to filename. */
+  order?: number | null;
   total_questions: number;
   sections: { type: SectionType; count: number }[];
 }
