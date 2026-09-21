@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { ChatMessage, ModelMode } from "../../lib/types";
+import type { ChatMessage, ModelMode, HealthResponse } from "../../lib/types";
+import { MODE_INFO } from "../../lib/types";
 import { streamChat, clearHistory } from "../../lib/api";
 import MessageBubble from "./MessageBubble";
 import KnowledgeBase from "./KnowledgeBase";
 
 interface ChatPanelProps {
   mode: ModelMode;
+  health: HealthResponse | null;
+  onHealthRefresh: () => void;
 }
 
 let nextId = 0;
@@ -13,15 +16,8 @@ function uid(): string {
   return `msg_${Date.now()}_${nextId++}`;
 }
 
-export default function ChatPanel({ mode }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: uid(),
-      role: "user",
-      content: "Connected to Ollama. Ready to answer questions about your documentation.",
-      timestamp: Date.now(),
-    },
-  ]);
+export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [grounded, setGrounded] = useState(true);
@@ -103,10 +99,10 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
   const handleSend = useCallback(() => {
     const q = input.trim();
-    if (!q || streaming) return;
+    if (!q || streaming || health?.status === "error") return;
     setInput("");
     runQuery(q, grounded, true);
-  }, [input, streaming, grounded, runQuery]);
+  }, [input, streaming, grounded, runQuery, health]);
 
   const handleAskBroadly = useCallback(
     (question: string) => {
@@ -138,22 +134,54 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
 
   const handleClear = async () => {
     if (streaming) handleStop();
-    setMessages([
-      {
-        id: uid(),
-        role: "user",
-        content: "Chat cleared. Ready for new questions.",
-        timestamp: Date.now(),
-      },
-    ]);
+    setMessages([]);
     await clearHistory();
   };
 
-  const hasConversation = messages.length > 1;
+  const hasConversation = messages.length > 0;
+
+  // ── Status line derived from real health (never fabricated) ──
+  const healthError = health?.status === "error";
+  const docsCount = health?.total_documents ?? 0;
+  const chunksCount = health?.total_chunks ?? 0;
+  const emptyKb = health?.status === "ok" && docsCount === 0;
+
+  let statusNode: React.ReactNode;
+  if (!health) {
+    statusNode = <span className="chat-status-text">Connecting to backend…</span>;
+  } else if (healthError) {
+    const msg = health.message ?? "Backend unavailable";
+    const mentionsOllama = /ollama/i.test(msg);
+    const hint = mentionsOllama
+      ? "start Ollama with `ollama serve`"
+      : "start the backend with `./scripts/start-dev.sh`";
+    statusNode = (
+      <span className="chat-status-text chat-status-text--error">
+        Offline — {msg.split("\n")[0]} · {hint}
+      </span>
+    );
+  } else if (emptyKb) {
+    statusNode = (
+      <span className="chat-status-text">
+        Ready · no documents indexed yet — add some in the{" "}
+        <strong>Knowledge base</strong> panel above · {MODE_INFO[mode].label}
+      </span>
+    );
+  } else {
+    statusNode = (
+      <span className="chat-status-text">
+        Ready · {docsCount} document{docsCount !== 1 ? "s" : ""} · {chunksCount} chunks ·{" "}
+        {MODE_INFO[mode].label}
+      </span>
+    );
+  }
 
   return (
     <div className="chat-panel">
-      <KnowledgeBase />
+      <KnowledgeBase onIngested={onHealthRefresh} defaultOpen={emptyKb} />
+      <div className={`chat-status ${healthError ? "chat-status--error" : ""}`}>
+        {statusNode}
+      </div>
       <div className="chat-messages">
         {messages.map((msg) => (
           <MessageBubble
@@ -182,13 +210,19 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a question about the documentation..."
+          placeholder={
+            healthError
+              ? "Backend offline — start it to ask questions"
+              : "Ask a question about the documentation..."
+          }
           rows={1}
-          disabled={streaming}
+          disabled={streaming || healthError}
         />
         <div className="input-footer">
           <span className="input-hint">
-            Press Enter to send, Shift+Enter for new line
+            {healthError
+              ? "Send is disabled while the backend is offline"
+              : "Press Enter to send, Shift+Enter for new line"}
           </span>
           <div className="input-actions">
             <button
@@ -210,7 +244,8 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
               <button
                 className="send-btn"
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || healthError}
+                title={healthError ? "Backend is offline" : undefined}
               >
                 <span className="send-btn-icon">&#9654;</span>
                 Send
