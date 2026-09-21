@@ -36,56 +36,92 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
     inputRef.current?.focus();
   }, []);
 
+  // Core send routine. `showUserMsg` is false when re-issuing an existing
+  // question (Ask broadly / Retry) so we don't duplicate the user's turn.
+  const runQuery = useCallback(
+    (q: string, groundedFlag: boolean, showUserMsg: boolean) => {
+      if (!q || streaming) return;
+
+      const assistantMsg: ChatMessage = {
+        id: uid(),
+        role: "assistant",
+        content: "",
+        mode,
+        timestamp: Date.now(),
+        question: q,
+      };
+
+      setMessages((prev) => {
+        if (!showUserMsg) return [...prev, assistantMsg];
+        const userMsg: ChatMessage = {
+          id: uid(),
+          role: "user",
+          content: q,
+          mode,
+          timestamp: Date.now(),
+        };
+        return [...prev, userMsg, assistantMsg];
+      });
+      setStreaming(true);
+
+      const assistantId = assistantMsg.id;
+
+      abortRef.current = streamChat(q, mode, 8, groundedFlag, {
+        onToken: (token) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: m.content + token } : m,
+            ),
+          );
+        },
+        onDone: () => {
+          setStreaming(false);
+          inputRef.current?.focus();
+        },
+        onError: (err) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, error: err } : m,
+            ),
+          );
+          setStreaming(false);
+        },
+        onNoResults: () => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, noResults: true } : m,
+            ),
+          );
+          setStreaming(false);
+          inputRef.current?.focus();
+        },
+      });
+    },
+    [mode, streaming],
+  );
+
   const handleSend = useCallback(() => {
     const q = input.trim();
     if (!q || streaming) return;
-
-    const userMsg: ChatMessage = {
-      id: uid(),
-      role: "user",
-      content: q,
-      mode,
-      timestamp: Date.now(),
-    };
-
-    const assistantMsg: ChatMessage = {
-      id: uid(),
-      role: "assistant",
-      content: "",
-      mode,
-      timestamp: Date.now(),
-    };
-
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
-    setStreaming(true);
+    runQuery(q, grounded, true);
+  }, [input, streaming, grounded, runQuery]);
 
-    const assistantId = assistantMsg.id;
+  const handleAskBroadly = useCallback(
+    (question: string) => {
+      if (streaming) return;
+      runQuery(question, false, false);
+    },
+    [streaming, runQuery],
+  );
 
-    abortRef.current = streamChat(q, mode, 8, grounded, {
-      onToken: (token) => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, content: m.content + token } : m,
-          ),
-        );
-      },
-      onDone: () => {
-        setStreaming(false);
-        inputRef.current?.focus();
-      },
-      onError: (err) => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: m.content + `\n\n[error: ${err}]` }
-              : m,
-          ),
-        );
-        setStreaming(false);
-      },
-    });
-  }, [input, mode, streaming, grounded]);
+  const handleRetry = useCallback(
+    (question: string) => {
+      if (streaming) return;
+      runQuery(question, grounded, false);
+    },
+    [streaming, grounded, runQuery],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -118,7 +154,12 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
     <div className="chat-panel">
       <div className="chat-messages">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onAskBroadly={handleAskBroadly}
+            onRetry={handleRetry}
+          />
         ))}
 
         {streaming && (
@@ -152,8 +193,8 @@ export default function ChatPanel({ mode }: ChatPanelProps) {
               className={`grounded-toggle ${!grounded ? "grounded-toggle--broad" : ""}`}
               onClick={() => setGrounded((g) => !g)}
               title={grounded
-                ? "Docs only — answers strictly from indexed documentation"
-                : "Broad — supplements with LLM knowledge when docs are insufficient"
+                ? "Docs only — answers only from indexed docs above the relevance cutoff; if nothing matches, says so instead of guessing"
+                : "Broad — answers from the model's own knowledge, using any indexed docs as supporting context"
               }
             >
               {grounded ? "Docs only" : "Broad"}

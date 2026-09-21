@@ -636,8 +636,37 @@ class DocumentProcessor:
             query_embeddings=[query_embedding],
             n_results=n_results,
             where=where_clause,
+            include=["documents", "metadatas", "distances"],
         )
         return results
+
+    @staticmethod
+    def _filter_by_distance(results: Dict, max_distance: float) -> Dict:
+        """
+        Return a copy of a Chroma query result keeping only the chunks whose
+        distance is within `max_distance`. Preserves the [[...]] nesting shape
+        that the rest of the code expects.
+        """
+        docs = results.get("documents", [[]])[0]
+        metas = results.get("metadatas", [[]])[0]
+        dists = results.get("distances", [[]])[0] if results.get("distances") else []
+
+        kept_docs: List[str] = []
+        kept_metas: List[Dict] = []
+        kept_dists: List[float] = []
+        for i, doc in enumerate(docs):
+            dist = dists[i] if i < len(dists) else None
+            if dist is None or dist <= max_distance:
+                kept_docs.append(doc)
+                kept_metas.append(metas[i])
+                if dist is not None:
+                    kept_dists.append(dist)
+
+        return {
+            "documents": [kept_docs],
+            "metadatas": [kept_metas],
+            "distances": [kept_dists],
+        }
 
     def _build_rag_prompt(
         self,
@@ -685,7 +714,11 @@ class DocumentProcessor:
             sources_parts.append(f"[{i + 1}] {label}")
 
         context = "\n\n".join(context_parts)
-        sources_block = "\n\n---\nSources:\n" + "\n".join(sources_parts)
+        # Only cite sources that actually made it into the context (i.e. passed
+        # the relevance cutoff). No chunks -> no Sources block at all.
+        sources_block = (
+            "\n\n---\nSources:\n" + "\n".join(sources_parts) if sources_parts else ""
+        )
 
         history_block = ""
         if history and len(history) > 0:
@@ -704,8 +737,9 @@ class DocumentProcessor:
                 "- When an excerpt contains a list, priority order, or step-by-step "
                 "process, reproduce it in your answer.\n"
                 "- Cite sources inline like [1] or [3] after the claim they support.\n"
-                "- If the excerpts genuinely do not contain the answer, say so briefly "
-                "and give your best answer from general knowledge.\n"
+                "- If the excerpts genuinely do not contain the answer, state briefly "
+                "that the documentation does not cover it. Do NOT fall back to general "
+                "knowledge — answer only from the excerpts above.\n"
                 "- Keep answers concise and direct. No preamble like 'Great question' "
                 "or 'Based on the documentation provided'."
             )
@@ -729,6 +763,11 @@ class DocumentProcessor:
 
         return prompt, sources_block
 
+    # Sentinel yielded (in grounded mode) when nothing passes the relevance
+    # cutoff. server.py translates this into a `no_results` SSE event and does
+    # NOT surface it as answer text. Chosen to never collide with real tokens.
+    NO_RESULTS_SIGNAL = "\x00__COSMO_NO_RESULTS__\x00"
+
     def ask_question(
         self,
         question: str,
@@ -743,19 +782,29 @@ class DocumentProcessor:
         The sources block is yielded at the end.
 
         Args:
-            grounded: If True (default), answers strictly from docs.
-                If False, supplements with LLM knowledge when docs
-                are insufficient. Use grounded=False for quizzes.
+            grounded: If True (default), answers strictly from docs. Chunks
+                beyond RETRIEVAL_MAX_DISTANCE are dropped, and if none pass
+                the cutoff the LLM is NOT called — a no-results sentinel is
+                yielded instead. If False, supplements with LLM knowledge
+                when docs are insufficient. Use grounded=False for quizzes.
         """
-        results = self.query(question, n_results=n_results)
+        from backend.config import RETRIEVAL_MAX_DISTANCE
 
-        if not results["documents"][0]:
-            if grounded:
-                yield "No relevant documents found in the knowledge base."
-                return "No relevant documents found in the knowledge base."
-            else:
-                # In ungrounded mode, still try to answer from LLM knowledge
-                results = {"documents": [[]], "metadatas": [[]]}
+        raw_results = self.query(question, n_results=n_results)
+
+        if grounded:
+            # Keep only chunks that clear the relevance cutoff. If nothing
+            # does, refuse to answer rather than cite irrelevant pages.
+            results = self._filter_by_distance(raw_results, RETRIEVAL_MAX_DISTANCE)
+            if not results["documents"][0]:
+                yield self.NO_RESULTS_SIGNAL
+                return self.NO_RESULTS_SIGNAL
+        else:
+            # Broad mode: use whatever was retrieved (may be empty) and let
+            # the LLM supplement from its own knowledge.
+            results = raw_results if raw_results["documents"][0] else {
+                "documents": [[]], "metadatas": [[]], "distances": [[]],
+            }
 
         prompt, sources = self._build_rag_prompt(
             question, results, history, grounded=grounded
@@ -795,7 +844,8 @@ class DocumentProcessor:
         if history is not None:
             history.add(question, full_answer)
 
-        yield sources
+        if sources:
+            yield sources
         return full_answer + sources
 
     # Alias used by interactive CLI

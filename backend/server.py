@@ -153,6 +153,11 @@ def chat():
                 question, mode=mode, n_results=n_results, history=_history,
                 grounded=grounded,
             ):
+                if token == proc.NO_RESULTS_SIGNAL:
+                    # Grounded mode found nothing relevant — signal the client
+                    # to show its "no relevant docs" state, never as answer text.
+                    yield f"data: {json.dumps({'no_results': True})}\n\n"
+                    continue
                 yield f"data: {json.dumps({'token': token})}\n\n"
             yield "data: [DONE]\n\n"
         except OllamaConnectionError as e:

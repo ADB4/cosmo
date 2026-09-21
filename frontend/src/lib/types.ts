@@ -4,10 +4,16 @@ export type ModelMode =    "llama3-8b" | "phi4-14b" | "qwen-7b" | "qwen-14b";
 /** A single message in the chat history (client-side) */
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   mode?: ModelMode;
   timestamp: number;
+  /** The originating question (on assistant messages) — used to retry / re-ask broadly */
+  question?: string;
+  /** Grounded search returned nothing relevant; render the "no docs" state + Ask broadly */
+  noResults?: boolean;
+  /** Stream failed; render an error block with a Retry button instead of an answer */
+  error?: string;
 }
 
 /** Stats returned by /api/stats */
