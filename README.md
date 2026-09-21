@@ -51,9 +51,10 @@ git clone https://github.com/ADB4/cosmo.git
 cd cosmo
 
 # 2. Pull the required Ollama models (start-dev.sh checks for these and
-#    prints the pull commands if they're missing):
-ollama pull nomic-embed-text     # Required — embedding model
-ollama pull qwen2.5-coder:7b     # Default — chat + short-answer grader
+#    prints the pull commands + a size estimate if they're missing):
+ollama pull nomic-embed-text     # Required — embedding model (~0.3 GB)
+ollama pull qwen3-coder:30b      # Default chat model (~18 GB)
+ollama pull qwen3:4b             # Short-answer grader (~2.5 GB)
 
 # 3. One-command startup (creates venv, installs deps, starts both servers):
 chmod +x scripts/start-dev.sh
@@ -75,10 +76,18 @@ cd frontend
 yarn install
 cd ..
 
-# Pull required Ollama models
-ollama pull nomic-embed-text      # Required — embedding model
-ollama pull qwen2.5-coder:7b     # Recommended — best all-round performer
-ollama pull phi4:14b              # Optional — deep reasoning mode
+# Pull the Ollama models
+ollama pull nomic-embed-text      # Required — embedding model (~0.3 GB)
+ollama pull qwen3-coder:30b       # Default chat model (~18 GB)
+ollama pull qwen3:4b              # Short-answer grader (~2.5 GB)
+ollama pull gemma4:12b            # Optional — fast explanations mode (~8 GB)
+ollama pull gpt-oss:20b           # Optional — reasoning mode (~13 GB)
+ollama pull qwen3.6:27b           # Optional — dense "deep" mode, slow (~17 GB)
+
+# Server tuning (set in the environment where `ollama serve` runs):
+#   OLLAMA_NUM_PARALLEL=4 — grade short answers concurrently
+#   OLLAMA_KEEP_ALIVE=30m — keep chat model + grader resident
+OLLAMA_NUM_PARALLEL=4 OLLAMA_KEEP_ALIVE=30m ollama serve
 
 # Start servers (separate terminals)
 python -m backend.server          # http://localhost:5174
@@ -117,7 +126,7 @@ python -m backend.cli ingest --path docs/effective-typescript.pdf --top-level-on
 
 # Ask a question
 python -m backend.cli ask -q "How do I type a useState hook?"
-python -m backend.cli ask -q "Explain generics" --mode phi4-14b
+python -m backend.cli ask -q "Explain generics" --mode gemma4-12b
 
 # Convert PDF to markdown (no Ollama required)
 python -m backend.cli convert --path docs/effective-typescript.pdf -o converted/
@@ -131,18 +140,22 @@ python -m backend.cli quiz -i decks/frontend/week13.json --list
 
 # Benchmark across model/RAG configurations
 python -m backend.cli benchmark -i decks/frontend/week13.json --sections tf --limit 15
-python -m backend.cli benchmark --dir decks/frontend/ --configs "qwen-7b:rag,qwen-14b:rag"
+python -m backend.cli benchmark --dir decks/frontend/ --configs "qwen3-coder-30b:rag,gemma4-12b:rag"
 
 # Interactive study session
 python -m backend.cli interactive
 
 # List indexed documents
 python -m backend.cli list
+
+# Upgrade the embedding model (fresh collection + re-tune; see below)
+python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir artifacts/docs/
+python -m backend.cli tune-cutoff --embed-model qwen3-embedding:0.6b
 ```
 
 ### Interactive Mode Commands
 
-While in interactive mode, type your question directly, or use these commands: `mode qwen-7b|qwen-14b|llama3-8b|phi4-14b` to switch models, `clear` to reset history, `stats` to check the knowledge base, `quit` to exit.
+While in interactive mode, type your question directly, or use these commands: `mode qwen3-coder-30b|qwen3.6-27b|gpt-oss-20b|gemma4-12b` to switch models, `clear` to reset history, `stats` to check the knowledge base, `quit` to exit.
 
 ## Web GUI
 
@@ -248,14 +261,76 @@ The Flask backend exposes these routes (all prefixed with `/api`):
 
 ## Model Modes
 
+Models are split by job. The chat model is chosen from the dropdown; the grader
+and embedder are picked automatically.
+
+**Chat modes** (mode name → Ollama tag):
+
 | Mode | Model | Use case |
 |------|-------|----------|
-| `qwen-7b` | qwen2.5-coder:7b | Default — fast and accurate, best all-round |
-| `qwen-14b` | qwen2.5-coder:14b | Complex explanations, slower |
-| `llama3-8b` | llama3.1:8b | General-purpose, non-code questions |
-| `phi4-14b` | phi4:14b | Deep reasoning, best response quality |
+| `qwen3-coder-30b` | qwen3-coder:30b | **Default** — MoE (~3.3B active), ~19 GB, fast |
+| `qwen3.6-27b` | qwen3.6:27b | Dense "deep" mode, ~17–22 GB, slow |
+| `gpt-oss-20b` | gpt-oss:20b | MoE reasoning, ~13 GB |
+| `gemma4-12b` | gemma4:12b | General explanations, ~8 GB |
 
-Additional models available for CLI benchmarking: `gemma2-9b`, `llama3-3b`, `mistral-7b`. All models are configured in `backend/config.py` with per-model context window sizes and inference options tuned for M2 Pro 32GB.
+**Grader** (short-answer grading in Apollo — a separate small model, not the chat mode):
+
+| Role | Model | Notes |
+|------|-------|-------|
+| Grader | qwen3:4b | Fallback: `gemma4:e4b`; falls back to the default chat model if neither is installed |
+
+**Embedding** (set via `COSMO_EMBED_MODEL`):
+
+| Role | Model | Notes |
+|------|-------|-------|
+| Embedder (default) | nomic-embed-text | Keeps the existing `chroma_db` working with no re-ingest |
+| Embedder (opt-in) | qwen3-embedding:0.6b | Fallback: `embeddinggemma`; requires a reindex + re-tuned cutoff |
+
+All chat modes use a 16K context (`num_ctx`) with inference options tuned for
+M2 Pro 32GB in `backend/config.py`. Chat streaming, quiz answering, and grading
+all pass `think=False` and strip any leaked `<think>` reasoning.
+
+**Memory rule (32 GB machine):** keep any single loaded model at or under
+~20 GB of weights, and make sure the default chat model + grader + embedder can
+all be resident at once (otherwise Ollama evicts and every grade pays a reload).
+Do **not** pair `qwen3.6:27b` with a second large model — it is the slow "deep"
+option and wants the memory to itself.
+
+**Ollama server tuning.** Grading fires one request per short answer; Ollama
+serialises requests per model unless told otherwise. In the environment where
+`ollama serve` runs (not the Flask process — these belong to the Ollama server):
+
+```bash
+OLLAMA_NUM_PARALLEL=4 OLLAMA_KEEP_ALIVE=30m ollama serve
+```
+
+`OLLAMA_NUM_PARALLEL=4` grades several answers concurrently; `OLLAMA_KEEP_ALIVE=30m`
+keeps the chat model and grader resident between quiz and chat use.
+
+## Upgrading the embedding model
+
+The default embedder is `nomic-embed-text`, chosen so the existing `chroma_db`
+keeps working untouched. To switch to a stronger embedder you need a **fresh
+collection** (vector spaces are not comparable across models) and a **re-tuned
+retrieval cutoff**. The collection is named after the embedding model, so the
+two never mix.
+
+```bash
+# 1. Reindex your documents into the new model's collection (force=True):
+python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir artifacts/docs/
+
+# 2. Re-tune the retrieval cutoff for the new model. This probes the collection
+#    with on-topic (React/TS/Vitest/RTL) and off-topic (cooking/travel/sports)
+#    questions and suggests a cutoff midway between them:
+python -m backend.cli tune-cutoff --embed-model qwen3-embedding:0.6b
+
+# 3. Put the suggested value in EMBED_PROFILES in backend/config.py (or set
+#    COSMO_RETRIEVAL_MAX_DISTANCE), then run the app with the new embedder:
+COSMO_EMBED_MODEL=qwen3-embedding:0.6b ./scripts/start-dev.sh
+```
+
+The nomic profile is tuned to `0.42`; the qwen3-embedding / embeddinggemma
+profiles ship with placeholder cutoffs that `tune-cutoff` will correct.
 
 ## Sharing the ChromaDB
 
@@ -277,8 +352,9 @@ All backend settings live in `backend/config.py` and can be overridden via envir
 | `COSMO_DECK_DIR` | `./decks` | Quiz deck directory (module subfolders) |
 | `COSMO_CHUNK_SIZE` | `1200` | Markdown chunk size (chars) |
 | `COSMO_CHUNK_OVERLAP` | `200` | Chunk overlap (chars) |
-| `COSMO_EMBED_MAX_TOKENS` | `500` | Max tokens per embedding |
-| `COSMO_RETRIEVAL_MAX_DISTANCE` | `0.42` | Docs-only relevance cutoff (cosine distance) |
+| `COSMO_EMBED_MODEL` | `nomic-embed-text` | Embedding model (see "Upgrading the embedding model") |
+| `COSMO_EMBED_MAX_TOKENS` | from profile (`500` for nomic) | Max tokens per embedding chunk |
+| `COSMO_RETRIEVAL_MAX_DISTANCE` | from profile (`0.42` for nomic) | Docs-only relevance cutoff (cosine distance) |
 
 ## Troubleshooting
 
