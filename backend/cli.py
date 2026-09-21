@@ -22,7 +22,7 @@ from backend.document_processor import (
     DocumentProcessor,
     OllamaConnectionError,
 )
-from backend.config import CHAT_MODELS, QUIZ_OPTIONS, DOCS_DIR, DB_PATH
+from backend.config import CHAT_MODELS, DEFAULT_MODE, QUIZ_OPTIONS, DOCS_DIR, DB_PATH
 
 
 def _get_processor(args) -> DocumentProcessor:
@@ -452,7 +452,7 @@ def interactive_command(args) -> int:
     print(f"{'=' * 60}")
     print("Commands:")
     print("  Ask a question directly")
-    print("  'mode <qwen-7b|qwen-14b|llama|mistral>' - Switch model")
+    print(f"  'mode <{'|'.join(CHAT_MODELS.keys())}>' - Switch model")
     print("  'clear' - Clear conversation history")
     print("  'stats' - Show knowledge base stats")
     print("  'quit' or 'exit' - Exit")
@@ -478,11 +478,11 @@ def interactive_command(args) -> int:
                 continue
             if question.lower().startswith("mode "):
                 parts = question.split(maxsplit=1)
-                if len(parts) == 2 and parts[1] in ("qwen-7b", "qwen-14b", "llama", "mistral"):
+                if len(parts) == 2 and parts[1] in CHAT_MODELS:
                     mode = parts[1]
                     print(f"Switched to {mode} mode")
                 else:
-                    print("Invalid mode. Choose: qwen-7b, qwen-14b, llama, mistral")
+                    print(f"Invalid mode. Choose: {', '.join(CHAT_MODELS.keys())}")
                 continue
 
             print("\nSearching...\n")
@@ -502,6 +502,154 @@ def interactive_command(args) -> int:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
 
+    return 0
+
+
+# ===================================================================
+# Embedding-model migration
+# ===================================================================
+
+# Built-in probe sets for tune-cutoff. On-topic questions should retrieve
+# close matches from a React/TS/testing knowledge base; off-topic ones should
+# not. The suggested cutoff sits midway between the hardest on-topic match and
+# the closest off-topic match.
+_ON_TOPIC_PROBES = [
+    "How do I narrow a union type with a type guard in TypeScript?",
+    "What is the difference between useState and useReducer in React?",
+    "How do I write a test with Vitest and expect assertions?",
+    "How do I query an element by role with React Testing Library?",
+]
+_OFF_TOPIC_PROBES = [
+    "How do I season a cast iron pan?",
+    "What are the best budget airlines for travel in Europe?",
+    "Who won the most recent World Cup final?",
+]
+
+
+def _processor_with_embed(args, embed_model: str | None):
+    """Build a DocumentProcessor pinned to a specific embedding model."""
+    try:
+        return DocumentProcessor(persist_dir=args.db_path, embed_model=embed_model)
+    except OllamaConnectionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def reindex_command(args) -> int:
+    """
+    Re-ingest documents into the collection for a specific embedding model.
+
+    Switching embedding models needs a fresh collection (vector spaces are not
+    comparable across models); this ingests with force=True into the collection
+    named after --embed-model. Remember to re-tune the retrieval cutoff
+    afterward (`tune-cutoff`).
+    """
+    from pathlib import Path
+    from backend.document_processor import collection_name_for
+    from backend.config import CHUNK_SIZE, CHUNK_OVERLAP
+
+    if not args.dir and not args.path:
+        print("Error: Must specify --dir or --path", file=sys.stderr)
+        return 1
+
+    processor = _processor_with_embed(args, args.embed_model)
+    print(f"Embedding model: {processor.embed_model}")
+    print(f"Collection:      {collection_name_for(processor.embed_model)}")
+    print(f"DB path:         {args.db_path}\n")
+
+    top_level_only = getattr(args, "top_level_only", False)
+
+    targets: list = []
+    if args.path:
+        p = Path(args.path)
+        if not p.exists():
+            print(f"Error: Not found: {args.path}", file=sys.stderr)
+            return 1
+        if p.is_dir():
+            args.dir = args.path
+        else:
+            targets = [p]
+
+    if args.dir:
+        d = Path(args.dir)
+        if not d.exists() or not d.is_dir():
+            print(f"Error: Directory not found: {args.dir}", file=sys.stderr)
+            return 1
+        targets = sorted(d.glob("**/*.pdf")) + sorted(
+            list(d.glob("**/*.md")) + list(d.glob("**/*.markdown"))
+        )
+        if not targets:
+            print(f"No supported files found in {args.dir}", file=sys.stderr)
+            return 1
+
+    print(f"Reindexing {len(targets)} file(s) with force=True...\n")
+    for fp in targets:
+        try:
+            if fp.suffix.lower() == ".pdf":
+                processor.ingest_pdf(str(fp), force=True, top_level_only=top_level_only)
+            else:
+                processor.ingest_markdown(str(fp), force=True, top_level_only=top_level_only)
+        except Exception as e:
+            print(f"Error processing {fp.name}: {e}", file=sys.stderr)
+
+    print("\nDone. Re-tune the retrieval cutoff for this model with:")
+    print(f"  python -m backend.cli tune-cutoff --embed-model {processor.embed_model} "
+          f"--db-path {args.db_path}")
+    return 0
+
+
+def tune_cutoff_command(args) -> int:
+    """
+    Probe the active collection with on-topic and off-topic questions and
+    suggest a retrieval cutoff (cosine distance) that separates them.
+    """
+    processor = _processor_with_embed(args, args.embed_model)
+
+    stats = processor.get_stats()
+    if stats["total_chunks"] == 0:
+        print("Error: The active collection is empty. Ingest documents first "
+              "(or run `reindex` for this embedding model).", file=sys.stderr)
+        return 1
+
+    def best_distance(q: str):
+        res = processor.query(q, n_results=5)
+        dists = res.get("distances", [[]])[0]
+        return min(dists) if dists else None
+
+    print(f"\nEmbedding model: {processor.embed_model}")
+    print(f"Chunks in collection: {stats['total_chunks']}\n")
+
+    print("On-topic (React / TypeScript / Vitest / RTL) — closest match distance:")
+    on_vals = []
+    for q in _ON_TOPIC_PROBES:
+        d = best_distance(q)
+        if d is not None:
+            on_vals.append(d)
+        print(f"  {d:.4f}  {q}" if d is not None else f"  (none)  {q}")
+
+    print("\nOff-topic (cooking / travel / sports) — closest match distance:")
+    off_vals = []
+    for q in _OFF_TOPIC_PROBES:
+        d = best_distance(q)
+        if d is not None:
+            off_vals.append(d)
+        print(f"  {d:.4f}  {q}" if d is not None else f"  (none)  {q}")
+
+    if not on_vals or not off_vals:
+        print("\nCould not gather enough distances to suggest a cutoff.", file=sys.stderr)
+        return 1
+
+    worst_on = max(on_vals)   # hardest on-topic match (largest distance)
+    best_off = min(off_vals)  # closest off-topic match (smallest distance)
+    suggested = (worst_on + best_off) / 2
+
+    print(f"\nWorst on-topic distance: {worst_on:.4f}")
+    print(f"Best off-topic distance: {best_off:.4f}")
+    if worst_on >= best_off:
+        print("\nWARNING: on-topic and off-topic distances overlap — no clean "
+              "separation. The suggested value is only a rough midpoint.")
+    print(f"\nSuggested COSMO_RETRIEVAL_MAX_DISTANCE: {suggested:.4f}")
+    print("Set it in backend/config.py (EMBED_PROFILES) or via the env var.")
     return 0
 
 
@@ -565,7 +713,7 @@ Examples:
     # ask
     ask_p = subparsers.add_parser("ask", help="Ask a question")
     ask_p.add_argument("--question", "-q", required=True, help="Question text")
-    ask_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(CHAT_MODELS.keys()))
+    ask_p.add_argument("--mode", "-m", default=DEFAULT_MODE, choices=list(CHAT_MODELS.keys()))
     ask_p.add_argument("--results", "-n", type=int, default=4)
 
     # convert
@@ -586,7 +734,7 @@ Examples:
     quiz_p = subparsers.add_parser("quiz", help="Take a quiz (supports .md and .json)")
     quiz_p.add_argument("--input", "-i", required=True, help="Quiz file (.md or .json)")
     quiz_p.add_argument("--output", "-o", default=None, help="Output results path")
-    quiz_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(QUIZ_OPTIONS.keys()))
+    quiz_p.add_argument("--mode", "-m", default=DEFAULT_MODE, choices=list(QUIZ_OPTIONS.keys()))
     quiz_p.add_argument("--no-rag", action="store_true", help="Skip RAG context")
     quiz_p.add_argument("--broad", action="store_true",
                         help="Use broad mode (LLM supplements with own knowledge)")
@@ -620,12 +768,32 @@ Examples:
                          help="Custom configs: 'mode:rag|no-rag:grounded|broad,...' "
                               "(default: all 8 model/rag combos)")
 
+    # reindex — re-ingest into the collection for a specific embedding model
+    reindex_p = subparsers.add_parser(
+        "reindex",
+        help="Re-ingest documents into the collection for a specific embedding model",
+    )
+    reindex_p.add_argument("--embed-model", required=True,
+                           help="Embedding model tag (e.g. qwen3-embedding:0.6b)")
+    reindex_p.add_argument("--dir", help="Directory of documents to ingest")
+    reindex_p.add_argument("--path", help="Single file or directory to ingest")
+    reindex_p.add_argument("--top-level-only", action="store_true",
+                           help="Only split on ## headings (book-style docs)")
+
+    # tune-cutoff — probe the active collection to suggest a retrieval cutoff
+    tune_p = subparsers.add_parser(
+        "tune-cutoff",
+        help="Suggest a retrieval distance cutoff by probing on/off-topic queries",
+    )
+    tune_p.add_argument("--embed-model", default=None,
+                        help="Embedding model tag (default: active COSMO_EMBED_MODEL)")
+
     # list
     subparsers.add_parser("list", help="List indexed documents")
 
     # interactive
     int_p = subparsers.add_parser("interactive", help="Interactive Q&A session")
-    int_p.add_argument("--mode", "-m", default="qwen-7b", choices=list(QUIZ_OPTIONS.keys()))
+    int_p.add_argument("--mode", "-m", default=DEFAULT_MODE, choices=list(QUIZ_OPTIONS.keys()))
     int_p.add_argument("--results", "-n", type=int, default=4)
     int_p.add_argument("--history", type=int, default=5)
 
@@ -643,6 +811,8 @@ Examples:
         "quiz": quiz_command,
         "benchmark": benchmark_command,
         "convert": convert_command,
+        "reindex": reindex_command,
+        "tune-cutoff": tune_cutoff_command,
     }
     return commands[args.command](args)
 
