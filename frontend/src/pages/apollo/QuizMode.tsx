@@ -59,12 +59,15 @@ export default function QuizMode({ questions, mode, module, quizId, onExit, onRe
   const [grading, setGrading] = useState(false);
   const [viewIndex, setViewIndex] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  // The model the backend actually used to grade short answers (separate from
+  // the chat mode). Reported by /api/quizzes/evaluate; falls back to the mode.
+  const [graderName, setGraderName] = useState<string | null>(null);
 
   // Short-answer grading promises, fired as the user presses Next (so grading
   // overlaps with the rest of the quiz) and resolved on the results screen.
-  const saPromises = useRef<Map<string, Promise<{ score: Score; feedback: string }>>>(
-    new Map(),
-  );
+  const saPromises = useRef<
+    Map<string, Promise<{ score: Score; feedback: string; grader?: string }>>
+  >(new Map());
 
   const q = questions[index];
   if (!q) return null;
@@ -149,6 +152,7 @@ export default function QuizMode({ questions, mode, module, quizId, onExit, onRe
           if (!item) return;
           const eval_ = evaluations[k];
           if (eval_ && eval_.status === "fulfilled") {
+            if (eval_.value.grader) setGraderName(eval_.value.grader);
             updated[i] = {
               ...item,
               saScore: eval_.value.score,
@@ -392,7 +396,7 @@ export default function QuizMode({ questions, mode, module, quizId, onExit, onRe
               </span>
             )}
             <span className="quiz-score-detail quiz-score-detail--model">
-              grader: {mode}
+              grader: {graderName ?? mode}
             </span>
             {!grading && saUngraded.length > 0 && (
               <button className="quiz-retry-grading" onClick={retryGrading}>
