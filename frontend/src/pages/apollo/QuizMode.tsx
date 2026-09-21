@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { evaluateAnswer } from "../../lib/api";
 import { renderMarkdown } from "../../components/renderMarkdown";
@@ -45,11 +45,29 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
   const [grading, setGrading] = useState(false);
   const [viewIndex, setViewIndex] = useState(0);
 
+  // Short-answer grading promises, fired as the user presses Next (so grading
+  // overlaps with the rest of the quiz) and resolved on the results screen.
+  const saPromises = useRef<Map<string, Promise<{ score: Score; feedback: string }>>>(
+    new Map(),
+  );
+
   const q = questions[index];
   if (!q) return null;
 
   const total = questions.length;
   const progress = ((index + 1) / total) * 100;
+
+  // Kick off (but don't await) grading for one short answer, caching the
+  // promise so the results screen can resolve it later.
+  const fireEval = useCallback(
+    (question: NormalizedQuestion, given: string) => {
+      const p = evaluateAnswer(question.text, given, question.correctAnswer, mode);
+      p.catch(() => {}); // avoid unhandled-rejection warnings; handled on resolve
+      saPromises.current.set(question.id, p);
+      return p;
+    },
+    [mode],
+  );
 
   const submitAnswer = useCallback(() => {
     const currentQ = questions[index];
@@ -58,6 +76,12 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     const value =
       currentQ.sectionType === "short_answer" ? saInput.trim() : selected ?? "";
     if (!value) return;
+
+    // Fire short-answer grading now, as the user advances, instead of
+    // waiting until Finish to grade them all at once.
+    if (currentQ.sectionType === "short_answer") {
+      fireEval(currentQ, value);
+    }
 
     const newAnswers = [...answers, { questionId: currentQ.id, value }];
     setAnswers(newAnswers);
@@ -69,16 +93,17 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     } else {
       finishQuiz(newAnswers);
     }
-  }, [questions, selected, saInput, answers, index, total]);
+  }, [questions, selected, saInput, answers, index, total, fireEval]);
 
   /**
    * Grade the short-answer results at the given array indices via the LLM.
    * A rejected evaluation leaves saScore undefined and records saError so
    * the item shows as "ungraded" (never silent half credit) and can be
-   * retried later.
+   * retried later. When `useCache` is set, the promises fired on Next are
+   * awaited instead of starting fresh requests.
    */
   const gradeIndices = useCallback(
-    async (base: Result[], targetIdxs: number[]) => {
+    async (base: Result[], targetIdxs: number[], useCache = false) => {
       if (targetIdxs.length === 0) return;
       setGrading(true);
 
@@ -96,7 +121,8 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
       const evaluations = await Promise.allSettled(
         targetIdxs.map((i) => {
           const r = base[i]!;
-          return evaluateAnswer(r.question.text, r.given, r.question.correctAnswer, mode);
+          const cached = useCache ? saPromises.current.get(r.question.id) : undefined;
+          return cached ?? fireEval(r.question, r.given);
         }),
       );
 
@@ -141,7 +167,7 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
 
       setGrading(false);
     },
-    [mode],
+    [fireEval],
   );
 
   const finishQuiz = useCallback(
@@ -162,7 +188,8 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
         .filter(({ r }) => r.question.sectionType === "short_answer" && r.given)
         .map(({ i }) => i);
 
-      await gradeIndices(initial, saIdxs);
+      // Resolve the grading promises already fired on Next.
+      await gradeIndices(initial, saIdxs, true);
     },
     [questions, gradeIndices],
   );
@@ -173,7 +200,8 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
       .map((r, i) => ({ r, i }))
       .filter(({ r }) => r.question.sectionType === "short_answer" && r.given && r.saError)
       .map(({ i }) => i);
-    gradeIndices(results, failedIdxs);
+    // Fresh requests (don't reuse the failed cached promises).
+    gradeIndices(results, failedIdxs, false);
   }, [results, grading, gradeIndices]);
 
   // ---- Results screen ----
