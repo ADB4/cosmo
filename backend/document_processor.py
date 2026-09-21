@@ -834,12 +834,13 @@ class DocumentProcessor:
                 yield token
 
         except Exception as e:
-            error_msg = (
-                f"Error generating response: {e}\n\n"
+            # Raise a structured error instead of yielding the message as
+            # answer tokens (which rendered as a normal reply). server.py
+            # turns this into a distinct `{"error": ...}` SSE event.
+            raise RuntimeError(
+                f"Error generating response: {e}. "
                 f"Make sure '{model}' is installed: ollama pull {model}"
-            )
-            yield error_msg
-            return error_msg
+            ) from e
 
         if history is not None:
             history.add(question, full_answer)

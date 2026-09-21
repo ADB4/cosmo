@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { ApolloView, QuizSummary, NormalizedQuestion, QuizPreset } from "../../lib/types";
+import type { ApolloView, QuizSummary, NormalizedQuestion, QuizPreset, ModelMode } from "../../lib/types";
 import { fetchQuizzes, fetchQuiz, fetchModules } from "../../lib/api";
 import { normalizeQuiz, filterBySection, sampleQuiz } from "../../lib/normalizeQuiz";
 import StudyMode from "./StudyMode";
@@ -18,7 +18,12 @@ function formatModuleName(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-export default function Apollo() {
+interface ApolloProps {
+  /** Currently selected model mode, used for AI short-answer grading. */
+  mode: ModelMode;
+}
+
+export default function Apollo({ mode }: ApolloProps) {
   const [view, setView] = useState<ApolloView>("select");
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,7 +185,7 @@ export default function Apollo() {
 
   // ---- Quiz mode ----
   if (view === "quiz" && quizQuestions.length > 0) {
-    return <QuizMode title={quizTitle} questions={quizQuestions} onExit={handleExit} />;
+    return <QuizMode title={quizTitle} questions={quizQuestions} mode={mode} onExit={handleExit} />;
   }
 
   // ---- Quiz config ----
