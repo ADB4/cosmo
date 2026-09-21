@@ -9,12 +9,12 @@
 # Usage:
 #   chmod +x download-rtl-docs.sh
 #   ./download-rtl-docs.sh
-#   python -m backend.cli ingest --path artifacts/docs/rtl --force
+#   python -m backend.cli ingest --path corpus/docs/rtl --force
 
 set -e
 
 BASE_URL="https://raw.githubusercontent.com/testing-library/testing-library-docs/main/docs"
-DEST="artifacts/docs/rtl"
+DEST="corpus/docs/rtl"
 
 mkdir -p "$DEST"
 

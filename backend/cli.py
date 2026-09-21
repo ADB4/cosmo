@@ -22,7 +22,7 @@ from backend.document_processor import (
     DocumentProcessor,
     OllamaConnectionError,
 )
-from backend.config import CHAT_MODELS, DEFAULT_MODE, QUIZ_OPTIONS, DOCS_DIR, DB_PATH
+from backend.config import CHAT_MODELS, DEFAULT_MODE, QUIZ_OPTIONS, DB_PATH
 
 
 def _get_processor(args) -> DocumentProcessor:

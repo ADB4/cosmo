@@ -32,7 +32,10 @@ cosmo/
 │   └── download-rtl.sh           # Download React Testing Library docs for ingestion
 ├── decks/                        # Quiz decks, one folder per module
 │   └── <module>/*.json           #   e.g. decks/frontend/week1.json (override with COSMO_DECK_DIR)
-├── artifacts/docs/               # Study materials (PDFs, markdown) for ingestion
+├── corpus/                       # Study material (RAG knowledge base)
+│   ├── docs/                     #   Cleaned markdown, ingested via `reindex --dir corpus/docs/` (tracked)
+│   ├── sources/                  #   Raw PDFs + weekly notes the corpus is built from (gitignored)
+│   └── archive/                  #   Superseded / legacy material (gitignored)
 ├── chroma_db/                    # ChromaDB vector store (generated, gitignored)
 ├── requirements.txt              # Python dependencies
 └── .gitignore
@@ -153,7 +156,7 @@ python -m backend.cli interactive
 python -m backend.cli list
 
 # Upgrade the embedding model (fresh collection + re-tune; see below)
-python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir artifacts/docs/
+python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir corpus/docs/
 python -m backend.cli tune-cutoff --embed-model qwen3-embedding:0.6b
 ```
 
@@ -386,7 +389,7 @@ two never mix.
 
 ```bash
 # 1. Reindex your documents into the new model's collection (force=True):
-python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir artifacts/docs/
+python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir corpus/docs/
 
 # 2. Re-tune the retrieval cutoff for the new model. This probes the collection
 #    with on-topic (React/TS/Vitest/RTL) and off-topic (cooking/travel/sports)
