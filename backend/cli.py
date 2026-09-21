@@ -593,8 +593,8 @@ def reindex_command(args) -> int:
             print(f"Error processing {fp.name}: {e}", file=sys.stderr)
 
     print("\nDone. Re-tune the retrieval cutoff for this model with:")
-    print(f"  python -m backend.cli tune-cutoff --embed-model {processor.embed_model} "
-          f"--db-path {args.db_path}")
+    print(f"  python -m backend.cli --db-path {args.db_path} "
+          f"tune-cutoff --embed-model {processor.embed_model}")
     return 0
 
 
