@@ -222,3 +222,95 @@ GRADER_OPTIONS = {
 # ---------------------------------------------------------------------------
 
 DEFAULT_HISTORY_TURNS = 10
+
+
+# ---------------------------------------------------------------------------
+# PDF extraction engine
+#
+# The PDF -> markdown step is pluggable (see backend/pdf_extract.py). Marker is
+# the default layout-aware engine; pymupdf4llm is the fast fallback used
+# AUTOMATICALLY when Marker errors, returns degenerate output, or is not
+# installed (marker-pdf is an optional heavy dependency — see
+# requirements-marker.txt / scripts/setup-extraction.sh). Docling is reserved
+# in the interface but not wired up.
+#
+# The corpus is currently all text-native, so there is no OCR path: a document
+# that yields almost no text is treated as an extraction failure (fallback),
+# not routed to OCR.
+# ---------------------------------------------------------------------------
+
+PDF_ENGINE = os.environ.get("COSMO_PDF_ENGINE", "marker")  # "marker" | "pymupdf4llm"
+PDF_FALLBACK_ENGINE = "pymupdf4llm"
+
+# Average extracted characters per page below which an extraction is considered
+# degenerate (e.g. an unexpected scan, or Marker choking on a document). Below
+# this, Marker output is rejected and the fast fallback is used instead.
+EXTRACT_MIN_CHARS_PER_PAGE = int(
+    os.environ.get("COSMO_EXTRACT_MIN_CHARS_PER_PAGE", 50)
+)
+
+# Keep the Marker models resident in the ingesting process between documents.
+# The CLI keeps them loaded across a batch and releases at the end; the Flask
+# server releases after each ingest so Marker's several GB of MPS memory does
+# not sit resident alongside a large chat model (the "no swapping on 32 GB"
+# constraint). This flag is a global override if you need to force one way.
+MARKER_KEEP_LOADED = os.environ.get("COSMO_MARKER_KEEP_LOADED", "1") not in (
+    "0", "false", "False", "",
+)
+
+# ---------------------------------------------------------------------------
+# Extraction cache
+#
+# Marker + the cleanup pass cost minutes per document. The cleaned markdown is
+# cached on disk keyed by (file hash, engine, cleanup flag) so that
+# re-ingesting, re-chunking, or reindexing into a new embedding-model
+# collection does NOT re-run extraction. A file whose bytes change gets a new
+# hash and re-extracts automatically; use --reextract to force a rebuild.
+# ---------------------------------------------------------------------------
+
+EXTRACT_CACHE_ENABLED = os.environ.get("COSMO_EXTRACT_CACHE", "1") not in (
+    "0", "false", "False", "",
+)
+EXTRACT_CACHE_DIR = Path(
+    os.environ.get("COSMO_EXTRACT_CACHE_DIR", str(PROJECT_ROOT / "extraction_cache"))
+)
+
+# ---------------------------------------------------------------------------
+# Markdown cleanup pass (Ollama)
+#
+# A conservative, NON-REWRITE cleanup of raw extracted markdown before
+# chunking. It only: strips running headers/footers and standalone page
+# numbers, repairs broken table formatting, and normalizes heading levels. It
+# must not summarize, rephrase, translate, or invent content — this feeds a
+# study tool, so hallucination is the primary risk.
+#
+# Runs on qwen2.5:14b (already installed; the Instruct variant), deterministic
+# (temperature 0), think=False. Guarded per-window: if a cleaned window's
+# length falls outside [MIN_RATIO, MAX_RATIO] of the original, the ORIGINAL
+# window is kept instead (see backend/md_cleanup.py).
+# ---------------------------------------------------------------------------
+
+CLEANUP_ENABLED = os.environ.get("COSMO_CLEANUP", "1") not in (
+    "0", "false", "False", "",
+)
+CLEANUP_MODEL = os.environ.get("COSMO_CLEANUP_MODEL", "qwen2.5:14b")
+
+# Windowing: raw markdown is split into windows sent to the model one at a
+# time, broken only at blank lines and never inside a fenced code block. Sized
+# to sit well inside the model's context with room for an equal-size output.
+CLEANUP_WINDOW_CHARS = int(os.environ.get("COSMO_CLEANUP_WINDOW_CHARS", 8000))
+
+# Anti-hallucination guard: a cleaned window is accepted only if its length is
+# within [MIN_RATIO, MAX_RATIO] x the original window length. Cleanup should
+# only shave boilerplate, so a modest shrink is expected; a large shrink
+# (content dropped) or any growth (content invented) reverts to the original.
+CLEANUP_MIN_RATIO = float(os.environ.get("COSMO_CLEANUP_MIN_RATIO", 0.6))
+CLEANUP_MAX_RATIO = float(os.environ.get("COSMO_CLEANUP_MAX_RATIO", 1.1))
+
+CLEANUP_OPTIONS = {
+    "num_ctx": 16384,
+    "num_thread": NUM_THREAD,
+    "num_batch": 512,
+    "temperature": 0,
+    "num_predict": 6144,
+}

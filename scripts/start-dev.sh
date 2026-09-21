@@ -104,6 +104,16 @@ echo "Installing Python dependencies..."
 pip install --quiet --upgrade pip
 pip install --quiet -r "$ROOT_DIR/requirements.txt"
 
+# Optional Marker PDF engine: only a hint. Without it (or without llama.cpp),
+# PDF ingestion still works via the pymupdf4llm fallback.
+if ! python -c "import marker" 2>/dev/null; then
+    echo "NOTE: Marker (layout-aware PDF engine) not installed — PDFs will use"
+    echo "  the pymupdf4llm fallback. To enable Marker: scripts/setup-extraction.sh"
+elif ! command -v llama-server &>/dev/null; then
+    echo "NOTE: Marker is installed but 'llama-server' is missing — Marker will"
+    echo "  fall back to pymupdf4llm. Install it with: brew install llama.cpp"
+fi
+
 # Frontend deps
 if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
     echo "Installing frontend dependencies..."

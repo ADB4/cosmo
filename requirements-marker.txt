@@ -1,0 +1,11 @@
+# Optional heavy dependency for the layout-aware PDF extraction engine (Marker).
+#
+# Marker (VikParuchuri/marker) + Surya pull in torch, torchvision, transformers,
+# opencv, scikit-learn and scipy — several GB of wheels, plus ~2-3 GB of model
+# weights downloaded on first run. Install only if you want Marker as the PDF
+# extractor; without it, Cosmo automatically uses pymupdf4llm (in the core
+# requirements.txt) for PDF -> markdown.
+#
+# Install:  pip install -r requirements-marker.txt
+#      or:  scripts/setup-extraction.sh
+marker-pdf>=2.0.0

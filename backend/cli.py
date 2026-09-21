@@ -56,6 +56,10 @@ def _parse_sections(raw: str | None) -> set[str] | None:
 def ingest_command(args) -> int:
     processor = _get_processor(args)
     top_level_only = getattr(args, "top_level_only", False)
+    engine = getattr(args, "engine", None)
+    reextract = getattr(args, "reextract", False)
+    # --no-cleanup -> False; otherwise fall back to config default (None).
+    cleanup = False if getattr(args, "no_cleanup", False) else None
 
     if args.path:
             from pathlib import Path
@@ -75,7 +79,8 @@ def ingest_command(args) -> int:
             try:
                 if ext == ".pdf":
                     processor.ingest_pdf(
-                        str(p), force=args.force, top_level_only=top_level_only
+                        str(p), force=args.force, top_level_only=top_level_only,
+                        engine=engine, cleanup=cleanup, reextract=reextract,
                     )
                 elif ext in (".md", ".markdown"):
                     processor.ingest_markdown(
@@ -87,6 +92,8 @@ def ingest_command(args) -> int:
             except Exception as e:
                 print(f"Error: {e}", file=sys.stderr)
                 return 1
+            finally:
+                processor.release_extractor()
     elif args.dir:
         from pathlib import Path
 
@@ -105,20 +112,25 @@ def ingest_command(args) -> int:
 
         print(f"Found {len(pdf_files)} PDFs and {len(md_files)} markdown files")
 
-        for pdf in pdf_files:
-            try:
-                processor.ingest_pdf(
-                    str(pdf), force=args.force, top_level_only=top_level_only
-                )
-            except Exception as e:
-                print(f"Error processing {pdf.name}: {e}", file=sys.stderr)
-        for md in md_files:
-            try:
-                processor.ingest_markdown(
-                    str(md), force=args.force, top_level_only=top_level_only
-                )
-            except Exception as e:
-                print(f"Error processing {md.name}: {e}", file=sys.stderr)
+        try:
+            for pdf in pdf_files:
+                try:
+                    processor.ingest_pdf(
+                        str(pdf), force=args.force, top_level_only=top_level_only,
+                        engine=engine, cleanup=cleanup, reextract=reextract,
+                    )
+                except Exception as e:
+                    print(f"Error processing {pdf.name}: {e}", file=sys.stderr)
+            for md in md_files:
+                try:
+                    processor.ingest_markdown(
+                        str(md), force=args.force, top_level_only=top_level_only
+                    )
+                except Exception as e:
+                    print(f"Error processing {md.name}: {e}", file=sys.stderr)
+        finally:
+            # Release Marker's models/MPS memory once the whole batch is done.
+            processor.release_extractor()
 
     else:
         print("Error: Must specify --path or --dir", file=sys.stderr)
@@ -174,6 +186,8 @@ def list_command(args) -> int:
 def convert_command(args) -> int:
     """Convert PDF files to markdown and save to an output directory."""
     from pathlib import Path
+    from backend.pdf_extract import MarkerExtractor, extract_pdf_markdown
+    from backend.config import PDF_ENGINE
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -196,24 +210,48 @@ def convert_command(args) -> int:
         print(f"Error: Not a PDF: {args.path}", file=sys.stderr)
         return 1
 
-    # No Ollama connection needed — pdf_to_markdown is a static method
+    engine = args.engine or PDF_ENGINE
+    # Extraction needs no Ollama; the optional cleanup pass does.
+    do_cleanup = args.cleanup
+    marker = MarkerExtractor()  # loaded once, reused across the batch
+
     converted = 0
-    for pdf_path in pdf_paths:
-        print(f"Converting: {pdf_path.name}")
-        try:
-            md_content = DocumentProcessor.pdf_to_markdown(str(pdf_path))
-        except Exception as e:
-            print(f"  Error: {e}", file=sys.stderr)
-            continue
+    try:
+        for pdf_path in pdf_paths:
+            print(f"Converting: {pdf_path.name}  (engine: {engine})")
+            try:
+                result = extract_pdf_markdown(
+                    str(pdf_path), engine=engine, allow_fallback=True, marker=marker
+                )
+            except Exception as e:
+                print(f"  Error: {e}", file=sys.stderr)
+                continue
 
-        if not md_content.strip():
-            print(f"  No content extracted from {pdf_path.name}")
-            continue
+            for note in result.notes:
+                print(f"  note: {note}")
 
-        out_path = out_dir / f"{pdf_path.stem}.md"
-        out_path.write_text(md_content, encoding="utf-8")
-        print(f"  Saved: {out_path}")
-        converted += 1
+            md_content = result.markdown
+            if not md_content.strip():
+                print(f"  No content extracted from {pdf_path.name}")
+                continue
+
+            if do_cleanup:
+                from backend.md_cleanup import clean_markdown
+
+                print(f"  Cleaning markdown...")
+                cres = clean_markdown(md_content)
+                if cres.skipped:
+                    print("    cleanup skipped (Ollama unreachable)")
+                else:
+                    print(f"    cleaned {cres.windows_cleaned}/{cres.windows_total} windows")
+                md_content = cres.markdown
+
+            out_path = out_dir / f"{pdf_path.stem}.md"
+            out_path.write_text(md_content, encoding="utf-8")
+            print(f"  Saved: {out_path}  (via {result.engine_used})")
+            converted += 1
+    finally:
+        marker.release()
 
     print(f"\nConverted {converted}/{len(pdf_paths)} files to {out_dir}")
     return 0
@@ -582,15 +620,19 @@ def reindex_command(args) -> int:
             print(f"No supported files found in {args.dir}", file=sys.stderr)
             return 1
 
-    print(f"Reindexing {len(targets)} file(s) with force=True...\n")
-    for fp in targets:
-        try:
-            if fp.suffix.lower() == ".pdf":
-                processor.ingest_pdf(str(fp), force=True, top_level_only=top_level_only)
-            else:
-                processor.ingest_markdown(str(fp), force=True, top_level_only=top_level_only)
-        except Exception as e:
-            print(f"Error processing {fp.name}: {e}", file=sys.stderr)
+    print(f"Reindexing {len(targets)} file(s) with force=True...")
+    print("(extraction/cleanup is reused from cache when available)\n")
+    try:
+        for fp in targets:
+            try:
+                if fp.suffix.lower() == ".pdf":
+                    processor.ingest_pdf(str(fp), force=True, top_level_only=top_level_only)
+                else:
+                    processor.ingest_markdown(str(fp), force=True, top_level_only=top_level_only)
+            except Exception as e:
+                print(f"Error processing {fp.name}: {e}", file=sys.stderr)
+    finally:
+        processor.release_extractor()
 
     print("\nDone. Re-tune the retrieval cutoff for this model with:")
     print(f"  python -m backend.cli --db-path {args.db_path} "
@@ -709,6 +751,19 @@ Examples:
         help="Only split on ## headings (keep ### and deeper in section body). "
              "Useful for book-style documents like Effective TypeScript.",
     )
+    ingest_p.add_argument(
+        "--engine", choices=["marker", "pymupdf4llm"], default=None,
+        help="PDF extraction engine (default: COSMO_PDF_ENGINE = marker). "
+             "Marker auto-falls back to pymupdf4llm on failure.",
+    )
+    ingest_p.add_argument(
+        "--no-cleanup", action="store_true",
+        help="Skip the LLM markdown cleanup pass (default: enabled).",
+    )
+    ingest_p.add_argument(
+        "--reextract", action="store_true",
+        help="Ignore the extraction cache and re-run Marker + cleanup.",
+    )
 
     # ask
     ask_p = subparsers.add_parser("ask", help="Ask a question")
@@ -728,6 +783,14 @@ Examples:
     conv_p.add_argument(
         "--output-dir", "-o", default="./converted",
         help="Directory to save markdown files (default: ./converted)",
+    )
+    conv_p.add_argument(
+        "--engine", choices=["marker", "pymupdf4llm"], default=None,
+        help="PDF extraction engine (default: COSMO_PDF_ENGINE = marker).",
+    )
+    conv_p.add_argument(
+        "--cleanup", action="store_true",
+        help="Also run the LLM markdown cleanup pass (needs Ollama).",
     )
 
     # quiz
