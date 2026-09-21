@@ -9,7 +9,7 @@ type Tab = "cosmo" | "apollo";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("cosmo");
-  const [mode, setMode] = useState<ModelMode>("qwen-7b");
+  const [mode, setMode] = useState<ModelMode>("qwen3-coder-30b");
   const [health, setHealth] = useState<HealthResponse | null>(null);
   // Installed modes (from /api/models); empty until loaded or if unavailable.
   const [installedModes, setInstalledModes] = useState<string[]>([]);

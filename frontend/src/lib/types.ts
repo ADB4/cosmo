@@ -1,5 +1,5 @@
 /** Modes the backend supports for LLM selection */
-export type ModelMode =    "llama3-8b" | "phi4-14b" | "qwen-7b" | "qwen-14b";
+export type ModelMode = "qwen3-coder-30b" | "qwen3.6-27b" | "gpt-oss-20b" | "gemma4-12b";
 
 /** A single message in the chat history (client-side) */
 export interface ChatMessage {
@@ -40,10 +40,10 @@ export interface IngestResponse {
 
 /** Describes model modes for display */
 export const MODE_INFO: Record<ModelMode, { label: string; description: string }> = {
-  "llama3-8b":    { label: "llama3.1:8b",   description: "8B, general purpose" },
-  "phi4-14b":  { label: "phi4:14b",         description: "14B, deep reasoning" },
-  "qwen-7b":  { label: "qwen2.5-coder:7b",  description: "7B, best all-round" },
-  "qwen-14b": { label: "qwen2.5-coder:14b", description: "14B, deep reasoning" },
+  "qwen3-coder-30b": { label: "qwen3-coder:30b · fast default", description: "MoE, ~19 GB — fast default" },
+  "qwen3.6-27b":     { label: "qwen3.6:27b · deep",             description: "Dense quality mode — slow, deep" },
+  "gpt-oss-20b":     { label: "gpt-oss:20b · reasoning",        description: "MoE reasoning, ~13 GB" },
+  "gemma4-12b":      { label: "gemma4:12b · explanations",      description: "~8 GB — general explanations" },
 };
 
 /* ============================================================
