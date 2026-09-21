@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type { ApolloView, QuizSummary, NormalizedQuestion, QuizPreset, ModelMode } from "../../lib/types";
 import { fetchQuizzes, fetchQuiz, fetchModules } from "../../lib/api";
 import { normalizeQuiz, filterBySection, sampleQuiz } from "../../lib/normalizeQuiz";
+import { getAttempt, formatAttemptDate } from "../../lib/progress";
 import StudyMode from "./StudyMode";
 import QuizMode from "./QuizMode";
 import DebugMode from "./DebugMode";
@@ -38,6 +39,9 @@ export default function Apollo({ mode }: ApolloProps) {
   const [quizQuestions, setQuizQuestions] = useState<NormalizedQuestion[]>([]);
   const [deckLoading, setDeckLoading] = useState(false);
   const [deckError, setDeckError] = useState<string | null>(null);
+  // Bumped on each quiz start so QuizMode remounts (fresh state) — including
+  // "Retry missed", which reuses the quiz view with a new question set.
+  const [quizRunId, setQuizRunId] = useState(0);
 
   const [tfCount, setTfCount] = useState(12);
   const [mcCount, setMcCount] = useState(10);
@@ -172,12 +176,29 @@ export default function Apollo({ mode }: ApolloProps) {
   const startQuiz = () => {
     const sampled = sampleQuiz(allQuestions, { tf: tfCount, mc: mcCount, sa: saCount });
     setQuizQuestions(sampled);
+    setQuizRunId((n) => n + 1);
     setView("quiz");
   };
 
+  const handleRetryMissed = useCallback((missed: NormalizedQuestion[]) => {
+    if (missed.length === 0) return;
+    setQuizQuestions(missed);
+    setQuizRunId((n) => n + 1);
+    setView("quiz");
+  }, []);
+
   // ---- Study mode ----
   if (view === "study" && allQuestions.length > 0) {
-    return <StudyMode title={quizTitle} questions={allQuestions} onExit={handleExit} />;
+    const attempt = selectedModule && selectedId ? getAttempt(selectedModule, selectedId) : null;
+    const missedIds = attempt ? new Set(attempt.missed.map((m) => m.id)) : undefined;
+    return (
+      <StudyMode
+        title={quizTitle}
+        questions={allQuestions}
+        missedIds={missedIds}
+        onExit={handleExit}
+      />
+    );
   }
 
   // ---- Debug mode ----
@@ -199,8 +220,19 @@ export default function Apollo({ mode }: ApolloProps) {
   }
 
   // ---- Quiz mode ----
-  if (view === "quiz" && quizQuestions.length > 0) {
-    return <QuizMode title={quizTitle} questions={quizQuestions} mode={mode} onExit={handleExit} />;
+  if (view === "quiz" && quizQuestions.length > 0 && selectedModule && selectedId) {
+    return (
+      <QuizMode
+        key={quizRunId}
+        title={quizTitle}
+        questions={quizQuestions}
+        mode={mode}
+        module={selectedModule}
+        quizId={selectedId}
+        onExit={handleExit}
+        onRetryMissed={handleRetryMissed}
+      />
+    );
   }
 
   // ---- Quiz config ----
@@ -312,12 +344,22 @@ export default function Apollo({ mode }: ApolloProps) {
                 <p className="apollo-count">No decks in this module yet — upload one below.</p>
               ) : (
                 <div className="apollo-quiz-list">
-                  {moduleQuizzes.map((q) => (
-                    <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.module, q.id)}>
-                      <span className="apollo-quiz-item-title">{q.title}</span>
-                      <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
-                    </button>
-                  ))}
+                  {moduleQuizzes.map((q) => {
+                    const attempt = getAttempt(q.module, q.id);
+                    return (
+                      <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.module, q.id)}>
+                        <span className="apollo-quiz-item-title">{q.title}</span>
+                        <span className="apollo-quiz-item-meta">
+                          {attempt && (
+                            <span className="apollo-quiz-item-score">
+                              Last {attempt.percentage}% · {formatAttemptDate(attempt.timestamp)}
+                            </span>
+                          )}
+                          {q.total_questions} questions
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <DeckControls

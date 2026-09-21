@@ -3,6 +3,7 @@ import type { NormalizedQuestion } from "../../lib/types";
 import { evaluateAnswer } from "../../lib/api";
 import { renderMarkdown } from "../../components/renderMarkdown";
 import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+import { saveAttempt, type MissedQuestion } from "../../lib/progress";
 
 const QUIZ_SHORTCUTS: Shortcut[] = [
   { keys: "1 – 4", desc: "Select a multiple-choice option" },
@@ -16,7 +17,12 @@ interface Props {
   questions: NormalizedQuestion[];
   /** Model mode used for AI short-answer grading. */
   mode: string;
+  /** Module + quiz id for persisting the attempt (progress tracking). */
+  module: string;
+  quizId: string;
   onExit: () => void;
+  /** Start a fresh quiz containing only the given questions (Retry missed). */
+  onRetryMissed: (questions: NormalizedQuestion[]) => void;
 }
 
 interface Answer {
@@ -44,7 +50,7 @@ function gradeLocal(q: NormalizedQuestion, given: string): boolean | null {
   return givenIdx === correctIdx;
 }
 
-export default function QuizMode({ questions, mode, onExit }: Props) {
+export default function QuizMode({ questions, mode, module, quizId, onExit, onRetryMissed }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -251,6 +257,35 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [questions, index, results, showShortcuts, submitAnswer]);
 
+  // Persist the attempt once grading has settled (progress tracking).
+  useEffect(() => {
+    if (!results || grading) return;
+    const auto = results.filter((r) => r.question.sectionType !== "short_answer");
+    const totalAuto = auto.length;
+    const correctCount = auto.filter((r) => r.correct === true).length;
+    const saList = results.filter((r) => r.question.sectionType === "short_answer");
+    const saCorrect = saList.filter((r) => r.saScore === "correct").length;
+    const saPartial = saList.filter((r) => r.saScore === "partial").length;
+    const saGraded = saList.filter((r) => r.saScore != null).length;
+    const totalScored = totalAuto + saGraded;
+    const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
+    const pct = totalScored > 0 ? Math.round((totalCorrect / totalScored) * 100) : 0;
+    const missed: MissedQuestion[] = results
+      .filter((r) =>
+        r.question.sectionType === "short_answer"
+          ? r.saScore === "incorrect" || (!!r.saError && r.saScore == null)
+          : r.correct === false,
+      )
+      .map((r) => ({ id: r.question.id, tags: r.question.tags }));
+    saveAttempt(module, quizId, {
+      timestamp: Date.now(),
+      percentage: pct,
+      correct: totalCorrect,
+      total: totalScored,
+      missed,
+    });
+  }, [results, grading, module, quizId]);
+
   // ---- Results screen ----
   if (results) {
     const autoGraded = results.filter(
@@ -275,6 +310,15 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
     const pct =
       totalScored > 0 ? Math.round((totalCorrect / totalScored) * 100) : 0;
+
+    // Missed = wrong (TF/MC/SA) or ungraded SA — the pool for "Retry missed".
+    const missedQuestions = results
+      .filter((res) =>
+        res.question.sectionType === "short_answer"
+          ? res.saScore === "incorrect" || (!!res.saError && res.saScore == null)
+          : res.correct === false,
+      )
+      .map((res) => res.question);
 
     const r = results[viewIndex];
     if (!r) return null;
@@ -377,6 +421,14 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
             </div>
 
             <div className="quiz-results-actions">
+              {!grading && missedQuestions.length > 0 && (
+                <button
+                  className="study-nav-btn quiz-retry-missed"
+                  onClick={() => onRetryMissed(missedQuestions)}
+                >
+                  Retry missed ({missedQuestions.length})
+                </button>
+              )}
               <button className="study-nav-btn" onClick={onExit}>
                 Done
               </button>

@@ -13,6 +13,8 @@ const STUDY_SHORTCUTS: Shortcut[] = [
 interface Props {
   title: string;
   questions: NormalizedQuestion[];
+  /** Ids missed on the last quiz attempt for this deck, if any. */
+  missedIds?: Set<string>;
   onExit: () => void;
 }
 
@@ -59,13 +61,16 @@ function formatTag(tag: string): string {
   return tag.replace(/-/g, " ");
 }
 
-export default function StudyMode({ questions, onExit }: Props) {
+export default function StudyMode({ questions, missedIds, onExit }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState<OrderMode>("sequential");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [missedOnly, setMissedOnly] = useState(false);
+
+  const hasMissed = (missedIds?.size ?? 0) > 0;
 
   // All tags present in this quiz's question pool
   const availableTags = useMemo(() => collectTags(questions), [questions]);
@@ -97,6 +102,10 @@ export default function StudyMode({ questions, onExit }: Props) {
       filtered = filtered.filter((q) => selectedTypes.has(q.sectionType));
     }
 
+    if (missedOnly && missedIds) {
+      filtered = filtered.filter((q) => missedIds.has(q.id));
+    }
+
     switch (order) {
       case "sequential":
         return filtered;
@@ -109,7 +118,7 @@ export default function StudyMode({ questions, onExit }: Props) {
       case "shuffle-all":
         return shuffle(filtered);
     }
-  }, [questions, selectedTags, selectedTypes, order]);
+  }, [questions, selectedTags, selectedTypes, order, missedOnly, missedIds]);
 
   const total = cards.length;
   const card = cards[index] as NormalizedQuestion | undefined;
@@ -214,6 +223,21 @@ export default function StudyMode({ questions, onExit }: Props) {
       <div className="study-body">
         {/* ── Left sidebar ── */}
         <div className="study-sidebar">
+          {/* Missed last quiz (only when there's attempt data) */}
+          {hasMissed && (
+            <div className="study-sidebar-section">
+              <button
+                className={`study-missed-chip ${missedOnly ? "study-missed-chip--active" : ""}`}
+                onClick={() => {
+                  setMissedOnly((m) => !m);
+                  resetPosition();
+                }}
+              >
+                {missedOnly ? "✓ " : ""}Missed last quiz ({missedIds!.size})
+              </button>
+            </div>
+          )}
+
           {/* Order */}
           <div className="study-sidebar-section">
             <span className="study-filter-title">Order</span>
