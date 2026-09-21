@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from backend.config import DEFAULT_MODE
+
 logger = logging.getLogger(__name__)
 
 
@@ -650,7 +652,7 @@ def run_quiz(
     quiz_path: str,
     output_path: str,
     processor=None,
-    mode: str = "qwen-7b",
+    mode: str = DEFAULT_MODE,
     use_rag: bool = True,
     n_results: int = 4,
     grounded: bool = True,
@@ -686,7 +688,7 @@ def run_json_quiz(
     output_path: str,
     quiz_id: Optional[str] = None,
     processor=None,
-    mode: str = "qwen-7b",
+    mode: str = DEFAULT_MODE,
     use_rag: bool = True,
     n_results: int = 4,
     grounded: bool = True,
@@ -733,10 +735,11 @@ def _run_questions(
 ) -> List[GradedQuestion]:
     """Shared logic: send each question to Ollama, grade, return results."""
     import ollama as _ollama
-    from backend.config import CHAT_MODELS, QUIZ_OPTIONS, QUIZ_NUM_PREDICT
+    from backend.config import CHAT_MODELS, DEFAULT_MODE, QUIZ_OPTIONS, QUIZ_NUM_PREDICT
+    from backend.document_processor import strip_think
 
-    llm_model = CHAT_MODELS.get(mode, CHAT_MODELS["qwen-7b"])
-    base_options = QUIZ_OPTIONS.get(mode, QUIZ_OPTIONS["qwen-7b"])
+    llm_model = CHAT_MODELS.get(mode, CHAT_MODELS[DEFAULT_MODE])
+    base_options = QUIZ_OPTIONS.get(mode, QUIZ_OPTIONS[DEFAULT_MODE])
     graded: List[GradedQuestion] = []
 
     for i, q in enumerate(questions):
@@ -764,9 +767,10 @@ def _run_questions(
             response = _ollama.chat(
                 model=llm_model,
                 messages=[{"role": "user", "content": prompt}],
+                think=False,  # suppress reasoning tokens (qwen3, gemma4)
                 options=options,
             )
-            llm_answer = response["message"]["content"]
+            llm_answer = strip_think(response["message"]["content"])
         except Exception as e:
             llm_answer = f"[error: {e}]"
 
@@ -803,25 +807,17 @@ class BenchmarkConfig:
         return " / ".join(parts)
 
 
-# Default benchmark matrix — 4 models x 2 RAG settings = 8 configs
+# Default benchmark matrix — the four chat modes x 2 RAG settings = 8 configs.
 # Grounded/broad showed no difference across 192 questions; hardcode broad.
 DEFAULT_BENCHMARK_CONFIGS = [
-    
-    BenchmarkConfig("gemma2-9b",  use_rag=True,  grounded=False),
-    BenchmarkConfig("gemma2-9b",  use_rag=False, grounded=False),
-    BenchmarkConfig("llama3-3b",  use_rag=True,  grounded=False),
-    BenchmarkConfig("llama3-3b",  use_rag=False, grounded=False),
-    BenchmarkConfig("llama3-8b",  use_rag=True,  grounded=False),
-    BenchmarkConfig("llama3-8b",  use_rag=False, grounded=False),
-    BenchmarkConfig("mistral-7b",  use_rag=True,  grounded=False),
-    BenchmarkConfig("mistral-7b",  use_rag=False, grounded=False),
-    BenchmarkConfig("phi4-14b", use_rag=True,  grounded=False),
-    BenchmarkConfig("phi4-14b", use_rag=False, grounded=False),
-    BenchmarkConfig("qwen-7b", use_rag=True,  grounded=False),
-    BenchmarkConfig("qwen-7b", use_rag=False, grounded=False),
-    BenchmarkConfig("qwen-14b", use_rag=True,  grounded=False),
-    BenchmarkConfig("qwen-14b", use_rag=False, grounded=False),
-
+    BenchmarkConfig("qwen3-coder-30b", use_rag=True,  grounded=False),
+    BenchmarkConfig("qwen3-coder-30b", use_rag=False, grounded=False),
+    BenchmarkConfig("qwen3.6-27b",     use_rag=True,  grounded=False),
+    BenchmarkConfig("qwen3.6-27b",     use_rag=False, grounded=False),
+    BenchmarkConfig("gpt-oss-20b",     use_rag=True,  grounded=False),
+    BenchmarkConfig("gpt-oss-20b",     use_rag=False, grounded=False),
+    BenchmarkConfig("gemma4-12b",      use_rag=True,  grounded=False),
+    BenchmarkConfig("gemma4-12b",      use_rag=False, grounded=False),
 ]
 
 

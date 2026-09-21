@@ -22,9 +22,13 @@ from backend.config import (
     CHUNK_SIZE,
     DB_PATH,
     DEFAULT_HISTORY_TURNS,
+    DEFAULT_MODE,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
     DECK_DIR,
+    GRADER_FALLBACKS,
+    GRADER_MODEL,
+    GRADER_OPTIONS,
     SERVER_HOST,
     SERVER_PORT,
     UPLOAD_DIR,
@@ -34,6 +38,7 @@ from backend.document_processor import (
     ChatHistory,
     DocumentProcessor,
     OllamaConnectionError,
+    strip_think,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +63,68 @@ def get_processor() -> DocumentProcessor:
     if _processor is None:
         _processor = DocumentProcessor()
     return _processor
+
+
+# ---------------------------------------------------------------------------
+# Grader model resolution
+#
+# The short-answer grader is a small, separate model — not the chat mode.
+# We check `ollama.list()` once and cache the first installed candidate from
+# [GRADER_MODEL, *GRADER_FALLBACKS], falling back to the default chat model
+# (which is virtually always resident) with a logged warning.
+# ---------------------------------------------------------------------------
+
+_grader_model: str | None = None
+
+
+def _installed_models() -> set[str]:
+    import ollama as _ollama
+    raw = _ollama.list()
+    installed: set[str] = set()
+    for m in raw.get("models", []):
+        name = m.get("model") if isinstance(m, dict) else getattr(m, "model", None)
+        if not name and isinstance(m, dict):
+            name = m.get("name")
+        if not name:
+            name = getattr(m, "name", None)
+        if name:
+            installed.add(name)
+    return installed
+
+
+def resolve_grader_model() -> str:
+    """
+    Pick the grader model once and cache it. Returns the first of
+    [GRADER_MODEL, *GRADER_FALLBACKS] that is installed; if none are, falls
+    back to the default chat model's Ollama tag with a warning.
+    """
+    global _grader_model
+    if _grader_model is not None:
+        return _grader_model
+
+    default_tag = CHAT_MODELS[DEFAULT_MODE]
+    try:
+        installed = _installed_models()
+    except Exception as e:
+        logger.warning(
+            f"Could not list Ollama models to resolve grader ({e}); "
+            f"falling back to default chat model '{default_tag}'."
+        )
+        _grader_model = default_tag
+        return _grader_model
+
+    for candidate in [GRADER_MODEL, *GRADER_FALLBACKS]:
+        if candidate in installed:
+            _grader_model = candidate
+            return _grader_model
+
+    logger.warning(
+        f"No grader model installed (tried {[GRADER_MODEL, *GRADER_FALLBACKS]}); "
+        f"falling back to default chat model '{default_tag}'. "
+        f"Install one with: ollama pull {GRADER_MODEL}"
+    )
+    _grader_model = default_tag
+    return _grader_model
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +238,7 @@ def stats():
 def chat():
     data = request.get_json(silent=True) or {}
     question = data.get("question", "").strip()
-    mode = data.get("mode", "qwen-7b")
+    mode = data.get("mode", DEFAULT_MODE)
     n_results = data.get("n_results", 8)
     grounded = data.get("grounded", True)
 
@@ -501,7 +568,6 @@ def evaluate_answer():
     question = data.get("question", "")
     user_answer = data.get("user_answer", "")
     model_answer = data.get("model_answer", "")
-    mode = data.get("mode", "qwen-7b")
 
     if not question or not user_answer:
         return jsonify({"error": "question and user_answer are required"}), 400
@@ -537,17 +603,18 @@ def evaluate_answer():
         '{"score": "<correct|partial|incorrect>", "feedback": "<1-3 sentence explanation>"}'
     )
 
-    llm_model = proc.models.get(mode, proc.models["qwen-7b"])
+    grader_model = resolve_grader_model()
 
     try:
         import ollama as _ollama
-        from backend.config import EVAL_OPTIONS
         response = _ollama.chat(
-            model=llm_model,
+            model=grader_model,
             messages=[{"role": "user", "content": prompt}],
-            options=EVAL_OPTIONS,
+            think=False,  # suppress reasoning tokens (qwen3, gemma4)
+            options=GRADER_OPTIONS,
         )
-        raw = response["message"]["content"].strip()
+        # Strip any leaked <think>...</think> before JSON-parsing the response.
+        raw = strip_think(response["message"]["content"]).strip()
 
         cleaned = raw
         if cleaned.startswith("```"):
@@ -573,7 +640,7 @@ def evaluate_answer():
         if score not in ("correct", "partial", "incorrect"):
             score = "partial"
 
-        return jsonify({"score": score, "feedback": feedback})
+        return jsonify({"score": score, "feedback": feedback, "grader": grader_model})
 
     except Exception as e:
         logger.exception("Evaluation error")
