@@ -8,8 +8,9 @@ A local-first RAG system for querying your React/TypeScript/MUI documentation us
 cosmo/
 ├── backend/                      # Python — Flask API + RAG engine
 │   ├── config.py                 # Centralized configuration (models, paths, options)
-│   ├── document_processor.py     # Core RAG: ingest, embed, query, stream, PDF→markdown
-│   ├── markdown_chunking.py      # Heading-hierarchy-aware section parsing + chunking
+│   ├── document_processor.py     # Core RAG: ingest, embed, query, stream, heading-aware chunking
+│   ├── pdf_extract.py            # Pluggable PDF→markdown (Marker + pymupdf4llm fallback)
+│   ├── md_cleanup.py             # Conservative LLM markdown cleanup (qwen2.5:14b)
 │   ├── quiz_processor.py         # Quiz parsing, grading, and benchmarking
 │   ├── retrieval_bench.py        # RAG retrieval quality benchmarking
 │   ├── server.py                 # Flask API (SSE streaming, upload, quizzes, evaluation)
@@ -119,18 +120,21 @@ rm -rf chroma_db uploads                # destroys the knowledge base
 All CLI commands run from the project root with the venv activated:
 
 ```bash
-# Ingest documents
+# Ingest documents (PDFs go through: extract -> cleanup -> chunk -> embed)
 python -m backend.cli ingest --dir docs/
 python -m backend.cli ingest --path docs/handbook.pdf --force
 python -m backend.cli ingest --path docs/effective-typescript.pdf --top-level-only
+python -m backend.cli ingest --path docs/handbook.pdf --engine pymupdf4llm  # skip Marker
+python -m backend.cli ingest --path docs/handbook.pdf --no-cleanup          # skip LLM cleanup
+python -m backend.cli ingest --path docs/handbook.pdf --force --reextract   # bust extract cache
 
 # Ask a question
 python -m backend.cli ask -q "How do I type a useState hook?"
 python -m backend.cli ask -q "Explain generics" --mode gemma4-12b
 
-# Convert PDF to markdown (no Ollama required)
+# Convert PDF to markdown (extraction needs no Ollama; --cleanup does)
 python -m backend.cli convert --path docs/effective-typescript.pdf -o converted/
-python -m backend.cli convert --path docs/ -o converted/
+python -m backend.cli convert --path docs/ -o converted/ --engine marker --cleanup
 
 # Take a quiz (decks live under decks/<module>/)
 python -m backend.cli quiz -i decks/frontend/week13.json
@@ -156,6 +160,71 @@ python -m backend.cli tune-cutoff --embed-model qwen3-embedding:0.6b
 ### Interactive Mode Commands
 
 While in interactive mode, type your question directly, or use these commands: `mode qwen3-coder-30b|qwen3.6-27b|gpt-oss-20b|gemma4-12b` to switch models, `clear` to reset history, `stats` to check the knowledge base, `quit` to exit.
+
+## PDF extraction pipeline
+
+PDFs are turned into clean, chunk-ready markdown in three stages before chunking/embedding:
+
+```
+PDF → [extract] → raw markdown → [cleanup] → clean markdown → [chunk → embed]
+       Marker                     qwen2.5:14b   (existing heading-aware chunker)
+       (fallback: pymupdf4llm)    (conservative)
+```
+
+**1. Extraction (`backend/pdf_extract.py`)** — a pluggable engine, selected by
+`--engine` or `COSMO_PDF_ENGINE` (default `marker`):
+
+- **Marker** — layout-aware (Surya models); best headings/tables/reading order.
+  Optional heavy dependency. On Apple Silicon it runs its foundation model
+  through **llama.cpp**, so it needs the `llama-server` binary
+  (`brew install llama.cpp`) in addition to the Python package.
+- **pymupdf4llm** — fast, model-free, always available (a core requirement).
+
+Marker **auto-falls back** to pymupdf4llm when it errors, is not installed, or
+returns degenerate output (near-empty per page — the corpus is text-native, so
+there is no OCR path). The pipeline therefore always produces markdown.
+
+**2. Cleanup (`backend/md_cleanup.py`)** — a conservative, **non-rewrite** pass
+on `qwen2.5:14b` (temperature 0, `think=False`) that only: strips running
+headers/footers and standalone page numbers, repairs broken table formatting,
+and normalizes heading levels. It processes the markdown in windows (split at
+blank lines, never inside a code fence) and guards every window: if the cleaned
+text loses or gains too much vs the original, the **original window is kept**, so
+cleanup can never drop or invent content. Skip it with `--no-cleanup`; if Ollama
+is unreachable it is skipped automatically and the raw extraction is used.
+
+**Extraction cache** — Marker + cleanup cost minutes per document, so the
+cleaned markdown is cached under `extraction_cache/`, keyed by
+(file hash, engine, cleanup). Re-ingesting, `--force`, and `reindex` into a new
+embedding-model collection all reuse it instead of re-extracting. A changed PDF
+gets a new hash and re-extracts automatically; force a rebuild with
+`--reextract`.
+
+### Installing the Marker engine
+
+Marker is optional and heavy (torch + Surya models). Install it into the venv
+and check the cleanup model in one step:
+
+```bash
+scripts/setup-extraction.sh
+# or manually:
+brew install llama.cpp                      # llama-server backend for Surya
+pip install -r requirements-marker.txt      # marker-pdf + torch + surya
+ollama pull qwen2.5:14b                      # cleanup model (~9 GB), if missing
+```
+
+Without Marker installed (or without llama.cpp), Cosmo still ingests PDFs — it
+just uses the pymupdf4llm path automatically.
+
+### Relevant environment variables
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `COSMO_PDF_ENGINE` | `marker` | Extraction engine: `marker` or `pymupdf4llm` |
+| `COSMO_CLEANUP` | `1` | Run the cleanup pass (`0` to disable) |
+| `COSMO_CLEANUP_MODEL` | `qwen2.5:14b` | Ollama model for cleanup |
+| `COSMO_EXTRACT_CACHE` | `1` | Cache extracted/cleaned markdown |
+| `COSMO_EXTRACT_CACHE_DIR` | `./extraction_cache` | Cache location |
 
 ## Web GUI
 

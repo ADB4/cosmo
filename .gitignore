@@ -28,6 +28,10 @@ frontend/.vite/
 chroma_db/
 uploads/
 
+# PDF extraction cache + convert output (regenerable local data)
+extraction_cache/
+converted/
+
 # IDE
 .vscode/
 .idea/

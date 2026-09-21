@@ -320,6 +320,13 @@ def ingest():
     except Exception as e:
         logger.exception("Ingestion error")
         return jsonify({"error": str(e)}), 500
+    finally:
+        # Free Marker's models/MPS memory so it doesn't sit resident in the
+        # long-lived Flask process alongside a large chat model.
+        try:
+            proc.release_extractor()
+        except Exception:
+            pass
 
 
 @app.route("/api/ingest/directory", methods=["POST"])
@@ -355,6 +362,11 @@ def ingest_directory():
         return jsonify({"error": str(e)}), 503
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            proc.release_extractor()
+        except Exception:
+            pass
 
 
 # ===================================================================

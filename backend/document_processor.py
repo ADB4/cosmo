@@ -15,18 +15,25 @@ from typing import Dict, Generator, List, Optional, Tuple
 
 import chromadb
 import ollama
-import pymupdf4llm
 
 from backend.config import (
     CHAT_MODELS,
     CHAT_OPTIONS,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
+    CLEANUP_ENABLED,
+    CLEANUP_MODEL,
     DB_PATH,
     DEFAULT_MODE,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
+    EXTRACT_CACHE_DIR,
+    EXTRACT_CACHE_ENABLED,
+    PDF_ENGINE,
+    PDF_FALLBACK_ENGINE,
 )
+from backend.md_cleanup import clean_markdown
+from backend.pdf_extract import MarkerExtractor, extract_pdf_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -453,6 +460,8 @@ class DocumentProcessor:
             metadata={"hnsw:space": "cosine"},
         )
         self.models = CHAT_MODELS
+        # Lazily-created, reused across a batch so Marker loads its models once.
+        self._marker: MarkerExtractor | None = None
 
     # -- connection check ---------------------------------------------------
 
@@ -469,16 +478,114 @@ class DocumentProcessor:
 
     # -- PDF to markdown conversion -----------------------------------------
 
-    @staticmethod
-    def pdf_to_markdown(pdf_path: str) -> str:
-        """
-        Convert a PDF to markdown using pymupdf4llm.
+    def _get_marker(self) -> MarkerExtractor:
+        """The processor's reusable Marker extractor (models load once)."""
+        if self._marker is None:
+            self._marker = MarkerExtractor()
+        return self._marker
 
-        Preserves headings, code blocks, tables, and lists far better than
-        naive text extraction. The resulting markdown is then suitable for
-        the heading-hierarchy chunker.
+    def release_extractor(self) -> None:
         """
-        return pymupdf4llm.to_markdown(pdf_path)
+        Free the Marker models / MPS memory. The CLI calls this at the end of a
+        batch; the Flask server calls it after each ingest so several GB of
+        extractor memory does not sit resident next to a large chat model.
+        """
+        if self._marker is not None:
+            self._marker.release()
+
+    @staticmethod
+    def _extract_cache_path(file_hash: str, engine: str, cleanup: bool):
+        """On-disk path for cached extracted markdown, keyed so a different
+        engine or cleanup setting never collides."""
+        stage = "clean" if cleanup else "raw"
+        return EXTRACT_CACHE_DIR / f"{file_hash}.{engine}.{stage}.md"
+
+    def pdf_to_markdown(
+        self,
+        pdf_path: str,
+        engine: str | None = None,
+        cleanup: bool = False,
+    ) -> str:
+        """
+        Convert a PDF to markdown via the pluggable extractor (Marker by
+        default, automatic pymupdf4llm fallback). Extraction only unless
+        `cleanup=True`, which additionally runs the conservative LLM cleanup
+        pass (and therefore needs Ollama).
+
+        This is a thin wrapper over `extract_pdf_markdown`; ingestion uses the
+        cache-aware `_get_pdf_markdown` instead.
+        """
+        result = extract_pdf_markdown(
+            pdf_path,
+            engine=engine or PDF_ENGINE,
+            allow_fallback=True,
+            marker=self._get_marker(),
+        )
+        md = result.markdown
+        if cleanup and md.strip():
+            md = clean_markdown(md).markdown
+        return md
+
+    def _get_pdf_markdown(
+        self,
+        pdf_path: str,
+        file_hash: str,
+        engine: str,
+        cleanup: bool,
+        reextract: bool,
+    ) -> str:
+        """
+        Extract (+ optionally clean) a PDF to markdown, using the on-disk cache
+        so Marker and the cleanup pass are not re-run for an unchanged file.
+        """
+        cache_path = self._extract_cache_path(file_hash, engine, cleanup)
+
+        if EXTRACT_CACHE_ENABLED and not reextract and cache_path.exists():
+            print(f"  Using cached extraction: {cache_path.name}")
+            return cache_path.read_text(encoding="utf-8")
+
+        print(f"  Extracting with {engine} (auto-fallback: {PDF_FALLBACK_ENGINE})...")
+        result = extract_pdf_markdown(
+            pdf_path,
+            engine=engine,
+            allow_fallback=True,
+            marker=self._get_marker(),
+        )
+        for note in result.notes:
+            print(f"    note: {note}")
+        if result.fell_back:
+            print(f"  Fell back to {result.engine_used}")
+        else:
+            print(f"  Extracted with {result.engine_used}"
+                  f"{f' ({result.pages} pages)' if result.pages else ''}")
+
+        md = result.markdown
+        if not md.strip():
+            return md
+
+        if cleanup:
+            print(f"  Cleaning markdown with {CLEANUP_MODEL} (conservative pass)...")
+            cres = clean_markdown(md, progress=self._cleanup_progress)
+            if cres.skipped:
+                print("    cleanup skipped (Ollama unreachable) — using raw extraction")
+            else:
+                print(f"    cleaned {cres.windows_cleaned}/{cres.windows_total} windows "
+                      f"({cres.windows_reverted} kept unchanged)")
+            md = cres.markdown
+
+        if EXTRACT_CACHE_ENABLED:
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(md, encoding="utf-8")
+            except Exception as e:  # noqa: BLE001 - cache is best-effort
+                logger.warning(f"Could not write extraction cache: {e}")
+
+        return md
+
+    @staticmethod
+    def _cleanup_progress(done: int, total: int) -> None:
+        if total and (done == total or done % 10 == 0):
+            print(f"    cleanup {done}/{total} windows...")
 
     # -- hashing / dedup ----------------------------------------------------
 
@@ -547,10 +654,19 @@ class DocumentProcessor:
 
     # -- ingestion ----------------------------------------------------------
 
-    def ingest_pdf(self, pdf_path: str, force: bool = False, top_level_only: bool = False) -> int:
+    def ingest_pdf(
+        self,
+        pdf_path: str,
+        force: bool = False,
+        top_level_only: bool = False,
+        engine: str | None = None,
+        cleanup: bool | None = None,
+        reextract: bool = False,
+    ) -> int:
         """
-        Convert PDF to markdown via pymupdf4llm, then process with the
-        heading-hierarchy-aware markdown chunker.
+        Convert PDF to markdown via the pluggable extractor (Marker by default,
+        automatic pymupdf4llm fallback), optionally run the conservative LLM
+        cleanup pass, then process with the heading-hierarchy-aware chunker.
 
         This gives PDFs the same rich metadata (headings, breadcrumbs,
         section-aware overlap) that native markdown files get.
@@ -558,7 +674,14 @@ class DocumentProcessor:
         Args:
             top_level_only: Only split on level-1/2 headings. Useful for
                 book-style PDFs like Effective TypeScript.
+            engine: "marker" or "pymupdf4llm" (default: config PDF_ENGINE).
+            cleanup: Run the markdown cleanup pass (default: config
+                CLEANUP_ENABLED).
+            reextract: Ignore the extraction cache and re-run extraction.
         """
+        engine = engine or PDF_ENGINE
+        cleanup = CLEANUP_ENABLED if cleanup is None else cleanup
+
         file_hash = self.get_file_hash(pdf_path)
 
         if not force and self.is_already_indexed(file_hash):
@@ -571,11 +694,12 @@ class DocumentProcessor:
         print(f"Processing: {Path(pdf_path).name}")
         filename = Path(pdf_path).name
 
-        # Convert PDF to markdown -- this is where pymupdf4llm does the
-        # heavy lifting: extracting headings, code blocks, tables, lists
-        print(f"  Converting PDF to markdown...")
+        # Extract (+ optional cleanup) to markdown, reusing the on-disk cache
+        # so Marker / cleanup are not re-run for an unchanged file.
         try:
-            md_content = self.pdf_to_markdown(pdf_path)
+            md_content = self._get_pdf_markdown(
+                pdf_path, file_hash, engine, cleanup, reextract
+            )
         except Exception as e:
             print(f"  Error converting PDF to markdown: {e}")
             return 0
