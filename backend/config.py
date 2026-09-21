@@ -44,6 +44,24 @@ CHUNK_SIZE = int(os.environ.get("COSMO_CHUNK_SIZE", 1200))
 CHUNK_OVERLAP = int(os.environ.get("COSMO_CHUNK_OVERLAP", 200))
 EMBEDDING_BATCH_SIZE = 50
 EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 500))  # 512 limit with 12-token safety margin
+
+# ---------------------------------------------------------------------------
+# Retrieval relevance cutoff
+#
+# Chunks whose vector distance to the query exceeds this are treated as
+# irrelevant and dropped. In grounded ("Docs only") mode, if NOTHING passes
+# the cutoff the LLM is not called at all — the client is told the docs have
+# nothing relevant instead of getting a hallucinated answer.
+#
+# The collection uses ChromaDB's cosine space (see DocumentProcessor), so
+# distances run 0 (identical) .. 2 (opposite). Tuned empirically against
+# nomic-embed-text: on-topic React/TS/testing queries retrieve top chunks at
+# ~0.25-0.35, while off-topic queries (e.g. "season a cast iron pan") bottom
+# out at ~0.46. 0.42 keeps the former and drops the latter with margin.
+# Override per-environment with COSMO_RETRIEVAL_MAX_DISTANCE.
+# ---------------------------------------------------------------------------
+
+RETRIEVAL_MAX_DISTANCE = float(os.environ.get("COSMO_RETRIEVAL_MAX_DISTANCE", 0.42))
 # ---------------------------------------------------------------------------
 # LLM models (Ollama)
 #

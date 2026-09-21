@@ -160,6 +160,8 @@ export function streamChat(
     onToken: (token: string) => void;
     onDone: () => void;
     onError: (err: string) => void;
+    /** Grounded mode found nothing above the relevance cutoff. */
+    onNoResults?: () => void;
   },
 ): AbortController {
   const controller = new AbortController();
@@ -209,6 +211,10 @@ export function streamChat(
             if (parsed.error) {
               callbacks.onError(parsed.error);
               return;
+            }
+            if (parsed.no_results) {
+              callbacks.onNoResults?.();
+              continue;
             }
             if (parsed.token != null) {
               callbacks.onToken(parsed.token);
