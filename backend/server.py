@@ -118,6 +118,40 @@ def health():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/models", methods=["GET"])
+def list_models():
+    """
+    Return the configured chat modes whose underlying model is actually
+    present in `ollama list`, so the UI can collapse its model dropdown to
+    what's installed. On Ollama being unreachable, returns 503 and the UI
+    falls back to showing all configured modes.
+    """
+    try:
+        import ollama as _ollama
+        raw = _ollama.list()
+    except Exception as e:
+        return jsonify({"error": f"Cannot reach Ollama: {e}"}), 503
+
+    # ollama.list() entries expose the model tag as `.model` (newer) or
+    # `.name` (older); normalise to a set of installed model strings.
+    installed: set[str] = set()
+    for m in raw.get("models", []):
+        name = m.get("model") if isinstance(m, dict) else getattr(m, "model", None)
+        if not name and isinstance(m, dict):
+            name = m.get("name")
+        if not name:
+            name = getattr(m, "name", None)
+        if name:
+            installed.add(name)
+
+    modes = [
+        {"mode": mode, "model": model}
+        for mode, model in CHAT_MODELS.items()
+        if model in installed
+    ]
+    return jsonify({"modes": modes})
+
+
 @app.route("/api/stats", methods=["GET"])
 def stats():
     try:
