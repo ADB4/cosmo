@@ -101,6 +101,13 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .chat-status-text--error{color:var(--red)}
 .chat-status-text--error code,.chat-status-text code{color:var(--cyan)}
 
+/* ── Chat message filter ── */
+.chat-filter{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:6px 20px;border-bottom:1px solid var(--border-subtle)}
+.chat-filter-input{flex:1;padding:4px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-bright);outline:none;transition:border-color .1s}
+.chat-filter-input:focus{border-color:var(--border-focus)}
+.chat-filter-input::placeholder{color:var(--text-muted)}
+.chat-filter-count{font-size:11px;color:var(--text-muted);flex-shrink:0}
+
 /* ── Knowledge base panel (chat tab) ── */
 .kb-panel{flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg-elevated)}
 .kb-header{display:flex;align-items:center;gap:8px;width:100%;padding:8px 20px;text-align:left;transition:background .1s}
