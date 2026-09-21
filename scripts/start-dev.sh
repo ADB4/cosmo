@@ -22,6 +22,26 @@ if ! curl -s --max-time 3 http://localhost:11434/api/tags &> /dev/null; then
     echo ""
 fi
 
+# Check that the required models are pulled. nomic-embed-text is required
+# for embeddings; qwen2.5-coder:7b is the default chat/grader model.
+REQUIRED_MODELS=("nomic-embed-text" "qwen2.5-coder:7b")
+if command -v ollama &> /dev/null && ollama list &> /dev/null; then
+    INSTALLED="$(ollama list 2>/dev/null)"
+    MISSING=()
+    for model in "${REQUIRED_MODELS[@]}"; do
+        if ! echo "$INSTALLED" | grep -q "$model"; then
+            MISSING+=("$model")
+        fi
+    done
+    if [ ${#MISSING[@]} -gt 0 ]; then
+        echo "WARNING: required Ollama model(s) not found. Pull them with:"
+        for model in "${MISSING[@]}"; do
+            echo "  ollama pull $model"
+        done
+        echo ""
+    fi
+fi
+
 # Python venv
 VENV_DIR="$ROOT_DIR/.venv"
 if [ ! -d "$VENV_DIR" ]; then
