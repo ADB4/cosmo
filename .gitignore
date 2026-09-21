@@ -13,6 +13,7 @@ artifacts/*
 quizzes/exclude_sa/
 quizzes_legacy/
 results/
+decks/**/*.json.bak
 
 
 # Node / Yarn

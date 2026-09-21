@@ -63,8 +63,10 @@ export async function fetchQuizzes(): Promise<QuizSummary[]> {
   });
 }
 
-export async function fetchQuiz(quizId: string): Promise<Quiz> {
-  const res = await fetch(`${BASE}/quizzes/${encodeURIComponent(quizId)}`);
+export async function fetchQuiz(module: string, quizId: string): Promise<Quiz> {
+  const res = await fetch(
+    `${BASE}/quizzes/${encodeURIComponent(module)}/${encodeURIComponent(quizId)}`,
+  );
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? "Quiz not found");
@@ -124,14 +126,18 @@ export async function evaluateAnswer(
 }
 
 export async function deleteQuestions(
+  module: string,
   quizId: string,
   questionIds: string[],
 ): Promise<{ status: string; removed: string[]; remaining: number }> {
-  const res = await fetch(`${BASE}/quizzes/${encodeURIComponent(quizId)}/questions`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question_ids: questionIds }),
-  });
+  const res = await fetch(
+    `${BASE}/quizzes/${encodeURIComponent(module)}/${encodeURIComponent(quizId)}/questions`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_ids: questionIds }),
+    },
+  );
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? "Delete failed");

@@ -17,6 +17,9 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .apollo-module-item:hover{border-color:var(--border-focus);background:var(--bg-hover)}
 .apollo-module-item-title{font-size:14px;font-weight:600;color:var(--text-bright)}
 .apollo-module-item-meta{font-size:12px;color:var(--text-muted);flex-shrink:0;margin-left:12px}
+.apollo-cards--two{max-width:440px;margin-left:auto;margin-right:auto}
+.apollo-edit-link{font-size:12px;color:var(--text-muted);text-decoration:underline;transition:color .1s;margin-bottom:24px}
+.apollo-edit-link:hover{color:var(--text)}
 /* ── Study Mode ── */
 .study{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .study-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0}

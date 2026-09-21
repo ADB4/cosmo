@@ -30,6 +30,8 @@ export default function Apollo() {
   const [allQuestions, setAllQuestions] = useState<NormalizedQuestion[]>([]);
   const [quizTitle, setQuizTitle] = useState("");
   const [quizQuestions, setQuizQuestions] = useState<NormalizedQuestion[]>([]);
+  const [deckLoading, setDeckLoading] = useState(false);
+  const [deckError, setDeckError] = useState<string | null>(null);
 
   const [tfCount, setTfCount] = useState(12);
   const [mcCount, setMcCount] = useState(10);
@@ -80,15 +82,21 @@ export default function Apollo() {
 
   useEffect(() => { loadQuizzes(); }, [loadQuizzes]);
 
-  const handleSelectQuiz = useCallback(async (id: string) => {
+  const handleSelectQuiz = useCallback(async (module: string, id: string) => {
+    setSelectedModule(module);
     setSelectedId(id);
+    setAllQuestions([]);
+    setDeckError(null);
+    setDeckLoading(true);
     try {
-      const quiz = await fetchQuiz(id);
+      const quiz = await fetchQuiz(module, id);
       setQuizTitle(quiz.title);
       const normalized = normalizeQuiz(quiz);
       setAllQuestions(normalized);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load quiz");
+      setDeckError(e instanceof Error ? e.message : "Failed to load quiz");
+    } finally {
+      setDeckLoading(false);
     }
   }, []);
 
@@ -128,6 +136,9 @@ export default function Apollo() {
 
   const handleBackToQuizList = useCallback(() => {
     setSelectedId(null);
+    setAllQuestions([]);
+    setDeckError(null);
+    setDeckLoading(false);
   }, []);
 
   const totalSelected = tfCount + mcCount + saCount;
@@ -162,10 +173,11 @@ export default function Apollo() {
   }
 
   // ---- Debug mode ----
-  if (view === "debug" && allQuestions.length > 0 && selectedId) {
+  if (view === "debug" && allQuestions.length > 0 && selectedId && selectedModule) {
     return (
       <DebugMode
         title={quizTitle}
+        module={selectedModule}
         quizId={selectedId}
         questions={allQuestions}
         onExit={handleExit}
@@ -233,7 +245,9 @@ export default function Apollo() {
   }
 
   // ---- Select view (module picker -> quiz list -> mode picker) ----
-  const selected = quizzes.find((q) => q.id === selectedId);
+  const selected = quizzes.find(
+    (q) => q.id === selectedId && q.module === selectedModule,
+  );
 
   return (
     <div className="apollo-select">
@@ -281,7 +295,7 @@ export default function Apollo() {
               <p className="apollo-desc">Choose a deck to study or test</p>
               <div className="apollo-quiz-list">
                 {moduleQuizzes.map((q) => (
-                  <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.id)}>
+                  <button key={q.id} className="apollo-quiz-item" onClick={() => handleSelectQuiz(q.module, q.id)}>
                     <span className="apollo-quiz-item-title">{q.title}</span>
                     <span className="apollo-quiz-item-meta">{q.total_questions} questions</span>
                   </button>
@@ -315,45 +329,41 @@ export default function Apollo() {
                 <p className="apollo-count">{selected.total_questions} questions</p>
               </div>
 
-              <div className="apollo-cards">
-                <button className="apollo-card" onClick={() => setView("study")}>
-                  <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                  </svg>
-                  <span className="apollo-card-title">Study Mode</span>
-                  <span className="apollo-card-desc">Review flashcards in random order</span>
-                </button>
+              {deckError ? (
+                <p className="apollo-error">{deckError}</p>
+              ) : deckLoading || allQuestions.length === 0 ? (
+                <p className="apollo-loading">Loading deck...</p>
+              ) : (
+                <>
+                  <div className="apollo-cards apollo-cards--two">
+                    <button className="apollo-card" onClick={() => setView("study")}>
+                      <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                      </svg>
+                      <span className="apollo-card-title">Study Mode</span>
+                      <span className="apollo-card-desc">Flip through flashcards in order</span>
+                    </button>
 
-                <button className="apollo-card" onClick={() => setView("quiz-config")}>
-                  <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C5.88 4 7 5.12 7 6.5V9" />
-                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C18.12 4 17 5.12 17 6.5V9" />
-                    <path d="M4 22h16" />
-                    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
-                    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" />
-                    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-                  </svg>
-                  <span className="apollo-card-title">Quiz Mode</span>
-                  <span className="apollo-card-desc">Test yourself and get scored</span>
-                </button>
+                    <button className="apollo-card" onClick={() => setView("quiz-config")}>
+                      <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C5.88 4 7 5.12 7 6.5V9" />
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C18.12 4 17 5.12 17 6.5V9" />
+                        <path d="M4 22h16" />
+                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
+                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" />
+                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                      </svg>
+                      <span className="apollo-card-title">Quiz Mode</span>
+                      <span className="apollo-card-desc">Test yourself and get scored</span>
+                    </button>
+                  </div>
 
-                <button className="apollo-card" onClick={() => setView("debug")}>
-                  <svg className="apollo-card-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-                    <path d="M12 22c-4.97 0-9-2.69-9-6v-4" />
-                    <path d="M3 8c0-3.31 4.03-6 9-6s9 2.69 9 6" />
-                    <path d="M21 12v4c0 3.31-4.03 6-9 6" />
-                    <path d="M7.5 12H3" />
-                    <path d="M21 12h-4.5" />
-                    <path d="M12 2v4" />
-                    <path d="M12 18v4" />
-                    <path d="M4.93 4.93l2.83 2.83" />
-                    <path d="M16.24 16.24l2.83 2.83" />
-                  </svg>
-                  <span className="apollo-card-title">Debug Mode</span>
-                  <span className="apollo-card-desc">Review and remove questions from JSON</span>
-                </button>
-              </div>
+                  <button className="apollo-edit-link" onClick={() => setView("debug")}>
+                    &#9998; Edit deck (review &amp; remove questions)
+                  </button>
+                </>
+              )}
             </div>
           )}
         </>

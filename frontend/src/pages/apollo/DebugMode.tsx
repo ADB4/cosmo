@@ -6,6 +6,7 @@ import { renderMarkdown } from "../../components/renderMarkdown";
 
 interface Props {
   title: string;
+  module: string;
   quizId: string;
   questions: NormalizedQuestion[];
   onExit: () => void;
@@ -30,7 +31,7 @@ function formatTag(tag: string): string {
   return tag.replace(/-/g, " ");
 }
 
-  export default function DebugMode({ title: _title, quizId, questions, onExit, onSaved }: Props) {
+  export default function DebugMode({ title: _title, module, quizId, questions, onExit, onSaved }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -127,7 +128,7 @@ function formatTag(tag: string): string {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const result = await deleteQuestions(quizId, [...markedForRemoval]);
+      const result = await deleteQuestions(module, quizId, [...markedForRemoval]);
       setSaveMsg(`Removed ${result.removed.length} question${result.removed.length !== 1 ? "s" : ""}. ${result.remaining} remaining in file.`);
       // Notify parent so it can refresh
       onSaved(markedForRemoval);
@@ -137,7 +138,7 @@ function formatTag(tag: string): string {
     } finally {
       setSaving(false);
     }
-  }, [quizId, markedForRemoval, onSaved]);
+  }, [module, quizId, markedForRemoval, onSaved]);
 
   const markedList = useMemo(
     () => questions.filter((q) => markedForRemoval.has(q.id)),

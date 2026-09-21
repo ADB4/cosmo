@@ -76,6 +76,28 @@ def _iter_deck_files() -> Generator[Tuple[Path, str], None, None]:
                 yield fp, subdir.name
 
 
+def _module_dir(module: str) -> Path | None:
+    """
+    Resolve a module name to its directory under DECK_DIR, guarding against
+    path traversal. Returns None if the sanitized name is empty or the
+    directory does not exist.
+    """
+    safe = secure_filename(module)
+    if not safe:
+        return None
+    d = DECK_DIR / safe
+    return d if d.is_dir() else None
+
+
+def _iter_module_deck_files(module: str) -> Generator[Path, None, None]:
+    """Yield every .json deck file inside a single module folder."""
+    d = _module_dir(module)
+    if d is None:
+        return
+    for fp in sorted(d.glob("*.json")):
+        yield fp
+
+
 # ===================================================================
 # Health / status
 # ===================================================================
@@ -284,9 +306,17 @@ def list_quizzes():
     return jsonify({"quizzes": results})
 
 
-@app.route("/api/quizzes/<quiz_id>", methods=["GET"])
-def get_quiz(quiz_id: str):
-    for fp, _module in _iter_deck_files():
+@app.route("/api/quizzes/<module>/<quiz_id>", methods=["GET"])
+def get_quiz(module: str, quiz_id: str):
+    """
+    Fetch a quiz scoped to its module folder. The (module, quiz_id) pair is
+    the real key — quiz ids are only unique within a module, so the same id
+    can legitimately exist in two different modules (e.g. daily/week1 vs
+    frontend/week1) and must not collide.
+    """
+    if _module_dir(module) is None:
+        return jsonify({"error": f"Module '{module}' not found"}), 404
+    for fp in _iter_module_deck_files(module):
         try:
             with open(fp) as f:
                 data = json.load(f)
@@ -295,7 +325,7 @@ def get_quiz(quiz_id: str):
                     return jsonify(quiz)
         except Exception:
             continue
-    return jsonify({"error": f"Quiz '{quiz_id}' not found"}), 404
+    return jsonify({"error": f"Quiz '{quiz_id}' not found in module '{module}'"}), 404
 
 
 @app.route("/api/quizzes/ingest", methods=["POST"])
@@ -354,6 +384,36 @@ def ingest_quiz():
     if err:
         dest.unlink(missing_ok=True)
         return jsonify({"error": err}), 400
+
+    # Reject decks that reuse a quiz id already present in this module —
+    # otherwise the (module, quiz_id) key stops being unique and lookups
+    # would silently return the wrong deck. Existing ids belonging to the
+    # file we just overwrote are excluded from the check.
+    incoming_ids = [q.get("id") for q in data.get("quizzes", []) if q.get("id")]
+    # Ids defined in *other* files in this module are what we clash against;
+    # ids in the file we just wrote (same name = a re-upload) don't count.
+    own_ids: set[str] = set()
+    for other_fp in _iter_module_deck_files(safe_module):
+        if other_fp.resolve() == dest.resolve():
+            continue
+        try:
+            with open(other_fp) as f:
+                other = json.load(f)
+            for q in other.get("quizzes", []):
+                if q.get("id"):
+                    own_ids.add(q["id"])
+        except Exception:
+            continue
+    collisions = sorted({qid for qid in incoming_ids if qid in own_ids})
+    if collisions:
+        dest.unlink(missing_ok=True)
+        return jsonify({
+            "error": (
+                f"Quiz id(s) already exist in module '{safe_module}': "
+                f"{', '.join(collisions)}. Rename the quiz id(s) or choose a "
+                f"different module."
+            )
+        }), 409
 
     quiz_ids = [q.get("id", "?") for q in data.get("quizzes", [])]
     total_q = sum(
@@ -456,10 +516,14 @@ def evaluate_answer():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/quizzes/<quiz_id>/questions", methods=["DELETE"])
-def delete_questions(quiz_id: str):
+@app.route("/api/quizzes/<module>/<quiz_id>/questions", methods=["DELETE"])
+def delete_questions(module: str, quiz_id: str):
     """
     Remove questions from a quiz JSON file on disk.
+
+    Scoped to the module folder so a quiz id shared across modules edits the
+    correct file. A timestamp-free `<name>.json.bak` backup is written before
+    the file is overwritten.
 
     Expects JSON body: { "question_ids": ["TF-3", "MC-7", ...] }
 
@@ -472,14 +536,17 @@ def delete_questions(quiz_id: str):
     if not question_ids or not isinstance(question_ids, list):
         return jsonify({"error": "question_ids array is required"}), 400
 
+    if _module_dir(module) is None:
+        return jsonify({"error": f"Module '{module}' not found"}), 404
+
     ids_to_remove = set(question_ids)
 
-    # Find the file containing this quiz (searches module subdirectories)
+    # Find the file containing this quiz within the given module only
     target_path = None
     target_data = None
     target_quiz_idx = None
 
-    for fp, _module in _iter_deck_files():
+    for fp in _iter_module_deck_files(module):
         try:
             with open(fp) as f:
                 file_data = json.load(f)
@@ -495,7 +562,7 @@ def delete_questions(quiz_id: str):
             continue
 
     if target_path is None or target_data is None or target_quiz_idx is None:
-        return jsonify({"error": f"Quiz '{quiz_id}' not found"}), 404
+        return jsonify({"error": f"Quiz '{quiz_id}' not found in module '{module}'"}), 404
 
     quiz = target_data["quizzes"][target_quiz_idx]
     removed = []
@@ -510,6 +577,13 @@ def delete_questions(quiz_id: str):
 
     if not removed:
         return jsonify({"error": "No matching question IDs found"}), 404
+
+    # Back up the file before overwriting (overwrites any previous .bak)
+    try:
+        import shutil
+        shutil.copy2(str(target_path), str(target_path) + ".bak")
+    except Exception as e:
+        logger.warning(f"Could not write backup for {target_path}: {e}")
 
     # Write back to disk
     try:
