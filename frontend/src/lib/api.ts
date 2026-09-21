@@ -52,6 +52,19 @@ export async function fetchModules(): Promise<string[]> {
   return data.modules;
 }
 
+export async function createModule(name: string): Promise<{ status: string; module: string }> {
+  const res = await fetch(`${BASE}/modules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? "Could not create module");
+  }
+  return res.json();
+}
+
 export async function fetchQuizzes(): Promise<QuizSummary[]> {
   const res = await fetch(`${BASE}/quizzes`);
   if (!res.ok) throw new Error(await res.text());

@@ -282,6 +282,30 @@ def list_modules():
     return jsonify({"modules": modules})
 
 
+@app.route("/api/modules", methods=["POST"])
+def create_module():
+    """Create an (empty) module folder under DECK_DIR."""
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+
+    safe = secure_filename(name)
+    if not safe:
+        return jsonify({"error": f"Invalid module name: {name}"}), 400
+
+    module_dir = DECK_DIR / safe
+    if module_dir.exists():
+        return jsonify({"error": f"Module '{safe}' already exists"}), 409
+
+    try:
+        module_dir.mkdir(parents=False)
+    except Exception as e:
+        return jsonify({"error": f"Could not create module: {e}"}), 500
+
+    return jsonify({"status": "ok", "module": safe}), 201
+
+
 @app.route("/api/quizzes", methods=["GET"])
 def list_quizzes():
     results = []
