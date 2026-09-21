@@ -45,6 +45,19 @@ export async function clearHistory(): Promise<void> {
   await fetch(`${BASE}/history/clear`, { method: "POST" });
 }
 
+/** Mode keys whose underlying Ollama model is installed. Empty array if
+ *  the endpoint is unavailable (caller should fall back to all modes). */
+export async function fetchInstalledModes(): Promise<string[]> {
+  try {
+    const res = await fetch(`${BASE}/models`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.modes as { mode: string }[]).map((m) => m.mode);
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchModules(): Promise<string[]> {
   const res = await fetch(`${BASE}/modules`);
   if (!res.ok) throw new Error(await res.text());
@@ -128,8 +141,8 @@ export async function evaluateAnswer(
   question: string,
   userAnswer: string,
   modelAnswer: string,
-  mode = "qwen-7b",
-): Promise<{ score: "correct" | "partial" | "incorrect"; feedback: string }> {
+  mode = "qwen3-coder-30b",
+): Promise<{ score: "correct" | "partial" | "incorrect"; feedback: string; grader?: string }> {
   const res = await fetch(`${BASE}/quizzes/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

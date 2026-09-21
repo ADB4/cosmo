@@ -1,14 +1,28 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { evaluateAnswer } from "../../lib/api";
 import { renderMarkdown } from "../../components/renderMarkdown";
+import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+import { saveAttempt, type MissedQuestion } from "../../lib/progress";
+
+const QUIZ_SHORTCUTS: Shortcut[] = [
+  { keys: "1 – 4", desc: "Select a multiple-choice option" },
+  { keys: "T / F", desc: "Answer true / false" },
+  { keys: "Enter", desc: "Next / Finish" },
+  { keys: "Cmd/Ctrl + Enter", desc: "Submit while typing a short answer" },
+];
 
 interface Props {
   title: string;
   questions: NormalizedQuestion[];
   /** Model mode used for AI short-answer grading. */
   mode: string;
+  /** Module + quiz id for persisting the attempt (progress tracking). */
+  module: string;
+  quizId: string;
   onExit: () => void;
+  /** Start a fresh quiz containing only the given questions (Retry missed). */
+  onRetryMissed: (questions: NormalizedQuestion[]) => void;
 }
 
 interface Answer {
@@ -36,7 +50,7 @@ function gradeLocal(q: NormalizedQuestion, given: string): boolean | null {
   return givenIdx === correctIdx;
 }
 
-export default function QuizMode({ questions, mode, onExit }: Props) {
+export default function QuizMode({ questions, mode, module, quizId, onExit, onRetryMissed }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -44,12 +58,34 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
   const [results, setResults] = useState<Result[] | null>(null);
   const [grading, setGrading] = useState(false);
   const [viewIndex, setViewIndex] = useState(0);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  // The model the backend actually used to grade short answers (separate from
+  // the chat mode). Reported by /api/quizzes/evaluate; falls back to the mode.
+  const [graderName, setGraderName] = useState<string | null>(null);
+
+  // Short-answer grading promises, fired as the user presses Next (so grading
+  // overlaps with the rest of the quiz) and resolved on the results screen.
+  const saPromises = useRef<
+    Map<string, Promise<{ score: Score; feedback: string; grader?: string }>>
+  >(new Map());
 
   const q = questions[index];
   if (!q) return null;
 
   const total = questions.length;
   const progress = ((index + 1) / total) * 100;
+
+  // Kick off (but don't await) grading for one short answer, caching the
+  // promise so the results screen can resolve it later.
+  const fireEval = useCallback(
+    (question: NormalizedQuestion, given: string) => {
+      const p = evaluateAnswer(question.text, given, question.correctAnswer, mode);
+      p.catch(() => {}); // avoid unhandled-rejection warnings; handled on resolve
+      saPromises.current.set(question.id, p);
+      return p;
+    },
+    [mode],
+  );
 
   const submitAnswer = useCallback(() => {
     const currentQ = questions[index];
@@ -58,6 +94,12 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     const value =
       currentQ.sectionType === "short_answer" ? saInput.trim() : selected ?? "";
     if (!value) return;
+
+    // Fire short-answer grading now, as the user advances, instead of
+    // waiting until Finish to grade them all at once.
+    if (currentQ.sectionType === "short_answer") {
+      fireEval(currentQ, value);
+    }
 
     const newAnswers = [...answers, { questionId: currentQ.id, value }];
     setAnswers(newAnswers);
@@ -69,16 +111,17 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     } else {
       finishQuiz(newAnswers);
     }
-  }, [questions, selected, saInput, answers, index, total]);
+  }, [questions, selected, saInput, answers, index, total, fireEval]);
 
   /**
    * Grade the short-answer results at the given array indices via the LLM.
    * A rejected evaluation leaves saScore undefined and records saError so
    * the item shows as "ungraded" (never silent half credit) and can be
-   * retried later.
+   * retried later. When `useCache` is set, the promises fired on Next are
+   * awaited instead of starting fresh requests.
    */
   const gradeIndices = useCallback(
-    async (base: Result[], targetIdxs: number[]) => {
+    async (base: Result[], targetIdxs: number[], useCache = false) => {
       if (targetIdxs.length === 0) return;
       setGrading(true);
 
@@ -96,7 +139,8 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
       const evaluations = await Promise.allSettled(
         targetIdxs.map((i) => {
           const r = base[i]!;
-          return evaluateAnswer(r.question.text, r.given, r.question.correctAnswer, mode);
+          const cached = useCache ? saPromises.current.get(r.question.id) : undefined;
+          return cached ?? fireEval(r.question, r.given);
         }),
       );
 
@@ -108,6 +152,7 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
           if (!item) return;
           const eval_ = evaluations[k];
           if (eval_ && eval_.status === "fulfilled") {
+            if (eval_.value.grader) setGraderName(eval_.value.grader);
             updated[i] = {
               ...item,
               saScore: eval_.value.score,
@@ -141,7 +186,7 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
 
       setGrading(false);
     },
-    [mode],
+    [fireEval],
   );
 
   const finishQuiz = useCallback(
@@ -162,7 +207,8 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
         .filter(({ r }) => r.question.sectionType === "short_answer" && r.given)
         .map(({ i }) => i);
 
-      await gradeIndices(initial, saIdxs);
+      // Resolve the grading promises already fired on Next.
+      await gradeIndices(initial, saIdxs, true);
     },
     [questions, gradeIndices],
   );
@@ -173,8 +219,76 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
       .map((r, i) => ({ r, i }))
       .filter(({ r }) => r.question.sectionType === "short_answer" && r.given && r.saError)
       .map(({ i }) => i);
-    gradeIndices(results, failedIdxs);
+    // Fresh requests (don't reuse the failed cached promises).
+    gradeIndices(results, failedIdxs, false);
   }, [results, grading, gradeIndices]);
+
+  // Keyboard shortcuts for the question screen: 1-4 select an option, T/F
+  // answer true/false, Enter next/finish. While the short-answer textarea is
+  // focused, only Cmd/Ctrl+Enter acts (other keys type into the field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showShortcuts || results) return;
+      const cq = questions[index];
+      if (!cq) return;
+
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        submitAnswer();
+        return;
+      }
+      if (isTypingTarget(e.target)) return; // typing a short answer
+
+      if (cq.sectionType === "true_false") {
+        if (e.key === "t" || e.key === "T") { e.preventDefault(); setSelected("true"); }
+        else if (e.key === "f" || e.key === "F") { e.preventDefault(); setSelected("false"); }
+        else if (e.key === "Enter") { e.preventDefault(); submitAnswer(); }
+      } else if (cq.sectionType === "multiple_choice") {
+        const n = Number(e.key);
+        if (Number.isInteger(n) && n >= 1 && n <= cq.options.length) {
+          e.preventDefault();
+          setSelected(cq.options[n - 1]!);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          submitAnswer();
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        submitAnswer();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [questions, index, results, showShortcuts, submitAnswer]);
+
+  // Persist the attempt once grading has settled (progress tracking).
+  useEffect(() => {
+    if (!results || grading) return;
+    const auto = results.filter((r) => r.question.sectionType !== "short_answer");
+    const totalAuto = auto.length;
+    const correctCount = auto.filter((r) => r.correct === true).length;
+    const saList = results.filter((r) => r.question.sectionType === "short_answer");
+    const saCorrect = saList.filter((r) => r.saScore === "correct").length;
+    const saPartial = saList.filter((r) => r.saScore === "partial").length;
+    const saGraded = saList.filter((r) => r.saScore != null).length;
+    const totalScored = totalAuto + saGraded;
+    const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
+    const pct = totalScored > 0 ? Math.round((totalCorrect / totalScored) * 100) : 0;
+    const missed: MissedQuestion[] = results
+      .filter((r) =>
+        r.question.sectionType === "short_answer"
+          ? r.saScore === "incorrect" || (!!r.saError && r.saScore == null)
+          : r.correct === false,
+      )
+      .map((r) => ({ id: r.question.id, tags: r.question.tags }));
+    saveAttempt(module, quizId, {
+      timestamp: Date.now(),
+      percentage: pct,
+      correct: totalCorrect,
+      total: totalScored,
+      missed,
+    });
+  }, [results, grading, module, quizId]);
 
   // ---- Results screen ----
   if (results) {
@@ -200,6 +314,15 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
     const pct =
       totalScored > 0 ? Math.round((totalCorrect / totalScored) * 100) : 0;
+
+    // Missed = wrong (TF/MC/SA) or ungraded SA — the pool for "Retry missed".
+    const missedQuestions = results
+      .filter((res) =>
+        res.question.sectionType === "short_answer"
+          ? res.saScore === "incorrect" || (!!res.saError && res.saScore == null)
+          : res.correct === false,
+      )
+      .map((res) => res.question);
 
     const r = results[viewIndex];
     if (!r) return null;
@@ -273,7 +396,7 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
               </span>
             )}
             <span className="quiz-score-detail quiz-score-detail--model">
-              grader: {mode}
+              grader: {graderName ?? mode}
             </span>
             {!grading && saUngraded.length > 0 && (
               <button className="quiz-retry-grading" onClick={retryGrading}>
@@ -302,6 +425,14 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
             </div>
 
             <div className="quiz-results-actions">
+              {!grading && missedQuestions.length > 0 && (
+                <button
+                  className="study-nav-btn quiz-retry-missed"
+                  onClick={() => onRetryMissed(missedQuestions)}
+                >
+                  Retry missed ({missedQuestions.length})
+                </button>
+              )}
               <button className="study-nav-btn" onClick={onExit}>
                 Done
               </button>
@@ -428,9 +559,18 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
         <button className="study-exit" onClick={onExit}>
           &#10005; Exit Quiz
         </button>
-        <span className="study-counter">
-          Question {index + 1} / {total}
-        </span>
+        <div className="study-header-right">
+          <span className="study-counter">
+            Question {index + 1} / {total}
+          </span>
+          <button
+            className="help-btn help-btn--apollo"
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       <div className="quiz-progress">
@@ -499,6 +639,14 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
           </button>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Quiz shortcuts"
+          shortcuts={QUIZ_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }

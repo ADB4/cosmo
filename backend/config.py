@@ -24,8 +24,9 @@ UPLOAD_DIR = Path(os.environ.get("COSMO_UPLOAD_DIR", str(PROJECT_ROOT / "uploads
 # DECK JSON directory (created at startup)
 DECK_DIR = Path(os.environ.get("COSMO_DECK_DIR", str(PROJECT_ROOT / "decks")))
 
-# User study documents
-DOCS_DIR = PROJECT_ROOT / "docs"
+# Study corpus — cleaned markdown ingested into the vector store
+# (see `reindex --dir corpus/docs/`).
+DOCS_DIR = PROJECT_ROOT / "corpus" / "docs"
 
 # ---------------------------------------------------------------------------
 # Server
@@ -43,7 +44,48 @@ ALLOWED_EXTENSIONS = {".pdf", ".md", ".markdown"}
 CHUNK_SIZE = int(os.environ.get("COSMO_CHUNK_SIZE", 1200))
 CHUNK_OVERLAP = int(os.environ.get("COSMO_CHUNK_OVERLAP", 200))
 EMBEDDING_BATCH_SIZE = 50
-EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 500))  # 512 limit with 12-token safety margin
+
+# ---------------------------------------------------------------------------
+# Embedding model (Ollama)
+#
+# Default is qwen3-embedding:0.6b — the corpus has been reindexed into its
+# collection (docs_qwen3-embedding-0.6b) and its cutoff tuned. The legacy
+# nomic-embed-text collection (react_typescript_docs) is still present and can
+# be selected with COSMO_EMBED_MODEL=nomic-embed-text; mxbai-embed-large is
+# likewise available. Switching embedding models requires a fresh collection
+# and a full re-ingest (see `python -m backend.cli reindex`) because vector
+# spaces are not comparable across models. The Chroma collection is named
+# after the active embedding model (see DocumentProcessor) so they never mix.
+# ---------------------------------------------------------------------------
+
+EMBED_MODEL = os.environ.get("COSMO_EMBED_MODEL", "qwen3-embedding:0.6b")
+
+# Per-embedding-model tuning. `max_tokens` is the per-chunk truncation limit
+# (embedders have different context windows), and `retrieval_max_distance` is
+# the cosine-distance relevance cutoff, which must be re-tuned per model
+# (see `python -m backend.cli tune-cutoff`). nomic/qwen3/mxbai are tuned
+# empirically; embeddinggemma is a PLACEHOLDER to re-tune after a reindex.
+EMBED_PROFILES = {
+    "nomic-embed-text": {"max_tokens": 500, "retrieval_max_distance": 0.42},
+    # Tuned via `cli tune-cutoff` against the full corpus/docs (24.6k chunks):
+    # on-topic React/TS/Vitest/RTL clustered at ~0.17-0.23, off-topic at
+    # ~0.59-0.68 — a wide, robust margin (suggested midpoint 0.41).
+    "qwen3-embedding:0.6b": {"max_tokens": 2000, "retrieval_max_distance": 0.41},
+    "embeddinggemma": {"max_tokens": 2000, "retrieval_max_distance": 0.60},        # PLACEHOLDER — tune after reindex
+    # 512-token model. Tuned: on-topic ~0.14-0.21, off-topic ~0.45-0.55
+    # (suggested midpoint 0.33).
+    "mxbai-embed-large": {"max_tokens": 500, "retrieval_max_distance": 0.33},
+}
+
+# Resolve the active profile, falling back to nomic's numbers for an unknown
+# embedding model rather than crashing.
+_ACTIVE_EMBED_PROFILE = EMBED_PROFILES.get(EMBED_MODEL, EMBED_PROFILES["nomic-embed-text"])
+
+# Per-chunk embedding token cap. Resolves from the active profile unless the
+# env var explicitly overrides it.
+EMBED_MAX_TOKENS = int(
+    os.environ.get("COSMO_EMBED_MAX_TOKENS", _ACTIVE_EMBED_PROFILE["max_tokens"])
+)
 
 # ---------------------------------------------------------------------------
 # Retrieval relevance cutoff
@@ -58,28 +100,35 @@ EMBED_MAX_TOKENS = int(os.environ.get("COSMO_EMBED_MAX_TOKENS", 500))  # 512 lim
 # nomic-embed-text: on-topic React/TS/testing queries retrieve top chunks at
 # ~0.25-0.35, while off-topic queries (e.g. "season a cast iron pan") bottom
 # out at ~0.46. 0.42 keeps the former and drops the latter with margin.
-# Override per-environment with COSMO_RETRIEVAL_MAX_DISTANCE.
-# ---------------------------------------------------------------------------
-
-RETRIEVAL_MAX_DISTANCE = float(os.environ.get("COSMO_RETRIEVAL_MAX_DISTANCE", 0.42))
-# ---------------------------------------------------------------------------
-# LLM models (Ollama)
 #
-# Mode names reflect actual model identity rather than implying
-# a quality hierarchy. Benchmark data (192 questions, 6 quizzes)
-# showed qwen-7b as the best all-round performer.
+# The default resolves from the active embedding profile (each model needs its
+# own cutoff); COSMO_RETRIEVAL_MAX_DISTANCE overrides it per-environment.
 # ---------------------------------------------------------------------------
 
-EMBED_MODEL = "nomic-embed-text"
+RETRIEVAL_MAX_DISTANCE = float(
+    os.environ.get(
+        "COSMO_RETRIEVAL_MAX_DISTANCE",
+        _ACTIVE_EMBED_PROFILE["retrieval_max_distance"],
+    )
+)
+
+# ---------------------------------------------------------------------------
+# LLM chat models (Ollama)
+#
+# Mode names reflect actual model identity rather than implying a quality
+# hierarchy. Sized for an M2 Pro / 32 GB machine: any single model stays at or
+# under ~20 GB of weights, and the default chat model + grader + embedding
+# model are meant to be resident at once. Do NOT pair qwen3.6:27b with a
+# second large model — it is the slow "deep" option and wants the memory.
+# ---------------------------------------------------------------------------
+
+DEFAULT_MODE = "qwen3-coder-30b"
 
 CHAT_MODELS = {
-    "gemma2-9b": "gemma2:9b",
-    "llama3-3b": "llama3.2:3b",
-    "llama3-8b":    "llama3.1:8b",
-    "mistral-7b":  "mistral:7b",
-    "phi4-14b": "phi4:14b",
-    "qwen-7b":  "qwen2.5-coder:7b",
-    "qwen-14b": "qwen2.5-coder:14b",
+    "qwen3-coder-30b": "qwen3-coder:30b",  # default; MoE, ~3.3B active, ~19 GB
+    "qwen3.6-27b": "qwen3.6:27b",          # dense quality mode, ~17-22 GB, slow
+    "gpt-oss-20b": "gpt-oss:20b",          # MoE, ~13 GB
+    "gemma4-12b": "gemma4:12b",            # ~8 GB, general explanations
 }
 
 VALID_MODES = tuple(CHAT_MODELS.keys())
@@ -88,99 +137,64 @@ VALID_MODES = tuple(CHAT_MODELS.keys())
 # Ollama inference options
 #
 # Tuned for M2 Pro 32GB. Adjust num_ctx and num_batch if running on
-# a machine with less memory.
+# a machine with less memory. All chat modes use a 16K context; MoE models
+# and gemma4 use num_batch 512, the dense qwen3.6 uses 1024.
 # ---------------------------------------------------------------------------
 
 NUM_THREAD = 8  # M2 Pro has 12 cores; 8 avoids OS contention
 
 # Chat (interactive streaming) — needs headroom for conversation history
 CHAT_OPTIONS = {
-    "gemma2-9b": {
+    "qwen3-coder-30b": {
+        "num_ctx": 16384,
+        "num_thread": NUM_THREAD,
+        "num_batch": 512,
+        "num_predict": 1024,
+    },
+    "qwen3.6-27b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
         "num_predict": 1024,
     },
-    "llama3-3b": {
-        "num_ctx": 4096,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "num_predict": 1024,
-    },
-    "llama3-8b": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "num_predict": 1024,
-    },
-    "mistral-7b": {
-        "num_ctx": 4096,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "num_predict": 1024,
-    },
-    "phi4-14b": {
+    "gpt-oss-20b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
-        "num_batch": 1024,
-        "num_predict": 1024,
-    },
-    "qwen-7b": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
         "num_batch": 512,
         "num_predict": 1024,
     },
-    "qwen-14b": {
+    "gemma4-12b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
-        "num_batch": 1024,
+        "num_batch": 512,
         "num_predict": 1024,
     },
 }
 
-# Quiz — deterministic, per-question-type token limits
+# Quiz — deterministic; per-question-type token limits applied at call time.
 QUIZ_OPTIONS = {
-    "gemma2-9b": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
-        "num_batch": 1024,
-        "temperature": 0,
-    },
-    "llama3-3b": {
-        "num_ctx": 4096,
+    "qwen3-coder-30b": {
+        "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
         "temperature": 0,
     },
-    "llama3-8b": {
-        "num_ctx": 8192,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "temperature": 0,
-    },
-    "mistral-7b": {
-        "num_ctx": 4096,
-        "num_thread": NUM_THREAD,
-        "num_batch": 512,
-        "temperature": 0,
-    },
-    "phi4-14b": {
+    "qwen3.6-27b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 1024,
         "temperature": 0,
     },
-    "qwen-7b": {
-        "num_ctx": 8192,
+    "gpt-oss-20b": {
+        "num_ctx": 16384,
         "num_thread": NUM_THREAD,
         "num_batch": 512,
         "temperature": 0,
     },
-    "qwen-14b": {
+    "gemma4-12b": {
         "num_ctx": 16384,
         "num_thread": NUM_THREAD,
-        "num_batch": 1024,
+        "num_batch": 512,
         "temperature": 0,
     },
 }
@@ -192,11 +206,22 @@ QUIZ_NUM_PREDICT = {
     "sa": 512,
 }
 
-# Evaluation endpoint (SA grading in Apollo)
-EVAL_OPTIONS = {
+# ---------------------------------------------------------------------------
+# Short-answer grader (Ollama)
+#
+# Grading is a separate, cheap job — it does not use the chat mode. A small
+# instruct model runs it so the default chat model, the grader, and the
+# embedding model can all stay resident at once (no eviction/reload per grade).
+# resolve_grader_model() in server.py picks the first of these that is
+# installed, falling back to the default chat model with a warning.
+# ---------------------------------------------------------------------------
+
+GRADER_MODEL = "qwen3:4b"
+GRADER_FALLBACKS = ["gemma4:e4b"]
+
+GRADER_OPTIONS = {
     "num_ctx": 8192,
     "num_thread": NUM_THREAD,
-    "num_batch": 512,
     "temperature": 0,
     "num_predict": 256,
 }
@@ -206,3 +231,95 @@ EVAL_OPTIONS = {
 # ---------------------------------------------------------------------------
 
 DEFAULT_HISTORY_TURNS = 10
+
+
+# ---------------------------------------------------------------------------
+# PDF extraction engine
+#
+# The PDF -> markdown step is pluggable (see backend/pdf_extract.py). Marker is
+# the default layout-aware engine; pymupdf4llm is the fast fallback used
+# AUTOMATICALLY when Marker errors, returns degenerate output, or is not
+# installed (marker-pdf is an optional heavy dependency — see
+# requirements-marker.txt / scripts/setup-extraction.sh). Docling is reserved
+# in the interface but not wired up.
+#
+# The corpus is currently all text-native, so there is no OCR path: a document
+# that yields almost no text is treated as an extraction failure (fallback),
+# not routed to OCR.
+# ---------------------------------------------------------------------------
+
+PDF_ENGINE = os.environ.get("COSMO_PDF_ENGINE", "marker")  # "marker" | "pymupdf4llm"
+PDF_FALLBACK_ENGINE = "pymupdf4llm"
+
+# Average extracted characters per page below which an extraction is considered
+# degenerate (e.g. an unexpected scan, or Marker choking on a document). Below
+# this, Marker output is rejected and the fast fallback is used instead.
+EXTRACT_MIN_CHARS_PER_PAGE = int(
+    os.environ.get("COSMO_EXTRACT_MIN_CHARS_PER_PAGE", 50)
+)
+
+# Keep the Marker models resident in the ingesting process between documents.
+# The CLI keeps them loaded across a batch and releases at the end; the Flask
+# server releases after each ingest so Marker's several GB of MPS memory does
+# not sit resident alongside a large chat model (the "no swapping on 32 GB"
+# constraint). This flag is a global override if you need to force one way.
+MARKER_KEEP_LOADED = os.environ.get("COSMO_MARKER_KEEP_LOADED", "1") not in (
+    "0", "false", "False", "",
+)
+
+# ---------------------------------------------------------------------------
+# Extraction cache
+#
+# Marker + the cleanup pass cost minutes per document. The cleaned markdown is
+# cached on disk keyed by (file hash, engine, cleanup flag) so that
+# re-ingesting, re-chunking, or reindexing into a new embedding-model
+# collection does NOT re-run extraction. A file whose bytes change gets a new
+# hash and re-extracts automatically; use --reextract to force a rebuild.
+# ---------------------------------------------------------------------------
+
+EXTRACT_CACHE_ENABLED = os.environ.get("COSMO_EXTRACT_CACHE", "1") not in (
+    "0", "false", "False", "",
+)
+EXTRACT_CACHE_DIR = Path(
+    os.environ.get("COSMO_EXTRACT_CACHE_DIR", str(PROJECT_ROOT / "extraction_cache"))
+)
+
+# ---------------------------------------------------------------------------
+# Markdown cleanup pass (Ollama)
+#
+# A conservative, NON-REWRITE cleanup of raw extracted markdown before
+# chunking. It only: strips running headers/footers and standalone page
+# numbers, repairs broken table formatting, and normalizes heading levels. It
+# must not summarize, rephrase, translate, or invent content — this feeds a
+# study tool, so hallucination is the primary risk.
+#
+# Runs on qwen2.5:14b (already installed; the Instruct variant), deterministic
+# (temperature 0), think=False. Guarded per-window: if a cleaned window's
+# length falls outside [MIN_RATIO, MAX_RATIO] of the original, the ORIGINAL
+# window is kept instead (see backend/md_cleanup.py).
+# ---------------------------------------------------------------------------
+
+CLEANUP_ENABLED = os.environ.get("COSMO_CLEANUP", "1") not in (
+    "0", "false", "False", "",
+)
+CLEANUP_MODEL = os.environ.get("COSMO_CLEANUP_MODEL", "qwen2.5:14b")
+
+# Windowing: raw markdown is split into windows sent to the model one at a
+# time, broken only at blank lines and never inside a fenced code block. Sized
+# to sit well inside the model's context with room for an equal-size output.
+CLEANUP_WINDOW_CHARS = int(os.environ.get("COSMO_CLEANUP_WINDOW_CHARS", 8000))
+
+# Anti-hallucination guard: a cleaned window is accepted only if its length is
+# within [MIN_RATIO, MAX_RATIO] x the original window length. Cleanup should
+# only shave boilerplate, so a modest shrink is expected; a large shrink
+# (content dropped) or any growth (content invented) reverts to the original.
+CLEANUP_MIN_RATIO = float(os.environ.get("COSMO_CLEANUP_MIN_RATIO", 0.6))
+CLEANUP_MAX_RATIO = float(os.environ.get("COSMO_CLEANUP_MAX_RATIO", 1.1))
+
+CLEANUP_OPTIONS = {
+    "num_ctx": 16384,
+    "num_thread": NUM_THREAD,
+    "num_batch": 512,
+    "temperature": 0,
+    "num_predict": 6144,
+}

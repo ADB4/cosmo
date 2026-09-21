@@ -17,6 +17,13 @@ services:
       - COSMO_UPLOAD_DIR=/app/uploads
       - COSMO_DECK_DIR=/app/decks
       - OLLAMA_HOST=http://host.docker.internal:11434
+      # Opt into a stronger embedding model. Switching requires a fresh
+      # collection + full re-ingest (see `python -m backend.cli reindex`) and a
+      # re-tuned retrieval cutoff. Leave unset to keep the default
+      # nomic-embed-text and the existing chroma_db.
+      # - COSMO_EMBED_MODEL=qwen3-embedding:0.6b
+      # Retrieval cutoff override (defaults to the active embedding profile).
+      # - COSMO_RETRIEVAL_MAX_DISTANCE=0.42
     volumes:
       - ./chroma_db:/app/chroma_db
       - uploads:/app/uploads

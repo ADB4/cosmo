@@ -7,6 +7,7 @@ querying with semantic search, and streaming LLM answers via Ollama.
 
 import hashlib
 import logging
+import os
 import re
 from collections import deque
 from dataclasses import dataclass, field
@@ -15,19 +16,103 @@ from typing import Dict, Generator, List, Optional, Tuple
 
 import chromadb
 import ollama
-import pymupdf4llm
 
 from backend.config import (
     CHAT_MODELS,
     CHAT_OPTIONS,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
+    CLEANUP_ENABLED,
+    CLEANUP_MODEL,
     DB_PATH,
+    DEFAULT_MODE,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
+    EXTRACT_CACHE_DIR,
+    EXTRACT_CACHE_ENABLED,
+    PDF_ENGINE,
+    PDF_FALLBACK_ENGINE,
 )
+from backend.md_cleanup import clean_markdown
+from backend.pdf_extract import MarkerExtractor, extract_pdf_markdown
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Reasoning-token stripping
+#
+# Qwen3 and gemma4 emit chain-of-thought by default. We pass think=False to
+# every ollama.chat call, but as a defence-in-depth measure we also strip any
+# <think>...</think> spans that leak into the visible content — both from the
+# streamed chat tokens (via ThinkStripper, which handles tags split across
+# chunk boundaries) and from the one-shot grader response (via strip_think).
+# ---------------------------------------------------------------------------
+
+_THINK_OPEN = "<think>"
+_THINK_CLOSE = "</think>"
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def strip_think(text: str) -> str:
+    """Remove complete <think>...</think> spans from a whole (non-streamed) string."""
+    cleaned = _THINK_RE.sub("", text)
+    # Drop a dangling open tag with no close (truncated reasoning).
+    if _THINK_OPEN in cleaned and _THINK_CLOSE not in cleaned:
+        cleaned = cleaned.split(_THINK_OPEN, 1)[0]
+    return cleaned.strip()
+
+
+def _safe_tail_len(buf: str, tag: str) -> int:
+    """Length of the longest suffix of `buf` that is a proper prefix of `tag`."""
+    maxk = min(len(tag) - 1, len(buf))
+    for k in range(maxk, 0, -1):
+        if buf[-k:] == tag[:k]:
+            return k
+    return 0
+
+
+class ThinkStripper:
+    """
+    Streaming filter that removes <think>...</think> spans from a token
+    sequence. Buffers just enough to catch a tag split across chunk
+    boundaries; everything outside think spans is emitted as soon as it is
+    unambiguous. Call flush() at end-of-stream to release any trailing text.
+    """
+
+    def __init__(self) -> None:
+        self._buf = ""
+        self._in_think = False
+
+    def feed(self, token: str) -> str:
+        self._buf += token
+        out = ""
+        while True:
+            if not self._in_think:
+                idx = self._buf.find(_THINK_OPEN)
+                if idx == -1:
+                    keep = _safe_tail_len(self._buf, _THINK_OPEN)
+                    emit_to = len(self._buf) - keep
+                    out += self._buf[:emit_to]
+                    self._buf = self._buf[emit_to:]
+                    break
+                out += self._buf[:idx]
+                self._buf = self._buf[idx + len(_THINK_OPEN):]
+                self._in_think = True
+            else:
+                idx = self._buf.find(_THINK_CLOSE)
+                if idx == -1:
+                    keep = _safe_tail_len(self._buf, _THINK_CLOSE)
+                    self._buf = self._buf[len(self._buf) - keep:]
+                    break
+                self._buf = self._buf[idx + len(_THINK_CLOSE):]
+                self._in_think = False
+        return out
+
+    def flush(self) -> str:
+        out = "" if self._in_think else self._buf
+        self._buf = ""
+        return out
 
 
 # ---------------------------------------------------------------------------
@@ -342,22 +427,52 @@ def chunk_markdown_file(
 # ---------------------------------------------------------------------------
 
 
+def collection_name_for(embed_model: str) -> str:
+    """
+    Map an embedding-model tag to its Chroma collection name.
+
+    nomic-embed-text keeps the historical name so the existing chroma_db is
+    reused as-is (no re-ingest needed). Every other embedder gets its own
+    `docs_<model>` collection, so switching models via COSMO_EMBED_MODEL never
+    queries vectors from an incompatible space.
+    """
+    if embed_model == "nomic-embed-text":
+        return "react_typescript_docs"
+    safe = embed_model.replace(":", "-").replace("/", "-")
+    return f"docs_{safe}"
+
+
 class DocumentProcessor:
     """Process, index, and query technical documentation via RAG."""
 
     EMBEDDING_BATCH_SIZE = EMBEDDING_BATCH_SIZE
 
-    def __init__(self, persist_dir: str | None = None):
+    def __init__(self, persist_dir: str | None = None, embed_model: str | None = None):
         import tiktoken
         self._tokenizer = tiktoken.get_encoding("cl100k_base")
         self._check_ollama_connection()
         self.client = chromadb.PersistentClient(path=persist_dir or DB_PATH)
+        self.embed_model = embed_model or EMBED_MODEL
+        # Name the collection after the embedding model so switching embedders
+        # never mixes incompatible vector spaces. The historical nomic
+        # collection is preserved under its stable name.
         self.collection = self.client.get_or_create_collection(
-            name="react_typescript_docs",
+            name=collection_name_for(self.embed_model),
             metadata={"hnsw:space": "cosine"},
         )
         self.models = CHAT_MODELS
-        self.embed_model = EMBED_MODEL
+        # Per-chunk embedding token cap follows THIS instance's embedding model
+        # (not the process-wide active one), so `reindex --embed-model X` uses
+        # X's profile. The COSMO_EMBED_MAX_TOKENS override only applies to the
+        # active model configured via COSMO_EMBED_MODEL.
+        from backend.config import EMBED_PROFILES
+        _profile = EMBED_PROFILES.get(self.embed_model, EMBED_PROFILES["nomic-embed-text"])
+        _max = _profile["max_tokens"]
+        if self.embed_model == EMBED_MODEL and "COSMO_EMBED_MAX_TOKENS" in os.environ:
+            _max = int(os.environ["COSMO_EMBED_MAX_TOKENS"])
+        self.embed_max_tokens = int(_max)
+        # Lazily-created, reused across a batch so Marker loads its models once.
+        self._marker: MarkerExtractor | None = None
 
     # -- connection check ---------------------------------------------------
 
@@ -374,16 +489,114 @@ class DocumentProcessor:
 
     # -- PDF to markdown conversion -----------------------------------------
 
-    @staticmethod
-    def pdf_to_markdown(pdf_path: str) -> str:
-        """
-        Convert a PDF to markdown using pymupdf4llm.
+    def _get_marker(self) -> MarkerExtractor:
+        """The processor's reusable Marker extractor (models load once)."""
+        if self._marker is None:
+            self._marker = MarkerExtractor()
+        return self._marker
 
-        Preserves headings, code blocks, tables, and lists far better than
-        naive text extraction. The resulting markdown is then suitable for
-        the heading-hierarchy chunker.
+    def release_extractor(self) -> None:
         """
-        return pymupdf4llm.to_markdown(pdf_path)
+        Free the Marker models / MPS memory. The CLI calls this at the end of a
+        batch; the Flask server calls it after each ingest so several GB of
+        extractor memory does not sit resident next to a large chat model.
+        """
+        if self._marker is not None:
+            self._marker.release()
+
+    @staticmethod
+    def _extract_cache_path(file_hash: str, engine: str, cleanup: bool):
+        """On-disk path for cached extracted markdown, keyed so a different
+        engine or cleanup setting never collides."""
+        stage = "clean" if cleanup else "raw"
+        return EXTRACT_CACHE_DIR / f"{file_hash}.{engine}.{stage}.md"
+
+    def pdf_to_markdown(
+        self,
+        pdf_path: str,
+        engine: str | None = None,
+        cleanup: bool = False,
+    ) -> str:
+        """
+        Convert a PDF to markdown via the pluggable extractor (Marker by
+        default, automatic pymupdf4llm fallback). Extraction only unless
+        `cleanup=True`, which additionally runs the conservative LLM cleanup
+        pass (and therefore needs Ollama).
+
+        This is a thin wrapper over `extract_pdf_markdown`; ingestion uses the
+        cache-aware `_get_pdf_markdown` instead.
+        """
+        result = extract_pdf_markdown(
+            pdf_path,
+            engine=engine or PDF_ENGINE,
+            allow_fallback=True,
+            marker=self._get_marker(),
+        )
+        md = result.markdown
+        if cleanup and md.strip():
+            md = clean_markdown(md).markdown
+        return md
+
+    def _get_pdf_markdown(
+        self,
+        pdf_path: str,
+        file_hash: str,
+        engine: str,
+        cleanup: bool,
+        reextract: bool,
+    ) -> str:
+        """
+        Extract (+ optionally clean) a PDF to markdown, using the on-disk cache
+        so Marker and the cleanup pass are not re-run for an unchanged file.
+        """
+        cache_path = self._extract_cache_path(file_hash, engine, cleanup)
+
+        if EXTRACT_CACHE_ENABLED and not reextract and cache_path.exists():
+            print(f"  Using cached extraction: {cache_path.name}")
+            return cache_path.read_text(encoding="utf-8")
+
+        print(f"  Extracting with {engine} (auto-fallback: {PDF_FALLBACK_ENGINE})...")
+        result = extract_pdf_markdown(
+            pdf_path,
+            engine=engine,
+            allow_fallback=True,
+            marker=self._get_marker(),
+        )
+        for note in result.notes:
+            print(f"    note: {note}")
+        if result.fell_back:
+            print(f"  Fell back to {result.engine_used}")
+        else:
+            print(f"  Extracted with {result.engine_used}"
+                  f"{f' ({result.pages} pages)' if result.pages else ''}")
+
+        md = result.markdown
+        if not md.strip():
+            return md
+
+        if cleanup:
+            print(f"  Cleaning markdown with {CLEANUP_MODEL} (conservative pass)...")
+            cres = clean_markdown(md, progress=self._cleanup_progress)
+            if cres.skipped:
+                print("    cleanup skipped (Ollama unreachable) — using raw extraction")
+            else:
+                print(f"    cleaned {cres.windows_cleaned}/{cres.windows_total} windows "
+                      f"({cres.windows_reverted} kept unchanged)")
+            md = cres.markdown
+
+        if EXTRACT_CACHE_ENABLED:
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(md, encoding="utf-8")
+            except Exception as e:  # noqa: BLE001 - cache is best-effort
+                logger.warning(f"Could not write extraction cache: {e}")
+
+        return md
+
+    @staticmethod
+    def _cleanup_progress(done: int, total: int) -> None:
+        if total and (done == total or done % 10 == 0):
+            print(f"    cleanup {done}/{total} windows...")
 
     # -- hashing / dedup ----------------------------------------------------
 
@@ -411,13 +624,13 @@ class DocumentProcessor:
 
     # -- embedding ----------------------------------------------------------
     def _generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        from backend.config import EMBED_MAX_TOKENS
+        max_tokens = self.embed_max_tokens
 
         truncated = []
         for text in texts:
             tokens = self._tokenizer.encode(text)
-            if len(tokens) > EMBED_MAX_TOKENS:
-                tokens = tokens[:EMBED_MAX_TOKENS]
+            if len(tokens) > max_tokens:
+                tokens = tokens[:max_tokens]
                 truncated.append(self._tokenizer.decode(tokens))
             else:
                 truncated.append(text)
@@ -452,10 +665,19 @@ class DocumentProcessor:
 
     # -- ingestion ----------------------------------------------------------
 
-    def ingest_pdf(self, pdf_path: str, force: bool = False, top_level_only: bool = False) -> int:
+    def ingest_pdf(
+        self,
+        pdf_path: str,
+        force: bool = False,
+        top_level_only: bool = False,
+        engine: str | None = None,
+        cleanup: bool | None = None,
+        reextract: bool = False,
+    ) -> int:
         """
-        Convert PDF to markdown via pymupdf4llm, then process with the
-        heading-hierarchy-aware markdown chunker.
+        Convert PDF to markdown via the pluggable extractor (Marker by default,
+        automatic pymupdf4llm fallback), optionally run the conservative LLM
+        cleanup pass, then process with the heading-hierarchy-aware chunker.
 
         This gives PDFs the same rich metadata (headings, breadcrumbs,
         section-aware overlap) that native markdown files get.
@@ -463,7 +685,14 @@ class DocumentProcessor:
         Args:
             top_level_only: Only split on level-1/2 headings. Useful for
                 book-style PDFs like Effective TypeScript.
+            engine: "marker" or "pymupdf4llm" (default: config PDF_ENGINE).
+            cleanup: Run the markdown cleanup pass (default: config
+                CLEANUP_ENABLED).
+            reextract: Ignore the extraction cache and re-run extraction.
         """
+        engine = engine or PDF_ENGINE
+        cleanup = CLEANUP_ENABLED if cleanup is None else cleanup
+
         file_hash = self.get_file_hash(pdf_path)
 
         if not force and self.is_already_indexed(file_hash):
@@ -476,11 +705,12 @@ class DocumentProcessor:
         print(f"Processing: {Path(pdf_path).name}")
         filename = Path(pdf_path).name
 
-        # Convert PDF to markdown -- this is where pymupdf4llm does the
-        # heavy lifting: extracting headings, code blocks, tables, lists
-        print(f"  Converting PDF to markdown...")
+        # Extract (+ optional cleanup) to markdown, reusing the on-disk cache
+        # so Marker / cleanup are not re-run for an unchanged file.
         try:
-            md_content = self.pdf_to_markdown(pdf_path)
+            md_content = self._get_pdf_markdown(
+                pdf_path, file_hash, engine, cleanup, reextract
+            )
         except Exception as e:
             print(f"  Error converting PDF to markdown: {e}")
             return 0
@@ -771,7 +1001,7 @@ class DocumentProcessor:
     def ask_question(
         self,
         question: str,
-        mode: str = "qwen-7b",
+        mode: str = DEFAULT_MODE,
         n_results: int = 5,
         history: Optional[ChatHistory] = None,
         grounded: bool = True,
@@ -809,8 +1039,8 @@ class DocumentProcessor:
         prompt, sources = self._build_rag_prompt(
             question, results, history, grounded=grounded
         )
-        model = self.models.get(mode, self.models["qwen-7b"])
-        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS["qwen-7b"]))
+        model = self.models.get(mode, self.models[DEFAULT_MODE])
+        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS[DEFAULT_MODE]))
 
         # Bump context for long conversations or many results
         if n_results > 4 and options["num_ctx"] < 8192:
@@ -819,19 +1049,31 @@ class DocumentProcessor:
             options["num_ctx"] = 8192
 
         full_answer = ""
+        stripper = ThinkStripper()
 
         try:
             stream = ollama.chat(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 stream=True,
+                think=False,  # suppress reasoning tokens (qwen3, gemma4)
                 options=options,
             )
 
             for chunk in stream:
                 token = chunk["message"]["content"]
-                full_answer += token
-                yield token
+                # Belt-and-braces: strip any <think> spans that leak through
+                # despite think=False, without breaking on tags split across
+                # streamed chunks.
+                visible = stripper.feed(token)
+                if visible:
+                    full_answer += visible
+                    yield visible
+
+            tail = stripper.flush()
+            if tail:
+                full_answer += tail
+                yield tail
 
         except Exception as e:
             # Raise a structured error instead of yielding the message as

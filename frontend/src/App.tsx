@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import ChatPanel from "./pages/chat/ChatPanel";
 import Apollo from "./pages/apollo/Apollo";
-import { fetchHealth } from "./lib/api";
+import { fetchHealth, fetchInstalledModes } from "./lib/api";
 import type { ModelMode, HealthResponse } from "./lib/types";
 import { MODE_INFO } from "./lib/types";
 
@@ -9,8 +9,10 @@ type Tab = "cosmo" | "apollo";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("cosmo");
-  const [mode, setMode] = useState<ModelMode>("qwen-7b");
+  const [mode, setMode] = useState<ModelMode>("qwen3-coder-30b");
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  // Installed modes (from /api/models); empty until loaded or if unavailable.
+  const [installedModes, setInstalledModes] = useState<string[]>([]);
 
   const checkHealth = useCallback(async () => {
     try {
@@ -25,6 +27,29 @@ export default function App() {
     const id = setInterval(checkHealth, 10000);
     return () => clearInterval(id);
   }, [checkHealth]);
+
+  // Load which configured models are actually installed, to collapse the
+  // dropdown. Refetch when health flips to ok (e.g. Ollama came back).
+  useEffect(() => {
+    if (health?.status === "ok") {
+      fetchInstalledModes().then(setInstalledModes);
+    }
+  }, [health?.status]);
+
+  // Modes to offer: installed ∩ curated (MODE_INFO). Fall back to all
+  // curated modes when the models endpoint hasn't answered / is empty.
+  const availableModes = useMemo(() => {
+    const curated = Object.keys(MODE_INFO) as ModelMode[];
+    const installedCurated = curated.filter((m) => installedModes.includes(m));
+    return installedCurated.length > 0 ? installedCurated : curated;
+  }, [installedModes]);
+
+  // If the selected mode isn't available, switch to the first that is.
+  useEffect(() => {
+    if (!availableModes.includes(mode) && availableModes.length > 0) {
+      setMode(availableModes[0]!);
+    }
+  }, [availableModes, mode]);
 
   const statusLabel =
     health?.status === "ok"
@@ -67,7 +92,7 @@ export default function App() {
               value={mode}
               onChange={(e) => setMode(e.target.value as ModelMode)}
             >
-              {(Object.keys(MODE_INFO) as ModelMode[]).map((m) => (
+              {availableModes.map((m) => (
                 <option key={m} value={m}>
                   {MODE_INFO[m].label}
                 </option>

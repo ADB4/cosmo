@@ -4,6 +4,13 @@ import { MODE_INFO } from "../../lib/types";
 import { streamChat, clearHistory } from "../../lib/api";
 import MessageBubble from "./MessageBubble";
 import KnowledgeBase from "./KnowledgeBase";
+import ShortcutsOverlay, { type Shortcut } from "../../components/ShortcutsOverlay";
+
+const CHAT_SHORTCUTS: Shortcut[] = [
+  { keys: "Enter", desc: "Send message" },
+  { keys: "Shift + Enter", desc: "New line" },
+  { keys: "Esc", desc: "Stop streaming" },
+];
 
 interface ChatPanelProps {
   mode: ModelMode;
@@ -16,11 +23,27 @@ function uid(): string {
   return `msg_${Date.now()}_${nextId++}`;
 }
 
+const HISTORY_KEY = "cosmo.chat.messages";
+const HISTORY_CAP = 200;
+
+function loadStoredMessages(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStoredMessages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [grounded, setGrounded] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -32,6 +55,17 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Persist the visible message list (capped) so a reload keeps it.
+  // Server-side history is unaffected (still managed via /history/clear).
+  useEffect(() => {
+    try {
+      const capped = messages.slice(-HISTORY_CAP);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(capped));
+    } catch {
+      // ignore storage failures (private mode, quota)
+    }
+  }, [messages]);
 
   // Core send routine. `showUserMsg` is false when re-issuing an existing
   // question (Ask broadly / Retry) so we don't duplicate the user's turn.
@@ -124,6 +158,9 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === "Escape" && streaming) {
+      e.preventDefault();
+      handleStop();
     }
   };
 
@@ -176,14 +213,40 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
     );
   }
 
+  const trimmedFilter = filter.trim().toLowerCase();
+  const displayedMessages = trimmedFilter
+    ? messages.filter(
+        (m) =>
+          m.content.toLowerCase().includes(trimmedFilter) ||
+          (m.question?.toLowerCase().includes(trimmedFilter) ?? false) ||
+          (m.error?.toLowerCase().includes(trimmedFilter) ?? false),
+      )
+    : messages;
+
   return (
     <div className="chat-panel">
       <KnowledgeBase onIngested={onHealthRefresh} defaultOpen={emptyKb} />
       <div className={`chat-status ${healthError ? "chat-status--error" : ""}`}>
         {statusNode}
       </div>
+      {messages.length > 0 && (
+        <div className="chat-filter">
+          <input
+            className="chat-filter-input"
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter messages…"
+          />
+          {trimmedFilter && (
+            <span className="chat-filter-count">
+              {displayedMessages.length} / {messages.length}
+            </span>
+          )}
+        </div>
+      )}
       <div className="chat-messages">
-        {messages.map((msg) => (
+        {displayedMessages.map((msg) => (
           <MessageBubble
             key={msg.id}
             message={msg}
@@ -256,10 +319,24 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
                 Clear
               </button>
             )}
-            <button className="help-btn" title="Keyboard shortcuts">?</button>
+            <button
+              className="help-btn"
+              title="Keyboard shortcuts"
+              onClick={() => setShowShortcuts(true)}
+            >
+              ?
+            </button>
           </div>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Chat shortcuts"
+          shortcuts={CHAT_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }

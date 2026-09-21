@@ -1,11 +1,20 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { filterByTags, collectTags, TAG_CATEGORIES } from "../../lib/normalizeQuiz";
 import { renderMarkdown } from "../../components/renderMarkdown";
+import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+
+const STUDY_SHORTCUTS: Shortcut[] = [
+  { keys: "Space / Enter", desc: "Flip card" },
+  { keys: "←", desc: "Previous card" },
+  { keys: "→", desc: "Next card" },
+];
 
 interface Props {
   title: string;
   questions: NormalizedQuestion[];
+  /** Ids missed on the last quiz attempt for this deck, if any. */
+  missedIds?: Set<string>;
   onExit: () => void;
 }
 
@@ -52,12 +61,16 @@ function formatTag(tag: string): string {
   return tag.replace(/-/g, " ");
 }
 
-export default function StudyMode({ questions, onExit }: Props) {
+export default function StudyMode({ questions, missedIds, onExit }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState<OrderMode>("sequential");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [missedOnly, setMissedOnly] = useState(false);
+
+  const hasMissed = (missedIds?.size ?? 0) > 0;
 
   // All tags present in this quiz's question pool
   const availableTags = useMemo(() => collectTags(questions), [questions]);
@@ -89,6 +102,10 @@ export default function StudyMode({ questions, onExit }: Props) {
       filtered = filtered.filter((q) => selectedTypes.has(q.sectionType));
     }
 
+    if (missedOnly && missedIds) {
+      filtered = filtered.filter((q) => missedIds.has(q.id));
+    }
+
     switch (order) {
       case "sequential":
         return filtered;
@@ -101,7 +118,7 @@ export default function StudyMode({ questions, onExit }: Props) {
       case "shuffle-all":
         return shuffle(filtered);
     }
-  }, [questions, selectedTags, selectedTypes, order]);
+  }, [questions, selectedTags, selectedTypes, order, missedOnly, missedIds]);
 
   const total = cards.length;
   const card = cards[index] as NormalizedQuestion | undefined;
@@ -158,20 +175,69 @@ export default function StudyMode({ questions, onExit }: Props) {
     setIndex((i) => Math.min(total - 1, i + 1));
   }, [total]);
 
+  // Keyboard shortcuts: Space/Enter flip, ArrowLeft/Right prev/next.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showShortcuts) return;
+      if (isTypingTarget(e.target)) return;
+      switch (e.key) {
+        case " ":
+        case "Enter":
+          e.preventDefault();
+          flip();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          prev();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          next();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flip, prev, next, showShortcuts]);
+
   return (
     <div className="study">
       <div className="study-header">
         <button className="study-exit" onClick={onExit}>
           &#10005; Exit Study Mode
         </button>
-        <span className="study-counter">
-          {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
-        </span>
+        <div className="study-header-right">
+          <span className="study-counter">
+            {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
+          </span>
+          <button
+            className="help-btn help-btn--apollo"
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       <div className="study-body">
         {/* ── Left sidebar ── */}
         <div className="study-sidebar">
+          {/* Missed last quiz (only when there's attempt data) */}
+          {hasMissed && (
+            <div className="study-sidebar-section">
+              <button
+                className={`study-missed-chip ${missedOnly ? "study-missed-chip--active" : ""}`}
+                onClick={() => {
+                  setMissedOnly((m) => !m);
+                  resetPosition();
+                }}
+              >
+                {missedOnly ? "✓ " : ""}Missed last quiz ({missedIds!.size})
+              </button>
+            </div>
+          )}
+
           {/* Order */}
           <div className="study-sidebar-section">
             <span className="study-filter-title">Order</span>
@@ -318,6 +384,14 @@ export default function StudyMode({ questions, onExit }: Props) {
           </div>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Study shortcuts"
+          shortcuts={STUDY_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }
