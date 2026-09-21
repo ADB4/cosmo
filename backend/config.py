@@ -24,8 +24,9 @@ UPLOAD_DIR = Path(os.environ.get("COSMO_UPLOAD_DIR", str(PROJECT_ROOT / "uploads
 # DECK JSON directory (created at startup)
 DECK_DIR = Path(os.environ.get("COSMO_DECK_DIR", str(PROJECT_ROOT / "decks")))
 
-# User study documents
-DOCS_DIR = PROJECT_ROOT / "docs"
+# Study corpus — cleaned markdown ingested into the vector store
+# (see `reindex --dir corpus/docs/`).
+DOCS_DIR = PROJECT_ROOT / "corpus" / "docs"
 
 # ---------------------------------------------------------------------------
 # Server

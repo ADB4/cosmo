@@ -7,9 +7,9 @@ venv/
 env/
 frontend/tsconfig.tsbuildinfo
 
-artifacts/*
-!artifacts/docs/
-!artifacts/docs/**
+corpus/*
+!corpus/docs/
+!corpus/docs/**
 quizzes/exclude_sa/
 quizzes_legacy/
 results/
