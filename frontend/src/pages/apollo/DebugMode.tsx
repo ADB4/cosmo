@@ -1,8 +1,16 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { filterByTags, collectTags, TAG_CATEGORIES } from "../../lib/normalizeQuiz";
 import { deleteQuestions } from "../../lib/api";
 import { renderMarkdown } from "../../components/renderMarkdown";
+import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+
+const DEBUG_SHORTCUTS: Shortcut[] = [
+  { keys: "Space / Enter", desc: "Flip card" },
+  { keys: "←", desc: "Previous card" },
+  { keys: "→", desc: "Next card" },
+  { keys: "R", desc: "Mark card for removal" },
+];
 
 interface Props {
   title: string;
@@ -38,6 +46,7 @@ function formatTag(tag: string): string {
   const [filterOpen, setFilterOpen] = useState(false);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // IDs marked for removal (not yet persisted)
   const [markedForRemoval, setMarkedForRemoval] = useState<Set<string>>(new Set());
@@ -126,6 +135,36 @@ function formatTag(tag: string): string {
     setSaveMsg(null);
   }, []);
 
+  // Keyboard shortcuts: Space/Enter flip, arrows prev/next, R remove.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showShortcuts) return;
+      if (isTypingTarget(e.target)) return;
+      switch (e.key) {
+        case " ":
+        case "Enter":
+          e.preventDefault();
+          flip();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          prev();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          next();
+          break;
+        case "r":
+        case "R":
+          e.preventDefault();
+          markRemove();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flip, prev, next, markRemove, showShortcuts]);
+
   const handleSave = useCallback(async () => {
     if (markedForRemoval.size === 0) return;
     setSaving(true);
@@ -171,6 +210,13 @@ function formatTag(tag: string): string {
           <span className="study-counter">
             {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
           </span>
+          <button
+            className="help-btn help-btn--apollo"
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+          >
+            ?
+          </button>
         </div>
       </div>
 
@@ -338,6 +384,14 @@ function formatTag(tag: string): string {
             </div>
           )}
         </div>
+      )}
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Debug shortcuts"
+          shortcuts={DEBUG_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
       )}
     </div>
   );

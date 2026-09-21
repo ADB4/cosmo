@@ -1,7 +1,15 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { evaluateAnswer } from "../../lib/api";
 import { renderMarkdown } from "../../components/renderMarkdown";
+import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+
+const QUIZ_SHORTCUTS: Shortcut[] = [
+  { keys: "1 – 4", desc: "Select a multiple-choice option" },
+  { keys: "T / F", desc: "Answer true / false" },
+  { keys: "Enter", desc: "Next / Finish" },
+  { keys: "Cmd/Ctrl + Enter", desc: "Submit while typing a short answer" },
+];
 
 interface Props {
   title: string;
@@ -44,6 +52,7 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
   const [results, setResults] = useState<Result[] | null>(null);
   const [grading, setGrading] = useState(false);
   const [viewIndex, setViewIndex] = useState(0);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Short-answer grading promises, fired as the user presses Next (so grading
   // overlaps with the rest of the quiz) and resolved on the results screen.
@@ -203,6 +212,44 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
     // Fresh requests (don't reuse the failed cached promises).
     gradeIndices(results, failedIdxs, false);
   }, [results, grading, gradeIndices]);
+
+  // Keyboard shortcuts for the question screen: 1-4 select an option, T/F
+  // answer true/false, Enter next/finish. While the short-answer textarea is
+  // focused, only Cmd/Ctrl+Enter acts (other keys type into the field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showShortcuts || results) return;
+      const cq = questions[index];
+      if (!cq) return;
+
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        submitAnswer();
+        return;
+      }
+      if (isTypingTarget(e.target)) return; // typing a short answer
+
+      if (cq.sectionType === "true_false") {
+        if (e.key === "t" || e.key === "T") { e.preventDefault(); setSelected("true"); }
+        else if (e.key === "f" || e.key === "F") { e.preventDefault(); setSelected("false"); }
+        else if (e.key === "Enter") { e.preventDefault(); submitAnswer(); }
+      } else if (cq.sectionType === "multiple_choice") {
+        const n = Number(e.key);
+        if (Number.isInteger(n) && n >= 1 && n <= cq.options.length) {
+          e.preventDefault();
+          setSelected(cq.options[n - 1]!);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          submitAnswer();
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        submitAnswer();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [questions, index, results, showShortcuts, submitAnswer]);
 
   // ---- Results screen ----
   if (results) {
@@ -456,9 +503,18 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
         <button className="study-exit" onClick={onExit}>
           &#10005; Exit Quiz
         </button>
-        <span className="study-counter">
-          Question {index + 1} / {total}
-        </span>
+        <div className="study-header-right">
+          <span className="study-counter">
+            Question {index + 1} / {total}
+          </span>
+          <button
+            className="help-btn help-btn--apollo"
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       <div className="quiz-progress">
@@ -527,6 +583,14 @@ export default function QuizMode({ questions, mode, onExit }: Props) {
           </button>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Quiz shortcuts"
+          shortcuts={QUIZ_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }
