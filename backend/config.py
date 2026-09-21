@@ -67,6 +67,7 @@ EMBED_PROFILES = {
     "nomic-embed-text": {"max_tokens": 500, "retrieval_max_distance": 0.42},
     "qwen3-embedding:0.6b": {"max_tokens": 2000, "retrieval_max_distance": 0.60},  # PLACEHOLDER — tune
     "embeddinggemma": {"max_tokens": 2000, "retrieval_max_distance": 0.60},        # PLACEHOLDER — tune
+    "mxbai-embed-large": {"max_tokens": 500, "retrieval_max_distance": 0.60},      # 512-token model; PLACEHOLDER — tune
 }
 
 # Resolve the active profile, falling back to nomic's numbers for an unknown
