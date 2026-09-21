@@ -23,11 +23,88 @@ from backend.config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     DB_PATH,
+    DEFAULT_MODE,
     EMBED_MODEL,
     EMBEDDING_BATCH_SIZE,
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Reasoning-token stripping
+#
+# Qwen3 and gemma4 emit chain-of-thought by default. We pass think=False to
+# every ollama.chat call, but as a defence-in-depth measure we also strip any
+# <think>...</think> spans that leak into the visible content — both from the
+# streamed chat tokens (via ThinkStripper, which handles tags split across
+# chunk boundaries) and from the one-shot grader response (via strip_think).
+# ---------------------------------------------------------------------------
+
+_THINK_OPEN = "<think>"
+_THINK_CLOSE = "</think>"
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def strip_think(text: str) -> str:
+    """Remove complete <think>...</think> spans from a whole (non-streamed) string."""
+    cleaned = _THINK_RE.sub("", text)
+    # Drop a dangling open tag with no close (truncated reasoning).
+    if _THINK_OPEN in cleaned and _THINK_CLOSE not in cleaned:
+        cleaned = cleaned.split(_THINK_OPEN, 1)[0]
+    return cleaned.strip()
+
+
+def _safe_tail_len(buf: str, tag: str) -> int:
+    """Length of the longest suffix of `buf` that is a proper prefix of `tag`."""
+    maxk = min(len(tag) - 1, len(buf))
+    for k in range(maxk, 0, -1):
+        if buf[-k:] == tag[:k]:
+            return k
+    return 0
+
+
+class ThinkStripper:
+    """
+    Streaming filter that removes <think>...</think> spans from a token
+    sequence. Buffers just enough to catch a tag split across chunk
+    boundaries; everything outside think spans is emitted as soon as it is
+    unambiguous. Call flush() at end-of-stream to release any trailing text.
+    """
+
+    def __init__(self) -> None:
+        self._buf = ""
+        self._in_think = False
+
+    def feed(self, token: str) -> str:
+        self._buf += token
+        out = ""
+        while True:
+            if not self._in_think:
+                idx = self._buf.find(_THINK_OPEN)
+                if idx == -1:
+                    keep = _safe_tail_len(self._buf, _THINK_OPEN)
+                    emit_to = len(self._buf) - keep
+                    out += self._buf[:emit_to]
+                    self._buf = self._buf[emit_to:]
+                    break
+                out += self._buf[:idx]
+                self._buf = self._buf[idx + len(_THINK_OPEN):]
+                self._in_think = True
+            else:
+                idx = self._buf.find(_THINK_CLOSE)
+                if idx == -1:
+                    keep = _safe_tail_len(self._buf, _THINK_CLOSE)
+                    self._buf = self._buf[len(self._buf) - keep:]
+                    break
+                self._buf = self._buf[idx + len(_THINK_CLOSE):]
+                self._in_think = False
+        return out
+
+    def flush(self) -> str:
+        out = "" if self._in_think else self._buf
+        self._buf = ""
+        return out
 
 
 # ---------------------------------------------------------------------------
@@ -342,22 +419,40 @@ def chunk_markdown_file(
 # ---------------------------------------------------------------------------
 
 
+def collection_name_for(embed_model: str) -> str:
+    """
+    Map an embedding-model tag to its Chroma collection name.
+
+    nomic-embed-text keeps the historical name so the existing chroma_db is
+    reused as-is (no re-ingest needed). Every other embedder gets its own
+    `docs_<model>` collection, so switching models via COSMO_EMBED_MODEL never
+    queries vectors from an incompatible space.
+    """
+    if embed_model == "nomic-embed-text":
+        return "react_typescript_docs"
+    safe = embed_model.replace(":", "-").replace("/", "-")
+    return f"docs_{safe}"
+
+
 class DocumentProcessor:
     """Process, index, and query technical documentation via RAG."""
 
     EMBEDDING_BATCH_SIZE = EMBEDDING_BATCH_SIZE
 
-    def __init__(self, persist_dir: str | None = None):
+    def __init__(self, persist_dir: str | None = None, embed_model: str | None = None):
         import tiktoken
         self._tokenizer = tiktoken.get_encoding("cl100k_base")
         self._check_ollama_connection()
         self.client = chromadb.PersistentClient(path=persist_dir or DB_PATH)
+        self.embed_model = embed_model or EMBED_MODEL
+        # Name the collection after the embedding model so switching embedders
+        # never mixes incompatible vector spaces. The historical nomic
+        # collection is preserved under its stable name.
         self.collection = self.client.get_or_create_collection(
-            name="react_typescript_docs",
+            name=collection_name_for(self.embed_model),
             metadata={"hnsw:space": "cosine"},
         )
         self.models = CHAT_MODELS
-        self.embed_model = EMBED_MODEL
 
     # -- connection check ---------------------------------------------------
 
@@ -771,7 +866,7 @@ class DocumentProcessor:
     def ask_question(
         self,
         question: str,
-        mode: str = "qwen-7b",
+        mode: str = DEFAULT_MODE,
         n_results: int = 5,
         history: Optional[ChatHistory] = None,
         grounded: bool = True,
@@ -809,8 +904,8 @@ class DocumentProcessor:
         prompt, sources = self._build_rag_prompt(
             question, results, history, grounded=grounded
         )
-        model = self.models.get(mode, self.models["qwen-7b"])
-        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS["qwen-7b"]))
+        model = self.models.get(mode, self.models[DEFAULT_MODE])
+        options = dict(CHAT_OPTIONS.get(mode, CHAT_OPTIONS[DEFAULT_MODE]))
 
         # Bump context for long conversations or many results
         if n_results > 4 and options["num_ctx"] < 8192:
@@ -819,19 +914,31 @@ class DocumentProcessor:
             options["num_ctx"] = 8192
 
         full_answer = ""
+        stripper = ThinkStripper()
 
         try:
             stream = ollama.chat(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 stream=True,
+                think=False,  # suppress reasoning tokens (qwen3, gemma4)
                 options=options,
             )
 
             for chunk in stream:
                 token = chunk["message"]["content"]
-                full_answer += token
-                yield token
+                # Belt-and-braces: strip any <think> spans that leak through
+                # despite think=False, without breaking on tags split across
+                # streamed chunks.
+                visible = stripper.feed(token)
+                if visible:
+                    full_answer += visible
+                    yield visible
+
+            tail = stripper.flush()
+            if tail:
+                full_answer += tail
+                yield tail
 
         except Exception as e:
             # Raise a structured error instead of yielding the message as
