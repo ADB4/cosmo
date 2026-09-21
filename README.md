@@ -78,6 +78,26 @@ python -m backend.server          # http://localhost:5174
 cd frontend && yarn dev           # http://localhost:5173
 ```
 
+### Stopping and Teardown
+
+`start-dev.sh` traps Ctrl+C and shuts down both the Flask and Vite servers. If you started them manually, press Ctrl+C in each terminal, or kill whatever is holding the ports:
+
+```bash
+lsof -ti :5173 :5174 | xargs kill
+```
+
+To reset the environment, remove the generated directories. The venv and `node_modules` are rebuilt on the next start:
+
+```bash
+rm -rf .venv frontend/node_modules      # dependencies, rebuilt on next start
+```
+
+Deleting the local data also wipes your ingested knowledge base and uploaded files:
+
+```bash
+rm -rf chroma_db uploads                # destroys the knowledge base
+```
+
 ## CLI Usage
 
 All CLI commands run from the project root with the venv activated:
@@ -289,6 +309,16 @@ docker compose up -d --build
 # Check tunnel connectivity
 docker compose logs tunnel
 ```
+
+### Full Teardown
+
+`docker compose down` removes the containers and network but keeps your data: the `uploads` named volume and the images built by compose both persist. To remove those too:
+
+```bash
+docker compose down -v --rmi local
+```
+
+`-v` deletes the `uploads` volume; `--rmi local` deletes the built app and backend images. The bind-mounted `chroma_db/`, `decks/`, and `quizzes/` directories live on the host and are untouched — delete them by hand to reset that data.
 
 ## File Overview
 

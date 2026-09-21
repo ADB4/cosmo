@@ -3,6 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "=========================================="
 echo "  Cosmo — Study Companion"
@@ -22,7 +23,7 @@ if ! curl -s --max-time 3 http://localhost:11434/api/tags &> /dev/null; then
 fi
 
 # Python venv
-VENV_DIR="$SCRIPT_DIR/.venv"
+VENV_DIR="$ROOT_DIR/.venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating Python virtual environment..."
     python3 -m venv "$VENV_DIR"
@@ -32,14 +33,14 @@ source "$VENV_DIR/bin/activate"
 
 echo "Installing Python dependencies..."
 pip install --quiet --upgrade pip
-pip install --quiet -r "$SCRIPT_DIR/requirements.txt"
+pip install --quiet -r "$ROOT_DIR/requirements.txt"
 
 # Frontend deps
-if [ ! -d "$SCRIPT_DIR/frontend/node_modules" ]; then
+if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
     echo "Installing frontend dependencies..."
-    cd "$SCRIPT_DIR/frontend"
+    cd "$ROOT_DIR/frontend"
     yarn install
-    cd "$SCRIPT_DIR"
+    cd "$ROOT_DIR"
 fi
 
 echo ""
@@ -52,12 +53,12 @@ echo "Press Ctrl+C to stop both servers."
 echo ""
 
 # Start Flask backend
-cd "$SCRIPT_DIR"
+cd "$ROOT_DIR"
 python -m backend.server &
 FLASK_PID=$!
 
 # Start Vite frontend
-cd "$SCRIPT_DIR/frontend"
+cd "$ROOT_DIR/frontend"
 npx vite --host &
 VITE_PID=$!
 

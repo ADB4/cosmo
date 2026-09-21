@@ -22,6 +22,8 @@ export default function App() {
 
   useEffect(() => {
     checkHealth();
+    const id = setInterval(checkHealth, 10000);
+    return () => clearInterval(id);
   }, [checkHealth]);
 
   const statusLabel =

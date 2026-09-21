@@ -1,0 +1,130 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "week1",
+      "title": "Week 1: TypeScript Fundamentals",
+      "scope": "The Basics, Everyday Types, Narrowing, More on Functions (through overloads), Object Types.",
+      "readings": [
+        "TS-HB: \"The Basics\"",
+        "TS-HB: \"Everyday Types\"",
+        "TS-HB: \"Narrowing\"",
+        "TS-HB: \"More on Functions\" (through \"Function Overloads\")",
+        "TS-HB: \"Object Types\""
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness — do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "TypeScript is a statically typed superset of JavaScript: all valid JavaScript is valid TypeScript.",
+              "answer": true,
+              "explanation": "TypeScript is a strict superset of JavaScript. Any valid JS file is valid TS (though it may produce type errors under strict settings).",
+              "tags": [
+                "typescript-basics",
+                "foundations"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part B: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "What is a fragment in React?",
+              "model_answer": "A fragment is a wrapper that allows you to group multiple elements without creating a new DOM node. This is needed because React components must return a single root element.",
+              "tags": [
+                "React",
+                "typescript-basics"
+              ]
+            },
+            {
+              "id": "SA-2",
+              "question": "What does the calc() function do in CSS?",
+              "model_answer": "The calc() function in CSS lets you perform math calculations directly in your styles, mixing different units together.",
+              "tags": [
+                "CSS"
+              ]
+            },
+            {
+              "id": "SA-3",
+              "question": "What does the @NoArgsConstructor annotation do?",
+              "model_answer": "@NoArgsConstructor is a Lombok annotation that automatically generates a no-argument constructor for your class, saving you from writing boilerplate code.",
+              "tags": [
+                "lombok",
+                "java"
+              ]
+            },
+            {
+              "id": "SA-4",
+              "question": "What does the @AllArgsConstructor annotation do?",
+              "model_answer": "@AllArgsConstructor is a Lombok annotation that generates a constructor with one parameter for every field in your class.",
+              "tags": [
+                "lombok",
+                "java"
+              ]
+            },
+            {
+              "id": "SA-5",
+              "question": "What is a static variable in Java?",
+              "model_answer": "A static variable belongs to the class itself, not to any individual object. If every object shares the same value, make it static.",
+              "tags": [
+                "java"
+              ]
+            },
+            {
+              "id": "SA-6",
+              "question": "What does the @Builder annotation do?",
+              "model_answer": "@Builder is a Lombok annotation that generates a builder pattern for your class, letting you construct objects with a clean, readable, step-by-step syntax.",
+              "tags": [
+                "lombok",
+                "java"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part C: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What is the inferred type of `value`?",
+              "options": [
+                "`[number, number, number]`",
+                "`number[]`",
+                "`(1 | 2 | 3)[]`",
+                "`any[]`"
+              ],
+              "code": "let value = [1, 2, 3];",
+              "answer": 1,
+              "explanation": "`let` with an array literal infers a general array type: `number[]`. A tuple would require `as const` or an explicit annotation.",
+              "tags": [
+                "type-inference",
+                "foundations"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "JSON quiz format for React/TypeScript/MUI study companion",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}

@@ -1,0 +1,733 @@
+{
+  "version": "1.0",
+  "quizzes": [
+    {
+      "id": "phors_unit1_part1",
+      "title": "Unit 1, Part 1: Weight Transfer",
+      "scope": "Beckman's Physics of Racing Part 1 — Newton's laws applied to vehicle dynamics, longitudinal and lateral weight transfer derivation, CG height effects, wheelbase/track effects, static vs. dynamic load distribution.",
+      "readings": [
+        "PhORS Part 1: Weight Transfer",
+        "Unit 1 Study Guide: Part 1 section"
+      ],
+      "scoring_note": "Wrong answers on T/F and multiple choice are subtracted from right answers. Do not guess. Short answer questions are graded on correctness and conciseness — do not write more than is asked for.",
+      "sections": [
+        {
+          "type": "true_false",
+          "title": "Part A: True / False",
+          "questions": [
+            {
+              "id": "TF-1",
+              "question": "Weight transfer occurs because mass physically moves from one end of the car to the other during braking.",
+              "answer": false,
+              "explanation": "Nothing physically moves. Weight transfer is a change in the distribution of normal forces (ground reaction forces) at the contact patches, caused by the torque that inertial forces at the CG create about the contact patches at ground level.",
+              "tags": ["weight-transfer", "common-misconception"]
+            },
+            {
+              "id": "TF-2",
+              "question": "The reason braking creates a nose-down torque is that braking forces act at ground level while inertia acts at the CG, which is above the ground.",
+              "answer": true,
+              "explanation": "The vertical offset between the ground-level braking forces and the CG-level inertial resistance creates a moment arm equal to the CG height, producing a pitch-forward torque.",
+              "tags": ["weight-transfer", "torque"]
+            },
+            {
+              "id": "TF-3",
+              "question": "A car with a higher center of gravity will experience less weight transfer than an otherwise identical car with a lower CG, for the same braking force.",
+              "answer": false,
+              "explanation": "Higher CG means a longer moment arm for the inertial torque, which produces MORE weight transfer, not less. Lower CG = less weight transfer = better handling.",
+              "tags": ["cg-height", "weight-transfer"]
+            },
+            {
+              "id": "TF-4",
+              "question": "Newton's first law explains why the sum of vertical forces on a car (that is not going airborne) must equal zero.",
+              "answer": true,
+              "explanation": "The car is not accelerating vertically, so by Newton's first law the net vertical force must be zero. The lift forces (Lf + Lr) must equal the gravitational force G.",
+              "tags": ["newtons-laws", "force-balance"]
+            },
+            {
+              "id": "TF-5",
+              "question": "During hard braking, the ground pushes up harder on the rear tires to prevent the car from nosing over.",
+              "answer": false,
+              "explanation": "It's the FRONT tires that receive increased upward force (normal load) during braking. The rear tires lose normal load. The ground pushes up harder on the front to counteract the nose-down torque.",
+              "tags": ["weight-transfer", "braking"]
+            },
+            {
+              "id": "TF-6",
+              "question": "The amount of longitudinal weight transfer depends on the static front-to-rear weight distribution of the car.",
+              "answer": false,
+              "explanation": "The weight transfer AMOUNT (ΔW = W·a·h/L) depends only on total weight, acceleration, CG height, and wheelbase. Static distribution affects the baseline loads that transfer is added to or subtracted from, but not the transfer itself.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "TF-7",
+              "question": "Newton's second law (F = ma) tells us that a heavier car requires more force to achieve the same acceleration as a lighter car.",
+              "answer": true,
+              "explanation": "F = ma rearranges to a = F/m. For the same force F, more mass m means less acceleration. To get the same acceleration with more mass, you need more force.",
+              "tags": ["newtons-laws", "foundations"]
+            },
+            {
+              "id": "TF-8",
+              "question": "Newton's third law is the reason that when tires push backward on the ground during braking, the ground pushes forward on the tires.",
+              "answer": true,
+              "explanation": "Every action has an equal and opposite reaction. The tire pushes the ground backward; the ground pushes the tire forward. This reaction force is what actually decelerates the car.",
+              "tags": ["newtons-laws", "braking"]
+            },
+            {
+              "id": "TF-9",
+              "question": "If a car has a 50/50 static weight distribution and is not accelerating, the front and rear lift forces (Lf, Lr) are equal.",
+              "answer": true,
+              "explanation": "With 50/50 distribution and no acceleration, each axle carries half the car's weight. Lf = Lr = W/2.",
+              "tags": ["static-loads", "force-balance"]
+            },
+            {
+              "id": "TF-10",
+              "question": "A longer wheelbase increases the amount of weight transfer for a given braking force.",
+              "answer": false,
+              "explanation": "Weight transfer is ΔW = W·a·h/L. Longer wheelbase (larger L) means the transfer is SMALLER for the same acceleration, because the moment arm is divided over a longer lever.",
+              "tags": ["wheelbase", "weight-transfer"]
+            },
+            {
+              "id": "TF-11",
+              "question": "Weight transfer during acceleration can be calculated by treating acceleration as negative braking.",
+              "answer": true,
+              "explanation": "Beckman explicitly states this. Under acceleration, weight transfers to the rear (opposite of braking). The same equation applies with the sign of the acceleration reversed.",
+              "tags": ["weight-transfer", "acceleration"]
+            },
+            {
+              "id": "TF-12",
+              "question": "The lift forces Lf and Lr are the forces that keep the car from falling through the ground to the center of the Earth.",
+              "answer": true,
+              "explanation": "Beckman describes these ground reaction forces as real lift forces, analogous to those keeping an airplane aloft. They are the normal forces the ground exerts upward on the tires.",
+              "tags": ["normal-force", "foundations"]
+            },
+            {
+              "id": "TF-13",
+              "question": "The braking torque about the CG is proportional to the braking force times the wheelbase.",
+              "answer": false,
+              "explanation": "The braking torque is proportional to the braking force times the CG HEIGHT, not the wheelbase. The CG height is the moment arm — it's the vertical distance between where braking forces act (ground) and where inertia resists (CG).",
+              "tags": ["torque", "cg-height"]
+            },
+            {
+              "id": "TF-14",
+              "question": "Lateral weight transfer during cornering uses the same physics as longitudinal weight transfer during braking, but substitutes track width for wheelbase.",
+              "answer": true,
+              "explanation": "The lateral case is a direct analogy: cornering force acts at ground level, inertia resists at CG height, and the relevant lever arm for the restoring torque is the track width instead of the wheelbase.",
+              "tags": ["lateral-transfer", "weight-transfer"]
+            },
+            {
+              "id": "TF-15",
+              "question": "The gravitational force G acting on the car passes through the center of gravity, so it cannot create a torque about the CG.",
+              "answer": true,
+              "explanation": "A force whose line of action passes through a point produces zero torque about that point (moment arm is zero). This is why G does not help or hinder the rotational tendency during braking — only Lf and Lr can counterbalance the braking torque.",
+              "tags": ["torque", "gravity"]
+            },
+            {
+              "id": "TF-16",
+              "question": "Under braking, the car actually rotates significantly about its CG — that's what causes the nose to dive.",
+              "answer": false,
+              "explanation": "The car does NOT significantly rotate (we hope). The front and rear lift forces adjust their magnitudes to create a counterbalancing torque that prevents rotation. Nose dive is primarily a suspension deflection effect, not actual rotation about the CG in the rigid-body sense Beckman describes.",
+              "tags": ["weight-transfer", "common-misconception"]
+            },
+            {
+              "id": "TF-17",
+              "question": "Inertia is concentrated at the center of gravity of the car.",
+              "answer": true,
+              "explanation": "Beckman states that the tendency of a car to keep moving (its inertia) is concentrated at the CG point. This is the point through which inertial forces effectively act.",
+              "tags": ["cg", "newtons-laws"]
+            },
+            {
+              "id": "TF-18",
+              "question": "Beckman compares the rotational tendency of a braking car to pulling a tablecloth from under glasses — taller objects have a greater tendency to tip.",
+              "answer": true,
+              "explanation": "This is Beckman's analogy for why higher CG leads to more weight transfer. Just as taller glasses tip more easily when the cloth is pulled, a higher CG creates a larger torque under braking.",
+              "tags": ["cg-height", "analogy"]
+            },
+            {
+              "id": "TF-19",
+              "question": "Friction from the tires on the ground and air flowing over the car are the external forces that prevent a car in neutral from coasting forever.",
+              "answer": true,
+              "explanation": "By Newton's first law, only external forces change the car's motion. Tire friction (rolling resistance) and aerodynamic drag are those external forces.",
+              "tags": ["newtons-laws", "friction"]
+            },
+            {
+              "id": "TF-20",
+              "question": "If you know the wheelbase, CG height, total weight, and static weight distribution of a car, you can calculate the weight transfer for any longitudinal acceleration.",
+              "answer": true,
+              "explanation": "These are exactly the parameters Beckman identifies as sufficient: Lf = d·W + W·a·h/L and Lr = (1-d)·W - W·a·h/L. No other information is needed for the simplified (no suspension) model.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "TF-21",
+              "question": "Weight transfer explains why braking can induce oversteer: the rear tires lose load and may exceed their adhesive limit before the fronts do.",
+              "answer": true,
+              "explanation": "Under braking, load transfers forward. Rear tires lose normal force, reducing their grip. If the rear grip drops below the lateral force demanded by a corner, the rear breaks away first — oversteer.",
+              "tags": ["oversteer", "weight-transfer"]
+            },
+            {
+              "id": "TF-22",
+              "question": "Acceleration shifts weight to the front of the car, inducing understeer.",
+              "answer": false,
+              "explanation": "Acceleration shifts weight to the REAR, not the front. Beckman states that accelerating shifts weight rearward. This unloads the front tires, which can induce understeer (front tires have less grip).",
+              "tags": ["weight-transfer", "understeer"]
+            },
+            {
+              "id": "TF-23",
+              "question": "Cornering shifts weight to the inside tires, unloading the outside tires.",
+              "answer": false,
+              "explanation": "It's the opposite. Cornering shifts weight to the OUTSIDE tires. The inside tires are unloaded. This is because the centripetal acceleration requirement creates a roll torque that increases load on the outside.",
+              "tags": ["lateral-transfer", "common-misconception"]
+            },
+            {
+              "id": "TF-24",
+              "question": "The equations for weight transfer during combined braking and cornering are much more complicated than the pure braking or pure cornering cases.",
+              "answer": true,
+              "explanation": "Beckman explicitly states this: the combined case requires mathematical tricks to derive. The independent longitudinal and lateral cases superimpose approximately, but the exact combined treatment is significantly more involved.",
+              "tags": ["combined-transfer", "derivation"]
+            }
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "title": "Part B: Multiple Choice",
+          "questions": [
+            {
+              "id": "MC-1",
+              "question": "What does 'weight transfer' actually refer to?",
+              "options": [
+                "Physical movement of mass from one end of the car to the other",
+                "A change in the distribution of normal forces at the tire contact patches",
+                "The suspension compressing under load",
+                "The shifting of fluids (oil, coolant) inside the car"
+              ],
+              "answer": 1,
+              "explanation": "Weight transfer is a redistribution of ground reaction (normal) forces at the contact patches. Nothing physically moves — the ground simply pushes harder on some tires and less on others.",
+              "tags": ["weight-transfer", "definition"]
+            },
+            {
+              "id": "MC-2",
+              "question": "Why does braking cause the front tires to gain normal load?",
+              "options": [
+                "The engine pulls the front of the car downward",
+                "The brake pads squeeze harder on the front discs",
+                "Braking forces at ground level and inertia at the CG create a nose-down torque that the front tire normal forces must counteract",
+                "The front suspension is stiffer than the rear"
+              ],
+              "answer": 2,
+              "explanation": "The vertical offset between ground-level braking forces and the CG-level inertial resistance creates a torque. The only forces that can prevent the car from pitching forward are the normal forces, so Lf must increase (and Lr must decrease).",
+              "tags": ["weight-transfer", "braking", "torque"]
+            },
+            {
+              "id": "MC-3",
+              "question": "In the weight transfer equation, which parameter represents the moment arm of the inertial torque?",
+              "code": "Lf = d·W + W·a·h / L",
+              "options": [
+                "W (total weight)",
+                "h (CG height)",
+                "L (wheelbase)",
+                "d (static weight fraction)"
+              ],
+              "answer": 1,
+              "explanation": "The CG height h is the moment arm — it's the vertical distance between where braking forces act (ground level) and where inertia resists (the CG). The torque about the contact patch is proportional to this distance.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "MC-4",
+              "question": "Which of Newton's laws explains why Lf + Lr must always equal W (the car's weight) as long as the car stays on the ground?",
+              "options": [
+                "Newton's first law — no vertical acceleration means zero net vertical force",
+                "Newton's second law — F = ma with a = g",
+                "Newton's third law — every action has an equal and opposite reaction",
+                "Newton's law of gravitation"
+              ],
+              "answer": 0,
+              "explanation": "The car is not accelerating vertically, so by Newton's first law, the net vertical force must be zero. The upward forces (Lf + Lr) must exactly balance the downward force (W).",
+              "tags": ["newtons-laws", "force-balance"]
+            },
+            {
+              "id": "MC-5",
+              "question": "A car weighs 3200 lbs, has a 100-inch wheelbase, 20-inch CG height, and 50/50 weight distribution. Under 1g braking, how much load transfers to the front?",
+              "code": "ΔW = W × a × h / L",
+              "options": [
+                "320 lbs",
+                "640 lbs",
+                "1600 lbs",
+                "3200 lbs"
+              ],
+              "answer": 1,
+              "explanation": "ΔW = 3200 × 1.0 × 20 / 100 = 640 lbs. The front gains 640 lbs (to 2240 total) and the rear loses 640 lbs (to 960 total). These are Beckman's exact example numbers.",
+              "tags": ["weight-transfer", "calculation"]
+            },
+            {
+              "id": "MC-6",
+              "question": "Which modification would REDUCE longitudinal weight transfer for a given braking force?",
+              "options": [
+                "Increasing total car weight",
+                "Raising the center of gravity",
+                "Shortening the wheelbase",
+                "Lengthening the wheelbase"
+              ],
+              "answer": 3,
+              "explanation": "ΔW = W·a·h/L. Increasing L (wheelbase) decreases the transfer amount. A longer lever arm means the restoring torque from Lf/Lr imbalance doesn't need to be as large. Increasing W or h, or decreasing L, would all increase transfer.",
+              "tags": ["wheelbase", "weight-transfer"]
+            },
+            {
+              "id": "MC-7",
+              "question": "Why does Beckman say a flatter car (lower CG) handles better?",
+              "options": [
+                "Lower CG reduces aerodynamic drag",
+                "Lower CG reduces the moment arm for weight transfer, keeping tire loads more equal",
+                "Lower CG makes the car lighter",
+                "Lower CG increases the wheelbase"
+              ],
+              "answer": 1,
+              "explanation": "A lower CG means less weight transfer for the same acceleration. More equal tire loads mean all four tires operate closer to their optimal grip, because tires become less efficient as load increases (load sensitivity — covered in later units).",
+              "tags": ["cg-height", "handling"]
+            },
+            {
+              "id": "MC-8",
+              "question": "In Beckman's braking diagram, what do Bf and Br represent?",
+              "options": [
+                "The front and rear brake pad coefficients",
+                "The front and rear braking forces pushing backward on the tires at ground level",
+                "The vertical bounce forces at the front and rear",
+                "The front and rear tire inflation pressures"
+              ],
+              "answer": 1,
+              "explanation": "Bf and Br are the braking forces — horizontal forces at ground level that push backward on the tires (and through the suspension and chassis, decelerate the car).",
+              "tags": ["braking", "force-diagram"]
+            },
+            {
+              "id": "MC-9",
+              "question": "What role does gravity (G) play in creating the braking torque about the CG?",
+              "options": [
+                "G amplifies the braking torque",
+                "G creates the braking torque",
+                "G counteracts the braking torque",
+                "G plays no role — it passes through the CG and creates zero torque about it"
+              ],
+              "answer": 3,
+              "explanation": "A force passing through a point produces zero torque about that point. Since G acts through the CG, it has zero moment arm and cannot contribute to the rotational tendency during braking.",
+              "tags": ["torque", "gravity"]
+            },
+            {
+              "id": "MC-10",
+              "question": "What prevents the car from actually rotating forward onto its nose during hard braking?",
+              "options": [
+                "The weight of the engine in the front",
+                "The aerodynamic downforce",
+                "The front and rear normal forces (Lf, Lr) adjust to create a counterbalancing torque",
+                "The friction force from the rear tires"
+              ],
+              "answer": 2,
+              "explanation": "By Newton's first law (no rotation), the torques must balance. Lf increases and Lr decreases until the net torque from the normal forces exactly counteracts the braking torque. This adjustment IS the weight transfer.",
+              "tags": ["torque", "force-balance"]
+            },
+            {
+              "id": "MC-11",
+              "question": "In the weight transfer equation Lf = d·W + W·a·h/L, what does the term d·W represent?",
+              "code": "Lf = d·W + W·a·h / L",
+              "options": [
+                "The dynamic load on the front axle",
+                "The weight transfer amount",
+                "The static front axle load (before any acceleration)",
+                "The total drag force"
+              ],
+              "answer": 2,
+              "explanation": "d is the static front weight fraction, so d·W is the baseline front axle load when the car is at rest or coasting. The W·a·h/L term is the weight transfer added on top of this baseline.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "MC-12",
+              "question": "How does Beckman suggest calculating weight transfer during acceleration?",
+              "options": [
+                "Use a completely different set of equations",
+                "Use the braking equations but with double the force",
+                "Treat acceleration as negative braking force in the same equations",
+                "Weight transfer doesn't apply during acceleration"
+              ],
+              "answer": 2,
+              "explanation": "Beckman states that the braking equations can be used for acceleration by treating the acceleration force as negative braking. This reverses the sign of the transfer: load moves rearward instead of forward.",
+              "tags": ["weight-transfer", "acceleration"]
+            },
+            {
+              "id": "MC-13",
+              "question": "What analogy does Beckman use to explain why higher objects are more affected by the braking torque?",
+              "options": [
+                "A pendulum swinging — longer pendulums swing slower",
+                "Pulling a tablecloth from under glasses — taller objects tip more easily",
+                "A seesaw — heavier children sit closer to the center",
+                "A spinning top — taller tops wobble more"
+              ],
+              "answer": 1,
+              "explanation": "Beckman compares braking to pulling a tablecloth: objects on the cloth tend to tip, and the tendency is greater for taller objects and greater the harder you pull. The CG height of a car is analogous to the height of the object on the cloth.",
+              "tags": ["analogy", "cg-height"]
+            },
+            {
+              "id": "MC-14",
+              "question": "For lateral weight transfer during cornering, what dimension replaces the wheelbase in the weight transfer formula?",
+              "options": [
+                "The car's total length",
+                "The CG height",
+                "The track width (distance between left and right tires)",
+                "The tire diameter"
+              ],
+              "answer": 2,
+              "explanation": "Lateral transfer uses the track width (t) in place of the wheelbase (L): ΔW_lateral = W·a_lat·h/t. The track is the lateral lever arm, just as the wheelbase is the longitudinal lever arm.",
+              "tags": ["lateral-transfer", "track-width"]
+            },
+            {
+              "id": "MC-15",
+              "question": "Which of Newton's laws explains the ground's reaction force when tires push on it during braking?",
+              "options": [
+                "First law (inertia)",
+                "Second law (F = ma)",
+                "Third law (equal and opposite reactions)",
+                "Law of conservation of energy"
+              ],
+              "answer": 2,
+              "explanation": "Newton's third law: every force has an equal and opposite reaction. When the tire pushes backward on the ground, the ground pushes forward on the tire with equal force.",
+              "tags": ["newtons-laws", "braking"]
+            },
+            {
+              "id": "MC-16",
+              "question": "A car has a 60/40 front-rear static weight distribution. At rest, how does Lf compare to Lr?",
+              "options": [
+                "Lf < Lr",
+                "Lf = Lr",
+                "Lf > Lr (Lf is 1.5 times Lr)",
+                "Cannot be determined without knowing the wheelbase"
+              ],
+              "answer": 2,
+              "explanation": "With 60/40 distribution, Lf = 0.60·W and Lr = 0.40·W. So Lf/Lr = 60/40 = 1.5. The front carries 50% more load than the rear at rest.",
+              "tags": ["static-loads", "weight-distribution"]
+            },
+            {
+              "id": "MC-17",
+              "question": "Why does Beckman say that the magnitude of Lf and Lr determines a tire's ability to stick?",
+              "options": [
+                "Because tire stiffness depends on vertical load",
+                "Because the maximum friction force a tire can produce is proportional to its normal load",
+                "Because heavier tires are made of stickier rubber",
+                "Because vertical load heats the tire, increasing grip"
+              ],
+              "answer": 1,
+              "explanation": "Tire adhesion follows approximately F_max = μ × Fz. The normal load (Fz) directly determines how much lateral or longitudinal force the tire can generate before sliding. This is the adhesive limit.",
+              "tags": ["tire-adhesion", "normal-force"]
+            },
+            {
+              "id": "MC-18",
+              "question": "An imbalance between front and rear lift forces during cornering is the physical basis for what handling characteristics?",
+              "options": [
+                "Top speed and acceleration",
+                "Understeer and oversteer",
+                "Ride comfort and NVH",
+                "Fuel efficiency"
+              ],
+              "answer": 1,
+              "explanation": "Beckman states that imbalances between front and rear lift forces account for understeer and oversteer. The axle with less relative grip (due to load changes) will slide first, determining the balance.",
+              "tags": ["understeer", "oversteer", "weight-transfer"]
+            },
+            {
+              "id": "MC-19",
+              "question": "Beckman's Part 1 analysis ignores which of the following effects?",
+              "options": [
+                "Gravity",
+                "Tire friction",
+                "Suspension deflection and tire deflection",
+                "Braking forces"
+              ],
+              "answer": 2,
+              "explanation": "Beckman explicitly notes that suspension and tire deflection effects are not considered in Part 1. He calls them 'very important, but secondary' — the rigid-body torque balance captures the primary mechanism.",
+              "tags": ["simplifications", "scope"]
+            },
+            {
+              "id": "MC-20",
+              "question": "What information do you need to calculate weight transfer in any car, according to Beckman?",
+              "options": [
+                "Engine horsepower, tire compound, suspension spring rates, and aero package",
+                "Wheelbase, CG height, static weight distribution, track width, and total weight",
+                "Only the total weight and top speed",
+                "Tire pressure, camber angle, and toe setting"
+              ],
+              "answer": 1,
+              "explanation": "Beckman says you can calculate weight transfer knowing 'the wheelbase, the height of the CG, the static weight distribution, and the track, or distance between the tyres across the car.' These plus total weight are all published in shop manuals.",
+              "tags": ["weight-transfer", "parameters"]
+            },
+            {
+              "id": "MC-21",
+              "question": "Which statement correctly describes the relationship between braking force and weight transfer?",
+              "code": "ΔW = W × a × h / L",
+              "options": [
+                "Weight transfer is inversely proportional to braking force",
+                "Weight transfer is proportional to the square of braking force",
+                "Weight transfer is directly proportional to braking force (linearly)",
+                "Weight transfer is independent of braking force"
+              ],
+              "answer": 2,
+              "explanation": "The equation ΔW = W·a·h/L shows a linear (directly proportional) relationship between acceleration a (which equals braking force / mass) and the weight transferred.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "MC-22",
+              "question": "If you double the CG height of a car while keeping everything else the same, what happens to the weight transfer under braking?",
+              "options": [
+                "It stays the same",
+                "It doubles",
+                "It quadruples",
+                "It halves"
+              ],
+              "answer": 1,
+              "explanation": "ΔW = W·a·h/L. Since h appears linearly, doubling h doubles the weight transfer. The CG height has a direct, linear effect on transfer magnitude.",
+              "tags": ["cg-height", "weight-transfer"]
+            },
+            {
+              "id": "MC-23",
+              "question": "Beckman's weight transfer analysis in Part 1 treats the car as which kind of model?",
+              "options": [
+                "A point mass",
+                "A bicycle model (two axles, one tire per axle)",
+                "A full four-corner model",
+                "A finite element model"
+              ],
+              "answer": 1,
+              "explanation": "Part 1 uses a simplified side-view with one front contact point and one rear contact point — the 'bicycle model.' The extension to four individual corners comes in Part 20.",
+              "tags": ["bicycle-model", "simplifications"]
+            },
+            {
+              "id": "MC-24",
+              "question": "Which of the following would NOT affect the amount of longitudinal weight transfer?",
+              "options": [
+                "Changing the car's wheelbase",
+                "Changing the CG height",
+                "Changing the static front-to-rear weight distribution from 55/45 to 45/55",
+                "Changing the total mass of the car"
+              ],
+              "answer": 2,
+              "explanation": "The weight transfer amount ΔW = W·a·h/L does not include the static distribution fraction d. Changing d shifts the baseline loads but doesn't change how much load transfers under acceleration.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "MC-25",
+              "question": "Under hard acceleration in a rear-wheel-drive car, weight transfers rearward. What effect does this have on the drive wheels?",
+              "options": [
+                "It reduces their grip, making wheelspin more likely",
+                "It increases their normal load, giving them more potential grip",
+                "It has no effect on grip since only the front tires matter",
+                "It causes the rear tires to overheat"
+              ],
+              "answer": 1,
+              "explanation": "Weight transferring rearward increases the normal load on the rear (drive) tires. Since maximum grip is proportional to normal load (F_max = μ·Fz), the rear tires gain traction capacity. This is why RWD cars benefit from rearward weight transfer under acceleration.",
+              "tags": ["acceleration", "weight-transfer", "rwd"]
+            },
+            {
+              "id": "MC-26",
+              "question": "What is the key difference between 'weight' and 'mass' as used in Beckman's analysis?",
+              "options": [
+                "They are the same thing",
+                "Weight is the force of gravity on the mass (W = mg); mass is the amount of matter",
+                "Mass applies to moving objects; weight applies to stationary objects",
+                "Weight is measured in kilograms; mass in Newtons"
+              ],
+              "answer": 1,
+              "explanation": "Weight is a force (W = m·g), measured in Newtons or pounds-force. Mass is the quantity of matter, measured in kg or slugs. Beckman notes that 'weight is just another word for the force of gravity.'",
+              "tags": ["foundations", "units"]
+            },
+            {
+              "id": "MC-27",
+              "question": "In the braking diagram, forces Lf and Lr point in which direction?",
+              "options": [
+                "Downward (toward the ground)",
+                "Forward (in the direction of travel)",
+                "Upward (away from the ground)",
+                "Backward (opposing motion)"
+              ],
+              "answer": 2,
+              "explanation": "Lf and Lr are ground reaction forces — the ground pushing UP on the tires. They counteract gravity (which points down) and keep the car from falling through the surface.",
+              "tags": ["force-diagram", "normal-force"]
+            },
+            {
+              "id": "MC-28",
+              "question": "Why is the track width typically shorter than the wheelbase in most cars, and what consequence does this have for weight transfer?",
+              "options": [
+                "Track is shorter, so lateral weight transfer is typically larger than longitudinal for the same g-force",
+                "Track is shorter, so lateral weight transfer is typically smaller",
+                "Track and wheelbase are typically equal",
+                "Track width has no effect on weight transfer"
+              ],
+              "answer": 0,
+              "explanation": "Since ΔW = W·a·h/dimension, and track width (typically ~1.5m) is shorter than wheelbase (typically ~2.5m), lateral weight transfer for the same g-force is larger. This is why cars are generally more sensitive to cornering loads than braking loads.",
+              "tags": ["lateral-transfer", "track-width", "wheelbase"]
+            },
+            {
+              "id": "MC-29",
+              "question": "Consider this expression for rear axle load under braking. What is wrong with it?",
+              "code": "Lr = (1 - d) · W + W · a · h / L",
+              "options": [
+                "Nothing — this is correct",
+                "The sign on the transfer term should be negative (minus, not plus) because the rear loses load under braking",
+                "The h and L are swapped",
+                "It should use d instead of (1-d)"
+              ],
+              "answer": 1,
+              "explanation": "Under braking, the rear loses load. The correct equation is Lr = (1-d)·W MINUS W·a·h/L. The front gains the same amount. The sign error would make the rear gain load under braking, which is physically wrong.",
+              "tags": ["weight-transfer", "derivation", "error-spotting"]
+            },
+            {
+              "id": "MC-30",
+              "question": "What does Beckman identify as the next topic after weight transfer, which explains how weight transfer leads to understeer and oversteer?",
+              "options": [
+                "Aerodynamics",
+                "Suspension geometry",
+                "The physics of tire adhesion",
+                "Engine tuning"
+              ],
+              "answer": 2,
+              "explanation": "Beckman closes Part 1 by saying the next topic is 'the physics of tyre adhesion, which explains how weight transfer can lead to understeer and oversteer conditions.' This is Part 2 (Unit 2 in our syllabus).",
+              "tags": ["series-structure", "tire-adhesion"]
+            },
+            {
+              "id": "MC-31",
+              "question": "If a car has G-analyst data showing 0.8g of braking, how do you convert this to braking force?",
+              "options": [
+                "Multiply by the tire pressure",
+                "Multiply by the car's weight (F = W × a_in_gees)",
+                "Divide the weight by 0.8",
+                "Use the square root of 0.8 times the weight"
+              ],
+              "answer": 1,
+              "explanation": "Beckman says to multiply g-force readings by the car's weight to get forces (Newton's second law). If a = 0.8g and W = 3200 lbs, then braking force = 0.8 × 3200 = 2560 lbs.",
+              "tags": ["g-force", "calculation"]
+            },
+            {
+              "id": "MC-32",
+              "question": "Which pair of forces creates the torque about the CG during braking?",
+              "options": [
+                "Gravity (at the CG) and aerodynamic drag (at the body surface)",
+                "The braking forces (at ground level) and the car's inertial resistance (at the CG)",
+                "Front spring force and rear spring force",
+                "Left tire force and right tire force"
+              ],
+              "answer": 1,
+              "explanation": "The torque arises from the vertical separation between two effects: braking forces pushing backward at ground level, and the car's inertia resisting deceleration at the CG. This offset is the CG height, which is the moment arm.",
+              "tags": ["torque", "braking", "cg-height"]
+            }
+          ]
+        },
+        {
+          "type": "short_answer",
+          "title": "Part C: Short Answer",
+          "questions": [
+            {
+              "id": "SA-1",
+              "question": "What is weight transfer?",
+              "model_answer": "Weight transfer is a change in the distribution of normal forces (ground reaction forces) at the tire contact patches caused by acceleration, braking, or cornering. It is not a physical movement of mass.",
+              "tags": ["weight-transfer", "definition"]
+            },
+            {
+              "id": "SA-2",
+              "question": "Why does CG height appear in the weight transfer equation?",
+              "model_answer": "CG height is the moment arm of the torque that causes weight transfer. Braking forces act at ground level, but inertia resists at the CG. The vertical distance between them (the CG height) determines the magnitude of the resulting torque.",
+              "tags": ["cg-height", "torque"]
+            },
+            {
+              "id": "SA-3",
+              "question": "Why can't gravity (G) counteract the braking torque about the CG?",
+              "model_answer": "Gravity acts through the CG itself, so its line of action passes through the pivot point. A force passing through the pivot has a zero moment arm and produces zero torque. Only Lf and Lr, which act at ground level (offset from the CG), can create counterbalancing torques.",
+              "tags": ["torque", "gravity"]
+            },
+            {
+              "id": "SA-4",
+              "question": "State the weight transfer equation for the front axle load under braking, and identify each variable.",
+              "model_answer": "Lf = d·W + W·a·h/L, where Lf is front axle normal load, d is the static front weight fraction, W is total weight, a is deceleration in g's, h is CG height, and L is the wheelbase.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "SA-5",
+              "question": "Why does a lower CG improve handling?",
+              "model_answer": "A lower CG reduces the moment arm for weight transfer, so less load transfers between axles for a given acceleration. This keeps tire loads more equal, and tires produce more total grip when loads are distributed evenly (due to load sensitivity).",
+              "tags": ["cg-height", "handling"]
+            },
+            {
+              "id": "SA-6",
+              "question": "How does the wheelbase affect weight transfer, and why?",
+              "model_answer": "A longer wheelbase reduces weight transfer (ΔW = W·a·h/L). The wheelbase is the lever arm over which the normal force imbalance acts — a longer lever means less force imbalance is needed to create the same counterbalancing torque.",
+              "tags": ["wheelbase", "weight-transfer"]
+            },
+            {
+              "id": "SA-7",
+              "question": "Explain Beckman's tablecloth analogy for braking.",
+              "model_answer": "Pulling a tablecloth from under glasses tends to tip them over. Taller glasses tip more easily, and pulling harder increases the tipping tendency. Similarly, a braking car's CG height is like object height (taller = more rotation tendency), and braking force is like pull force.",
+              "tags": ["analogy", "cg-height"]
+            },
+            {
+              "id": "SA-8",
+              "question": "Explain why braking can induce oversteer.",
+              "model_answer": "Braking transfers load from the rear to the front. The rear tires lose normal load and therefore lose grip capacity. If the rear tires reach their adhesive limit before the fronts during cornering, the rear slides first — which is oversteer.",
+              "tags": ["oversteer", "braking", "weight-transfer"]
+            },
+            {
+              "id": "SA-9",
+              "question": "What is the relationship between Newton's first law and the constraint that Lf + Lr = W?",
+              "model_answer": "Newton's first law says an object not accelerating has zero net force on it. Since the car is not accelerating vertically, the sum of upward forces (Lf + Lr) must equal the downward force (W = mg). If they didn't balance, the car would accelerate vertically.",
+              "tags": ["newtons-laws", "force-balance"]
+            },
+            {
+              "id": "SA-10",
+              "question": "Why does the static weight distribution (d) not affect the AMOUNT of weight transfer?",
+              "model_answer": "The transfer amount ΔW = W·a·h/L depends only on total weight, acceleration, CG height, and wheelbase. The static distribution d sets the baseline loads before any acceleration, but the torque balance that determines how much load shifts is independent of where the CG sits longitudinally — only its height matters for the transfer amount.",
+              "tags": ["weight-transfer", "derivation"]
+            },
+            {
+              "id": "SA-11",
+              "question": "How do you adapt the longitudinal weight transfer equation to compute lateral weight transfer during cornering?",
+              "model_answer": "Replace the wheelbase (L) with the track width (t), and use lateral acceleration instead of longitudinal: ΔW_lateral = W·a_lat·h/t. The physics is identical — just rotated 90 degrees.",
+              "tags": ["lateral-transfer", "adaptation"]
+            },
+            {
+              "id": "SA-12",
+              "question": "What simplifications does Beckman make in Part 1's weight transfer analysis?",
+              "model_answer": "He ignores suspension deflection and tire deflection. The car is treated as a rigid body (the 'bicycle model' with one front and one rear contact point). These effects are important but secondary to the primary torque-balance mechanism.",
+              "tags": ["simplifications", "scope"]
+            },
+            {
+              "id": "SA-13",
+              "question": "State Newton's three laws as Beckman formulates them for racing.",
+              "model_answer": "First: a car moving at constant speed in a straight line continues unless acted on by external force (inertia). Second: change in motion is proportional to force divided by mass, F = ma. Third: every force on the car by the ground is matched by an equal and opposite force on the ground by the car.",
+              "tags": ["newtons-laws", "foundations"]
+            },
+            {
+              "id": "SA-14",
+              "question": "Why does Beckman say the lift forces (Lf, Lr) are 'at the essence of car dynamics'?",
+              "model_answer": "Because the magnitude of these normal forces determines a tire's ability to stick (grip is proportional to normal load), and imbalances between front and rear normal forces account for understeer and oversteer. Every aspect of car handling flows from how these forces are distributed.",
+              "tags": ["normal-force", "handling"]
+            },
+            {
+              "id": "SA-15",
+              "question": "In the bicycle model, why is there only one equation for weight transfer (front-rear) and not four separate corner equations?",
+              "model_answer": "The bicycle model collapses the car into a side view with one front and one rear contact point, lumping both front tires into Lf and both rears into Lr. This gives a two-unknown problem with two equations (force balance + torque balance). The full four-corner treatment requires Part 20.",
+              "tags": ["bicycle-model", "simplifications"]
+            },
+            {
+              "id": "SA-16",
+              "question": "Why is weight transfer generally larger in the lateral direction than the longitudinal direction for the same g-force?",
+              "model_answer": "Because track width is typically shorter than wheelbase (e.g. 1.55m vs 2.6m), and the transfer formula has the relevant dimension in the denominator: ΔW = W·a·h/dimension. A smaller denominator produces a larger weight transfer for the same acceleration.",
+              "tags": ["lateral-transfer", "track-width", "wheelbase"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "schema_version": "1.0",
+    "description": "Flashcard set for Beckman Physics of Racing Unit 1, Part 1: Weight Transfer",
+    "usage": {
+      "study_mode": "Present questions sequentially with immediate feedback after each answer",
+      "quiz_mode": "Present all questions, collect answers, then score and provide explanations"
+    },
+    "answer_format": {
+      "true_false": "Boolean true/false",
+      "multiple_choice": "Integer index 0-3 (a=0, b=1, c=2, d=3)",
+      "short_answer": "Free text evaluated against model_answer"
+    }
+  }
+}
