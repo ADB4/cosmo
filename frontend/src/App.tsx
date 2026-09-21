@@ -81,7 +81,7 @@ export default function App() {
       {tab === "cosmo" ? (
         <ChatPanel mode={mode} health={health} onHealthRefresh={checkHealth} />
       ) : (
-        <Apollo />
+        <Apollo mode={mode} />
       )}
     </div>
   );

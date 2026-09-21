@@ -6,6 +6,8 @@ import { renderMarkdown } from "../../components/renderMarkdown";
 interface Props {
   title: string;
   questions: NormalizedQuestion[];
+  /** Model mode used for AI short-answer grading. */
+  mode: string;
   onExit: () => void;
 }
 
@@ -22,6 +24,8 @@ interface Result {
   correct: boolean | null;
   saScore?: Score;
   saFeedback?: string;
+  /** Set when AI grading was attempted and failed; the item is "ungraded". */
+  saError?: string;
 }
 
 function gradeLocal(q: NormalizedQuestion, given: string): boolean | null {
@@ -32,7 +36,7 @@ function gradeLocal(q: NormalizedQuestion, given: string): boolean | null {
   return givenIdx === correctIdx;
 }
 
-export default function QuizMode({ questions, onExit }: Props) {
+export default function QuizMode({ questions, mode, onExit }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -67,6 +71,79 @@ export default function QuizMode({ questions, onExit }: Props) {
     }
   }, [questions, selected, saInput, answers, index, total]);
 
+  /**
+   * Grade the short-answer results at the given array indices via the LLM.
+   * A rejected evaluation leaves saScore undefined and records saError so
+   * the item shows as "ungraded" (never silent half credit) and can be
+   * retried later.
+   */
+  const gradeIndices = useCallback(
+    async (base: Result[], targetIdxs: number[]) => {
+      if (targetIdxs.length === 0) return;
+      setGrading(true);
+
+      // Clear any prior error on the items about to be re-graded
+      setResults((prev) => {
+        if (!prev) return prev;
+        const cleared = [...prev];
+        for (const i of targetIdxs) {
+          const item = cleared[i];
+          if (item) cleared[i] = { ...item, saError: undefined };
+        }
+        return cleared;
+      });
+
+      const evaluations = await Promise.allSettled(
+        targetIdxs.map((i) => {
+          const r = base[i]!;
+          return evaluateAnswer(r.question.text, r.given, r.question.correctAnswer, mode);
+        }),
+      );
+
+      setResults((prev) => {
+        if (!prev) return prev;
+        const updated = [...prev];
+        targetIdxs.forEach((i, k) => {
+          const item = updated[i];
+          if (!item) return;
+          const eval_ = evaluations[k];
+          if (eval_ && eval_.status === "fulfilled") {
+            updated[i] = {
+              ...item,
+              saScore: eval_.value.score,
+              saFeedback: eval_.value.feedback,
+              saError: undefined,
+              correct:
+                eval_.value.score === "correct"
+                  ? true
+                  : eval_.value.score === "incorrect"
+                    ? false
+                    : null,
+            };
+          } else {
+            const reason =
+              eval_ && eval_.status === "rejected"
+                ? eval_.reason instanceof Error
+                  ? eval_.reason.message
+                  : String(eval_.reason)
+                : "Evaluation failed";
+            updated[i] = {
+              ...item,
+              saScore: undefined,
+              saFeedback: undefined,
+              saError: reason,
+              correct: null,
+            };
+          }
+        });
+        return updated;
+      });
+
+      setGrading(false);
+    },
+    [mode],
+  );
+
   const finishQuiz = useCallback(
     async (finalAnswers: Answer[]) => {
       const initial: Result[] = questions.map((question) => {
@@ -80,62 +157,24 @@ export default function QuizMode({ questions, onExit }: Props) {
 
       setResults(initial);
 
-      const saResults = initial.filter(
-        (r) => r.question.sectionType === "short_answer" && r.given,
-      );
+      const saIdxs = initial
+        .map((r, i) => ({ r, i }))
+        .filter(({ r }) => r.question.sectionType === "short_answer" && r.given)
+        .map(({ i }) => i);
 
-      if (saResults.length === 0) return;
-
-      setGrading(true);
-
-      const evaluations = await Promise.allSettled(
-        saResults.map((r) =>
-          evaluateAnswer(r.question.text, r.given, r.question.correctAnswer),
-        ),
-      );
-
-      setResults((prev) => {
-        if (!prev) return prev;
-        const updated = [...prev];
-        let evalIdx = 0;
-        for (let i = 0; i < updated.length; i++) {
-          const item = updated[i];
-          if (!item) continue;
-
-          if (
-            item.question.sectionType === "short_answer" &&
-            item.given
-          ) {
-            const eval_ = evaluations[evalIdx];
-            if (eval_ && eval_.status === "fulfilled") {
-              updated[i] = {
-                ...item,
-                saScore: eval_.value.score,
-                saFeedback: eval_.value.feedback,
-                correct:
-                  eval_.value.score === "correct"
-                    ? true
-                    : eval_.value.score === "incorrect"
-                      ? false
-                      : null,
-              };
-            } else {
-              updated[i] = {
-                ...item,
-                saScore: "partial",
-                saFeedback: "Evaluation failed — could not reach Ollama.",
-              };
-            }
-            evalIdx++;
-          }
-        }
-        return updated;
-      });
-
-      setGrading(false);
+      await gradeIndices(initial, saIdxs);
     },
-    [questions],
+    [questions, gradeIndices],
   );
+
+  const retryGrading = useCallback(() => {
+    if (!results || grading) return;
+    const failedIdxs = results
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => r.question.sectionType === "short_answer" && r.given && r.saError)
+      .map(({ i }) => i);
+    gradeIndices(results, failedIdxs);
+  }, [results, grading, gradeIndices]);
 
   // ---- Results screen ----
   if (results) {
@@ -150,13 +189,17 @@ export default function QuizMode({ questions, onExit }: Props) {
     );
     const saCorrect = saResultsList.filter((r) => r.saScore === "correct").length;
     const saPartial = saResultsList.filter((r) => r.saScore === "partial").length;
-    const saIncorrect = saResultsList.length - saCorrect - saPartial;
+    const saIncorrect = saResultsList.filter((r) => r.saScore === "incorrect").length;
     const saGradedCount = saResultsList.filter((r) => r.saScore != null).length;
+    // Ungraded = SA answered but grading failed (has saError, no score)
+    const saUngraded = saResultsList.filter((r) => r.given && r.saError && r.saScore == null);
+    const saPending = saResultsList.length - saGradedCount - saUngraded.length;
 
-    const totalQuestions = totalAuto + saResultsList.length;
+    // Percentage denominator excludes ungraded questions entirely.
+    const totalScored = totalAuto + saGradedCount;
     const totalCorrect = correctCount + saCorrect + saPartial * 0.5;
     const pct =
-      totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+      totalScored > 0 ? Math.round((totalCorrect / totalScored) * 100) : 0;
 
     const r = results[viewIndex];
     if (!r) return null;
@@ -166,10 +209,12 @@ export default function QuizMode({ questions, onExit }: Props) {
     const getResultClass = (res: Result) => {
       const sa = res.question.sectionType === "short_answer";
       if (sa) {
-        if (grading && !res.saScore) return "grading";
+        if (res.saError && res.saScore == null) return "ungraded";
+        if (grading && res.saScore == null) return "grading";
         if (res.saScore === "correct") return "correct";
         if (res.saScore === "incorrect") return "wrong";
-        return "partial";
+        if (res.saScore === "partial") return "partial";
+        return "grading";
       }
       return res.correct === true ? "correct" : "wrong";
     };
@@ -218,9 +263,22 @@ export default function QuizMode({ questions, onExit }: Props) {
             {saResultsList.length > 0 && (
               <span className="quiz-score-detail">
                 {grading
-                  ? `Grading ${saResultsList.length - saGradedCount} short answer${saResultsList.length - saGradedCount !== 1 ? "s" : ""}...`
+                  ? `Grading ${saPending} short answer${saPending !== 1 ? "s" : ""}...`
                   : `SA: ${saCorrect} correct, ${saPartial} partial, ${saIncorrect} incorrect`}
               </span>
+            )}
+            {!grading && saUngraded.length > 0 && (
+              <span className="quiz-score-detail quiz-score-detail--warn">
+                {saUngraded.length} ungraded (excluded from score)
+              </span>
+            )}
+            <span className="quiz-score-detail quiz-score-detail--model">
+              grader: {mode}
+            </span>
+            {!grading && saUngraded.length > 0 && (
+              <button className="quiz-retry-grading" onClick={retryGrading}>
+                &#8635; Retry grading ({saUngraded.length})
+              </button>
             )}
 
             <div className="quiz-results-qlist">
@@ -258,9 +316,11 @@ export default function QuizMode({ questions, onExit }: Props) {
                   className={`quiz-detail-badge quiz-detail-badge--${currentCls}`}
                 >
                   {isSA
-                    ? grading && !r.saScore
-                      ? "grading..."
-                      : r.saScore ?? "pending"
+                    ? r.saError && r.saScore == null
+                      ? "ungraded"
+                      : grading && r.saScore == null
+                        ? "grading..."
+                        : r.saScore ?? "pending"
                     : r.correct
                       ? "correct"
                       : "incorrect"}
@@ -319,6 +379,11 @@ export default function QuizMode({ questions, onExit }: Props) {
 
               {isSA && (
                 <div className="quiz-detail-answers">
+                  {r.saError && r.saScore == null && (
+                    <div className="quiz-detail-ungraded">
+                      Not graded — {r.saError}. Use "Retry grading" to try again.
+                    </div>
+                  )}
                   {r.saFeedback && (
                     <div className="quiz-detail-explanation">
                       {renderMarkdown(r.saFeedback)}
