@@ -1,7 +1,14 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { NormalizedQuestion } from "../../lib/types";
 import { filterByTags, collectTags, TAG_CATEGORIES } from "../../lib/normalizeQuiz";
 import { renderMarkdown } from "../../components/renderMarkdown";
+import ShortcutsOverlay, { isTypingTarget, type Shortcut } from "../../components/ShortcutsOverlay";
+
+const STUDY_SHORTCUTS: Shortcut[] = [
+  { keys: "Space / Enter", desc: "Flip card" },
+  { keys: "←", desc: "Previous card" },
+  { keys: "→", desc: "Next card" },
+];
 
 interface Props {
   title: string;
@@ -58,6 +65,7 @@ export default function StudyMode({ questions, onExit }: Props) {
   const [order, setOrder] = useState<OrderMode>("sequential");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // All tags present in this quiz's question pool
   const availableTags = useMemo(() => collectTags(questions), [questions]);
@@ -158,15 +166,49 @@ export default function StudyMode({ questions, onExit }: Props) {
     setIndex((i) => Math.min(total - 1, i + 1));
   }, [total]);
 
+  // Keyboard shortcuts: Space/Enter flip, ArrowLeft/Right prev/next.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showShortcuts) return;
+      if (isTypingTarget(e.target)) return;
+      switch (e.key) {
+        case " ":
+        case "Enter":
+          e.preventDefault();
+          flip();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          prev();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          next();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flip, prev, next, showShortcuts]);
+
   return (
     <div className="study">
       <div className="study-header">
         <button className="study-exit" onClick={onExit}>
           &#10005; Exit Study Mode
         </button>
-        <span className="study-counter">
-          {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
-        </span>
+        <div className="study-header-right">
+          <span className="study-counter">
+            {total > 0 ? `${index + 1} / ${total}` : "0 / 0"}
+          </span>
+          <button
+            className="help-btn help-btn--apollo"
+            title="Keyboard shortcuts"
+            onClick={() => setShowShortcuts(true)}
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       <div className="study-body">
@@ -318,6 +360,14 @@ export default function StudyMode({ questions, onExit }: Props) {
           </div>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Study shortcuts"
+          shortcuts={STUDY_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }

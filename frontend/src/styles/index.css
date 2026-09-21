@@ -40,6 +40,7 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .study-exit{font-size:12px;color:var(--text-dim);transition:color .1s}
 .study-exit:hover{color:var(--text)}
 .study-counter{font-size:12px;color:var(--text-dim)}
+.study-header-right{display:flex;align-items:center;gap:10px}
 
 .study-body{flex:1;display:flex;min-height:0}
 
@@ -100,6 +101,20 @@ html{font-size:13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:g
 .chat-status-text strong{color:var(--text-dim);font-weight:600}
 .chat-status-text--error{color:var(--red)}
 .chat-status-text--error code,.chat-status-text code{color:var(--cyan)}
+
+/* ── Keyboard shortcuts overlay ── */
+.shortcuts-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
+.shortcuts-modal{width:min(420px,90vw);background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:16px 18px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.shortcuts-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border-subtle)}
+.shortcuts-title{font-size:13px;color:var(--text-bright);font-weight:600}
+.shortcuts-close{font-size:13px;color:var(--text-muted);transition:color .1s}
+.shortcuts-close:hover{color:var(--text)}
+.shortcuts-list{display:flex;flex-direction:column;gap:8px}
+.shortcuts-row{display:flex;align-items:center;gap:12px}
+.shortcuts-keys{flex-shrink:0;min-width:96px;font-family:var(--font);font-size:11px;color:var(--cyan);background:var(--bg-active);border:1px solid var(--border-subtle);border-radius:3px;padding:2px 8px;text-align:center}
+.shortcuts-desc{font-size:12px;color:var(--text-dim)}
+.help-btn--apollo{width:24px;height:24px;border:1px solid var(--border);border-radius:50%;font-size:11px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:border-color .1s,color .1s;flex-shrink:0}
+.help-btn--apollo:hover{border-color:var(--text-dim);color:var(--text-dim)}
 
 /* ── Chat message filter ── */
 .chat-filter{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:6px 20px;border-bottom:1px solid var(--border-subtle)}

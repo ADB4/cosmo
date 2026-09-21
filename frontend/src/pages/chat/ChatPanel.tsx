@@ -4,6 +4,13 @@ import { MODE_INFO } from "../../lib/types";
 import { streamChat, clearHistory } from "../../lib/api";
 import MessageBubble from "./MessageBubble";
 import KnowledgeBase from "./KnowledgeBase";
+import ShortcutsOverlay, { type Shortcut } from "../../components/ShortcutsOverlay";
+
+const CHAT_SHORTCUTS: Shortcut[] = [
+  { keys: "Enter", desc: "Send message" },
+  { keys: "Shift + Enter", desc: "New line" },
+  { keys: "Esc", desc: "Stop streaming" },
+];
 
 interface ChatPanelProps {
   mode: ModelMode;
@@ -36,6 +43,7 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
   const [streaming, setStreaming] = useState(false);
   const [grounded, setGrounded] = useState(true);
   const [filter, setFilter] = useState("");
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -150,6 +158,9 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === "Escape" && streaming) {
+      e.preventDefault();
+      handleStop();
     }
   };
 
@@ -308,10 +319,24 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
                 Clear
               </button>
             )}
-            <button className="help-btn" title="Keyboard shortcuts">?</button>
+            <button
+              className="help-btn"
+              title="Keyboard shortcuts"
+              onClick={() => setShowShortcuts(true)}
+            >
+              ?
+            </button>
           </div>
         </div>
       </div>
+
+      {showShortcuts && (
+        <ShortcutsOverlay
+          title="Chat shortcuts"
+          shortcuts={CHAT_SHORTCUTS}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
     </div>
   );
 }
