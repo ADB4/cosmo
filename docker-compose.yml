@@ -13,10 +13,18 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
+      # Bind on all interfaces inside the container so nginx (app) can proxy
+      # to backend:5174; the default is loopback-only.
+      - COSMO_HOST=0.0.0.0
       - COSMO_DB_PATH=/app/chroma_db
       - COSMO_UPLOAD_DIR=/app/uploads
       - COSMO_DECK_DIR=/app/decks
       - OLLAMA_HOST=http://host.docker.internal:11434
+      # Optional defense in depth: verify the Cloudflare Access JWT on every
+      # /api/* request (RS256, team JWKS, audience == the AUD tag). Set BOTH to
+      # enable; leave unset to rely on Cloudflare Access at the edge alone.
+      # - COSMO_CF_ACCESS_TEAM=your-team-name   # <team>.cloudflareaccess.com
+      # - COSMO_CF_ACCESS_AUD=your-application-aud-tag
       # Opt into a stronger embedding model. Switching requires a fresh
       # collection + full re-ingest (see `python -m backend.cli reindex`) and a
       # re-tuned retrieval cutoff. Leave unset to keep the default

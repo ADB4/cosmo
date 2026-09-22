@@ -348,17 +348,21 @@ def benchmark_command(args) -> int:
     sections = _parse_sections(args.sections)
     limit = args.limit
 
-    # Set up RAG processor (optional — benchmarks can run with no-rag configs)
+    # Ollama is required: every config runs model inference through it, so if
+    # it's unreachable the whole run would be nothing but errors. Abort with a
+    # non-zero exit instead of writing a misleading table.
     processor = None
     try:
-        processor = _get_processor(args)
+        processor = _get_processor(args)  # raises SystemExit on OllamaConnectionError
         stats = processor.get_stats()
         if stats["total_chunks"] == 0:
             print("Warning: No documents indexed. "
                   "RAG configs will run without context.")
-    except SystemExit:
-        print("Warning: Ollama not available. "
-              "RAG configs will run without context.")
+    except (SystemExit, OllamaConnectionError):
+        print("Error: Ollama is not reachable. Benchmarks need it for model "
+              "inference — aborting instead of writing an all-errors report.",
+              file=sys.stderr)
+        return 1
 
     # Build config list: either from --configs or use defaults
     configs = None

@@ -34,10 +34,26 @@ const TYPE_LABELS: Record<string, string> = {
 
 const SECTION_TYPES = ["true_false", "multiple_choice", "short_answer"] as const;
 
-function shuffle<T>(arr: T[]): T[] {
+/**
+ * Deterministic Fisher–Yates shuffle seeded by `seed` (mulberry32 PRNG).
+ *
+ * Using a fixed seed instead of Math.random means the arrangement is a pure
+ * function of (arr, seed): re-running it during an unrelated parent re-render
+ * (the 10s health poll) reproduces the SAME order rather than reshuffling the
+ * deck under the user. A fresh order is produced only when the seed changes
+ * (an explicit order pick) or the filtered set changes.
+ */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
+  let s = seed >>> 0;
+  const rand = () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
   return a;
@@ -69,6 +85,10 @@ export default function StudyMode({ questions, missedIds, onExit }: Props) {
   const [flipped, setFlipped] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [missedOnly, setMissedOnly] = useState(false);
+  // Seed for the shuffle. Held in state so the arrangement is stable across
+  // re-renders; a fresh value (a new shuffle) is produced only when the user
+  // picks an order in changeOrder.
+  const [shuffleSeed, setShuffleSeed] = useState(() => (Math.random() * 2 ** 31) | 0);
 
   const hasMissed = (missedIds?.size ?? 0) > 0;
 
@@ -94,31 +114,38 @@ export default function StudyMode({ questions, missedIds, onExit }: Props) {
     return groups;
   }, [availableTags]);
 
-  // Filter by tags, then by question type, then apply ordering
-  const cards = useMemo(() => {
-    let filtered = filterByTags(questions, selectedTags);
-
+  // Deterministic filtering step (tags -> type -> missed-only). Kept separate
+  // from ordering so the arrangement only changes when the *contents* change.
+  const filtered = useMemo(() => {
+    let f = filterByTags(questions, selectedTags);
     if (selectedTypes.size > 0) {
-      filtered = filtered.filter((q) => selectedTypes.has(q.sectionType));
+      f = f.filter((q) => selectedTypes.has(q.sectionType));
     }
-
     if (missedOnly && missedIds) {
-      filtered = filtered.filter((q) => missedIds.has(q.id));
+      f = f.filter((q) => missedIds.has(q.id));
     }
+    return f;
+  }, [questions, selectedTags, selectedTypes, missedOnly, missedIds]);
 
+  // Apply ordering. The shuffle is seeded, so this memo is a pure function of
+  // (filtered, order, shuffleSeed) — a parent re-render can't reshuffle it, and
+  // even if React drops the memoized value it recomputes to the same order. A
+  // new arrangement happens only when the filtered set changes or the user
+  // picks an order (which bumps shuffleSeed).
+  const cards = useMemo(() => {
     switch (order) {
       case "sequential":
         return filtered;
       case "shuffle-within-type": {
-        const tf = shuffle(filtered.filter((q) => q.sectionType === "true_false"));
-        const mc = shuffle(filtered.filter((q) => q.sectionType === "multiple_choice"));
-        const sa = shuffle(filtered.filter((q) => q.sectionType === "short_answer"));
+        const tf = seededShuffle(filtered.filter((q) => q.sectionType === "true_false"), shuffleSeed);
+        const mc = seededShuffle(filtered.filter((q) => q.sectionType === "multiple_choice"), shuffleSeed ^ 0x9e3779b9);
+        const sa = seededShuffle(filtered.filter((q) => q.sectionType === "short_answer"), shuffleSeed ^ 0x85ebca6b);
         return [...tf, ...mc, ...sa];
       }
       case "shuffle-all":
-        return shuffle(filtered);
+        return seededShuffle(filtered, shuffleSeed);
     }
-  }, [questions, selectedTags, selectedTypes, order, missedOnly, missedIds]);
+  }, [filtered, order, shuffleSeed]);
 
   const total = cards.length;
   const card = cards[index] as NormalizedQuestion | undefined;
@@ -162,6 +189,10 @@ export default function StudyMode({ questions, missedIds, onExit }: Props) {
 
   const changeOrder = useCallback((mode: OrderMode) => {
     setOrder(mode);
+    // Re-seed so each explicit order pick yields a fresh arrangement (and
+    // re-picking "Shuffled" reshuffles). Between picks the seed is stable, so
+    // unrelated re-renders never change the order.
+    setShuffleSeed((Math.random() * 2 ** 31) | 0);
     resetPosition();
   }, [resetPosition]);
 

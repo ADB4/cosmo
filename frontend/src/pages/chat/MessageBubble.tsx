@@ -73,6 +73,22 @@ export default function MessageBubble({ message, onAskBroadly, onRetry }: Props)
             )}
           </div>
         )}
+
+        {message.truncated && !message.error && (
+          <div className="msg-truncated">
+            <span className="msg-truncated-text">
+              Response was interrupted before it finished.
+            </span>
+            {message.question && onRetry && (
+              <button
+                className="msg-truncated-btn"
+                onClick={() => onRetry(message.question!)}
+              >
+                &#8635; Retry
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

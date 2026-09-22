@@ -51,8 +51,12 @@ class GradedQuestion:
     llm_extracted: str
     correct_answer: str
     correct_explanation: str
-    is_correct: Optional[bool]
+    is_correct: Optional[bool]  # None = ungraded (SA, no answer key, or errored)
     score: float
+    # Set when the model call failed. Such a question is NOT graded — its answer
+    # is an error string, not a response, so extracting a letter/verdict from it
+    # would score noise as correct/incorrect.
+    error: Optional[str] = None
 
 
 @dataclass
@@ -66,7 +70,8 @@ class BenchmarkResult:
     correct: int
     incorrect: int
     ungraded: int
-    accuracy: float  # correct / (total - ungraded), 0-1
+    errors: int      # questions whose model call failed (not graded)
+    accuracy: float  # correct / (correct + incorrect), 0-1
     elapsed: float   # seconds
     graded: List[GradedQuestion]
 
@@ -428,10 +433,15 @@ def _extract_mc(response: str) -> str:
     if line_start:
         return line_start.group(1)
 
-    # Pass 5: first standalone letter a-d in the response
-    for char in cleaned:
-        if char.lower() in "abcd":
-            return char.lower()
+    # Pass 5 (last resort): a standalone a-d on the FIRST line only — e.g. "a"
+    # or "(b)" — not any letter embedded in a word. The old version returned
+    # the first a/b/c/d character anywhere, so "[error: Failed to connect...]"
+    # scored as (a) and "model 'x' not found" as (d). Restricting to a bare
+    # letter on the first line avoids mining noise for a verdict.
+    first_line = cleaned.split("\n", 1)[0]
+    standalone = re.search(r"(?<![A-Za-z])\(?([a-d])\)?(?![A-Za-z])", first_line, re.IGNORECASE)
+    if standalone:
+        return standalone.group(1).lower()
 
     return "?"
 
@@ -444,7 +454,22 @@ def grade_question(
     question: Question,
     llm_answer: str,
     answer_key: Dict[str, AnswerKeyEntry],
+    error: Optional[str] = None,
 ) -> GradedQuestion:
+    # A failed model call is not an answer. Record it as an error and leave it
+    # ungraded rather than extracting a letter from the error string.
+    if error is not None:
+        return GradedQuestion(
+            question=question,
+            llm_answer=llm_answer,
+            llm_extracted="?",
+            correct_answer=answer_key.get(question.id).answer if question.id in answer_key else "?",
+            correct_explanation="Model call failed",
+            is_correct=None,
+            score=0,
+            error=error,
+        )
+
     entry = answer_key.get(question.id)
     if entry is None:
         return GradedQuestion(
@@ -477,15 +502,23 @@ def grade_question(
     )
 
 
-def _score_summary(graded: List[GradedQuestion]) -> Tuple[int, int, int, int, float]:
-    """Return (total, correct, incorrect, ungraded, accuracy)."""
+def _score_summary(graded: List[GradedQuestion]) -> Tuple[int, int, int, int, int, float]:
+    """
+    Return (total, correct, incorrect, ungraded, errors, accuracy).
+
+    `errors` counts questions whose model call failed. `ungraded` counts the
+    genuinely ungradable ones (short-answer, or no answer-key entry) and
+    excludes errors, so accuracy is over questions that actually got a graded
+    answer: correct / (correct + incorrect).
+    """
     total = len(graded)
     correct = sum(1 for g in graded if g.is_correct is True)
     incorrect = sum(1 for g in graded if g.is_correct is False)
-    ungraded = sum(1 for g in graded if g.is_correct is None)
-    gradable = total - ungraded
+    errors = sum(1 for g in graded if g.error is not None)
+    ungraded = sum(1 for g in graded if g.is_correct is None and g.error is None)
+    gradable = correct + incorrect
     accuracy = correct / gradable if gradable > 0 else 0.0
-    return total, correct, incorrect, ungraded, accuracy
+    return total, correct, incorrect, ungraded, errors, accuracy
 
 
 # ---------------------------------------------------------------------------
@@ -496,7 +529,7 @@ def write_results(graded: List[GradedQuestion], output_path: str, metadata: Dict
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    total, correct, incorrect, ungraded, accuracy = _score_summary(graded)
+    total, correct, incorrect, ungraded, errors, accuracy = _score_summary(graded)
     score_sum = sum(g.score for g in graded)
 
     with open(path, "w", encoding="utf-8") as f:
@@ -514,11 +547,12 @@ def write_results(graded: List[GradedQuestion], output_path: str, metadata: Dict
         f.write(f"- **Correct:** {correct}\n")
         f.write(f"- **Incorrect:** {incorrect}\n")
         f.write(f"- **Ungraded (SA):** {ungraded}\n")
+        f.write(f"- **Errors:** {errors}\n")
         f.write(f"- **Accuracy:** {accuracy * 100:.0f}%\n")
         f.write(f"- **Score:** {score_sum:.0f}\n\n---\n\n")
 
         for g in graded:
-            icon = "?" if g.is_correct is None else ("+" if g.is_correct else "x")
+            icon = "!" if g.error else ("?" if g.is_correct is None else ("+" if g.is_correct else "x"))
             f.write(f"## [{icon}] {g.question.id}\n\n")
             f.write(f"**Question:** {g.question.text[:200]}")
             if len(g.question.text) > 200:
@@ -531,12 +565,15 @@ def write_results(graded: List[GradedQuestion], output_path: str, metadata: Dict
                 for c in g.question.choices:
                     f.write(f"  {c}\n")
                 f.write("\n")
-            f.write(f"**LLM answer:** {g.llm_extracted}\n\n")
-            f.write(f"**Correct:** {g.correct_answer}\n\n")
-            if g.correct_explanation:
-                f.write(f"**Explanation:** {g.correct_explanation}\n\n")
-            if g.question.qtype == "sa":
-                f.write(f"**Full LLM response:**\n{g.llm_answer[:500]}\n\n")
+            if g.error:
+                f.write(f"**Error (not graded):** {g.error}\n\n")
+            else:
+                f.write(f"**LLM answer:** {g.llm_extracted}\n\n")
+                f.write(f"**Correct:** {g.correct_answer}\n\n")
+                if g.correct_explanation:
+                    f.write(f"**Explanation:** {g.correct_explanation}\n\n")
+                if g.question.qtype == "sa":
+                    f.write(f"**Full LLM response:**\n{g.llm_answer[:500]}\n\n")
             f.write("---\n\n")
 
     return str(path)
@@ -741,6 +778,11 @@ def _run_questions(
     llm_model = CHAT_MODELS.get(mode, CHAT_MODELS[DEFAULT_MODE])
     base_options = QUIZ_OPTIONS.get(mode, QUIZ_OPTIONS[DEFAULT_MODE])
     graded: List[GradedQuestion] = []
+    # Stop hammering a broken config: if Ollama drops out (model evicted, server
+    # down) every call errors, so bail after a short run of consecutive failures
+    # instead of writing a table full of "[error: ...]" graded as wrong.
+    consecutive_errors = 0
+    MAX_CONSECUTIVE_ERRORS = 3
 
     for i, q in enumerate(questions):
         print(f"  [{i + 1}/{len(questions)}] {q.id}...", end=" ", flush=True)
@@ -763,6 +805,8 @@ def _run_questions(
             "num_predict": QUIZ_NUM_PREDICT.get(q.qtype, 512),
         }
 
+        error: Optional[str] = None
+        llm_answer = ""
         try:
             response = _ollama.chat(
                 model=llm_model,
@@ -772,19 +816,34 @@ def _run_questions(
             )
             llm_answer = strip_think(response["message"]["content"])
         except Exception as e:
+            error = str(e)
             llm_answer = f"[error: {e}]"
 
-        result = grade_question(q, llm_answer, answer_key)
+        result = grade_question(q, llm_answer, answer_key, error=error)
         graded.append(result)
 
-        icon = "?" if result.is_correct is None else ("+" if result.is_correct else "x")
-        print(f"[{icon}]")
+        if error is not None:
+            consecutive_errors += 1
+            print("[!]")
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                remaining = len(questions) - (i + 1)
+                print(
+                    f"\n  Aborting config after {consecutive_errors} consecutive "
+                    f"errors ({i + 1}/{len(questions)} attempted, {remaining} "
+                    f"skipped). Last error: {error}"
+                )
+                break
+        else:
+            consecutive_errors = 0
+            icon = "?" if result.is_correct is None else ("+" if result.is_correct else "x")
+            print(f"[{icon}]")
 
     # Print summary
-    total, correct, incorrect, ungraded, accuracy = _score_summary(graded)
-    print(f"\n  Score: {correct}/{total - ungraded} "
+    total, correct, incorrect, ungraded, errors, accuracy = _score_summary(graded)
+    print(f"\n  Score: {correct}/{correct + incorrect} "
           f"({accuracy * 100:.0f}%)"
-          f"  |  {ungraded} SA ungraded")
+          f"  |  {ungraded} SA ungraded"
+          f"  |  {errors} errors")
 
     return graded
 
@@ -819,6 +878,22 @@ DEFAULT_BENCHMARK_CONFIGS = [
     BenchmarkConfig("gemma4-12b",      use_rag=True,  grounded=False),
     BenchmarkConfig("gemma4-12b",      use_rag=False, grounded=False),
 ]
+
+
+def _model_installed(model_tag: str) -> bool:
+    """
+    True if `ollama show <model_tag>` succeeds (the model is actually pulled).
+
+    The default matrix includes optional models; probing each before running
+    keeps a partial install from producing plausible-looking tables for models
+    that were never there.
+    """
+    try:
+        import ollama as _ollama
+        _ollama.show(model_tag)
+        return True
+    except Exception:
+        return False
 
 
 def run_benchmark(
@@ -858,9 +933,19 @@ def run_benchmark(
     print(f"  Estimated inferences: {len(configs) * len(questions)}")
     print(f"{'=' * 60}\n")
 
+    from backend.config import CHAT_MODELS
+
     results: List[BenchmarkResult] = []
 
     for ci, cfg in enumerate(configs):
+        model_tag = CHAT_MODELS.get(cfg.mode, CHAT_MODELS[DEFAULT_MODE])
+        if not _model_installed(model_tag):
+            print(
+                f"\n--- Run {ci + 1}/{len(configs)}: {cfg.label} "
+                f"— SKIPPED (model '{model_tag}' not installed) ---"
+            )
+            continue
+
         print(f"\n--- Run {ci + 1}/{len(configs)}: {cfg.label} ---")
 
         run_processor = processor if cfg.use_rag else None
@@ -872,7 +957,7 @@ def run_benchmark(
         )
         elapsed = time.time() - t0
 
-        total, correct, incorrect, ungraded, accuracy = _score_summary(graded)
+        total, correct, incorrect, ungraded, errors, accuracy = _score_summary(graded)
 
         results.append(BenchmarkResult(
             label=cfg.label,
@@ -883,10 +968,18 @@ def run_benchmark(
             correct=correct,
             incorrect=incorrect,
             ungraded=ungraded,
+            errors=errors,
             accuracy=accuracy,
             elapsed=elapsed,
             graded=graded,
         ))
+
+    if not results:
+        print(
+            "\nNo configurations ran — none of the requested models are "
+            "installed. No report written."
+        )
+        return output_path
 
     # Write comparison report
     report_path = _write_benchmark_report(results, output_path, title, meta)
@@ -902,18 +995,19 @@ def _print_benchmark_table(results: List[BenchmarkResult]) -> None:
     print(f"\n{'=' * 80}")
     print(f"  BENCHMARK RESULTS")
     print(f"{'=' * 80}")
-    print(f"  {'Config':<35s} {'Acc':>6s} {'Correct':>8s} {'Time':>8s} {'Per-Q':>7s}")
-    print(f"  {'-' * 35} {'-' * 6} {'-' * 8} {'-' * 8} {'-' * 7}")
+    print(f"  {'Config':<35s} {'Acc':>6s} {'Correct':>8s} {'Errors':>7s} {'Time':>8s} {'Per-Q':>7s}")
+    print(f"  {'-' * 35} {'-' * 6} {'-' * 8} {'-' * 7} {'-' * 8} {'-' * 7}")
 
     ranked = sorted(results, key=lambda r: r.accuracy, reverse=True)
 
     for r in ranked:
-        gradable = r.total - r.ungraded
+        gradable = r.correct + r.incorrect
         per_q = r.elapsed / r.total if r.total > 0 else 0
         print(
             f"  {r.label:<35s} "
             f"{r.accuracy * 100:5.1f}% "
             f"{r.correct:>3d}/{gradable:<3d} "
+            f"{r.errors:>7d} "
             f"{r.elapsed:>6.1f}s "
             f"{per_q:>5.1f}s"
         )
@@ -939,16 +1033,17 @@ def _write_benchmark_report(
 
         # Summary table
         f.write("## Summary\n\n")
-        f.write("| Rank | Config | Accuracy | Correct | Time | Per-Q |\n")
-        f.write("|------|--------|----------|---------|------|-------|\n")
+        f.write("| Rank | Config | Accuracy | Correct | Errors | Time | Per-Q |\n")
+        f.write("|------|--------|----------|---------|--------|------|-------|\n")
 
         for rank, r in enumerate(ranked, 1):
-            gradable = r.total - r.ungraded
+            gradable = r.correct + r.incorrect
             per_q = r.elapsed / r.total if r.total > 0 else 0
             f.write(
                 f"| {rank} | {r.label} | "
                 f"{r.accuracy * 100:.1f}% | "
                 f"{r.correct}/{gradable} | "
+                f"{r.errors} | "
                 f"{r.elapsed:.1f}s | "
                 f"{per_q:.1f}s |\n"
             )
@@ -975,6 +1070,8 @@ def _write_benchmark_report(
                 g = next((g for g in r.graded if g.question.id == qid), None)
                 if g is None:
                     f.write(" - |")
+                elif g.error is not None:
+                    f.write(" ! |")
                 elif g.is_correct is None:
                     f.write(" ? |")
                 elif g.is_correct:
@@ -1052,6 +1149,8 @@ def run_multi_benchmark(
     if configs is None:
         configs = DEFAULT_BENCHMARK_CONFIGS
 
+    from backend.config import CHAT_MODELS
+
     total_quizzes = len(quiz_paths)
     print(f"\n{'=' * 60}")
     print(f"  Cosmo Multi-Quiz Benchmark")
@@ -1089,6 +1188,14 @@ def run_multi_benchmark(
         quiz_results: List[BenchmarkResult] = []
 
         for ci, cfg in enumerate(configs):
+            model_tag = CHAT_MODELS.get(cfg.mode, CHAT_MODELS[DEFAULT_MODE])
+            if not _model_installed(model_tag):
+                print(
+                    f"\n  --- Run {ci + 1}/{len(configs)}: {cfg.label} "
+                    f"— SKIPPED (model '{model_tag}' not installed) ---"
+                )
+                continue
+
             print(f"\n  --- Run {ci + 1}/{len(configs)}: {cfg.label} ---")
 
             run_processor = processor if cfg.use_rag else None
@@ -1100,7 +1207,7 @@ def run_multi_benchmark(
             )
             elapsed = time.time() - t0
 
-            total, correct, incorrect, ungraded, accuracy = _score_summary(graded)
+            total, correct, incorrect, ungraded, errors, accuracy = _score_summary(graded)
 
             quiz_results.append(BenchmarkResult(
                 label=cfg.label,
@@ -1111,10 +1218,15 @@ def run_multi_benchmark(
                 correct=correct,
                 incorrect=incorrect,
                 ungraded=ungraded,
+                errors=errors,
                 accuracy=accuracy,
                 elapsed=elapsed,
                 graded=graded,
             ))
+
+        if not quiz_results:
+            print("  Skipping: none of the requested models are installed")
+            continue
 
         _print_benchmark_table(quiz_results)
         all_summaries.append(QuizBenchmarkSummary(
@@ -1150,6 +1262,7 @@ def _aggregate_by_config(
                     "correct": 0,
                     "incorrect": 0,
                     "ungraded": 0,
+                    "errors": 0,
                     "elapsed": 0.0,
                     "quiz_accuracies": [],
                 }
@@ -1158,11 +1271,12 @@ def _aggregate_by_config(
             a["correct"] += r.correct
             a["incorrect"] += r.incorrect
             a["ungraded"] += r.ungraded
+            a["errors"] += r.errors
             a["elapsed"] += r.elapsed
             a["quiz_accuracies"].append((summary.quiz_title, r.accuracy))
 
     for label, a in agg.items():
-        gradable = a["total"] - a["ungraded"]
+        gradable = a["correct"] + a["incorrect"]
         a["accuracy"] = a["correct"] / gradable if gradable > 0 else 0.0
 
     return agg
@@ -1181,12 +1295,12 @@ def _print_aggregate_table(summaries: List[QuizBenchmarkSummary]) -> None:
     print(f"\n{'=' * 80}")
     print(f"  AGGREGATE RESULTS ({len(summaries)} quizzes)")
     print(f"{'=' * 80}")
-    print(f"  {'Config':<35s} {'Overall':>8s}", end="")
+    print(f"  {'Config':<35s} {'Overall':>8s} {'Errors':>7s}", end="")
     for title in quiz_titles:
         short = title[:12]
         print(f" {short:>12s}", end="")
     print(f" {'Time':>8s}")
-    print(f"  {'-' * 35} {'-' * 8}", end="")
+    print(f"  {'-' * 35} {'-' * 8} {'-' * 7}", end="")
     for _ in quiz_titles:
         print(f" {'-' * 12}", end="")
     print(f" {'-' * 8}")
@@ -1194,7 +1308,8 @@ def _print_aggregate_table(summaries: List[QuizBenchmarkSummary]) -> None:
     for label, a in ranked:
         print(
             f"  {label:<35s} "
-            f"{a['accuracy'] * 100:5.1f}%  ",
+            f"{a['accuracy'] * 100:5.1f}%  "
+            f"{a['errors']:>7d}",
             end="",
         )
         for _, acc in a["quiz_accuracies"]:
@@ -1224,17 +1339,17 @@ def _write_multi_benchmark_report(
 
         # Aggregate summary
         f.write("## Aggregate Summary\n\n")
-        f.write("| Rank | Config | Overall |")
+        f.write("| Rank | Config | Overall | Errors |")
         for s in summaries:
             f.write(f" {s.quiz_title[:25]} |")
         f.write(" Total Time |\n")
-        f.write("|------|--------|---------|")
+        f.write("|------|--------|---------|--------|")
         for _ in summaries:
             f.write("------|")
         f.write("------|\n")
 
         for rank, (label, a) in enumerate(ranked_labels, 1):
-            f.write(f"| {rank} | {label} | {a['accuracy'] * 100:.1f}% |")
+            f.write(f"| {rank} | {label} | {a['accuracy'] * 100:.1f}% | {a['errors']} |")
             for _, acc in a["quiz_accuracies"]:
                 f.write(f" {acc * 100:.1f}% |")
             f.write(f" {a['elapsed']:.0f}s |\n")
@@ -1249,16 +1364,17 @@ def _write_multi_benchmark_report(
                 summary.results, key=lambda r: r.accuracy, reverse=True
             )
 
-            f.write("| Rank | Config | Accuracy | Correct | Time | Per-Q |\n")
-            f.write("|------|--------|----------|---------|------|-------|\n")
+            f.write("| Rank | Config | Accuracy | Correct | Errors | Time | Per-Q |\n")
+            f.write("|------|--------|----------|---------|--------|------|-------|\n")
 
             for rank, r in enumerate(ranked_results, 1):
-                gradable = r.total - r.ungraded
+                gradable = r.correct + r.incorrect
                 per_q = r.elapsed / r.total if r.total > 0 else 0
                 f.write(
                     f"| {rank} | {r.label} | "
                     f"{r.accuracy * 100:.1f}% | "
                     f"{r.correct}/{gradable} | "
+                    f"{r.errors} | "
                     f"{r.elapsed:.1f}s | "
                     f"{per_q:.1f}s |\n"
                 )
@@ -1285,6 +1401,8 @@ def _write_multi_benchmark_report(
                         )
                         if g is None:
                             f.write(" - |")
+                        elif g.error is not None:
+                            f.write(" ! |")
                         elif g.is_correct is None:
                             f.write(" ? |")
                         elif g.is_correct:

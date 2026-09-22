@@ -320,10 +320,9 @@ The Flask backend exposes these routes (all prefixed with `/api`):
 | `GET` | `/health` | Backend + Ollama status |
 | `GET` | `/stats` | Knowledge base statistics |
 | `GET` | `/models` | Configured chat modes that are installed in Ollama |
-| `POST` | `/chat` | Streaming chat via SSE (emits `no_results` when grounded and nothing is relevant) |
+| `POST` | `/chat` | Streaming chat via SSE (send prior turns as `history`; emits `no_results` when grounded and nothing is relevant) |
 | `POST` | `/ingest` | Upload and ingest a file (PDF/.md/.markdown) |
-| `POST` | `/ingest/directory` | Ingest from a local directory path |
-| `POST` | `/history/clear` | Clear conversation history |
+| `POST` | `/ingest/directory` | Ingest from a directory (must resolve inside an allowed ingest root — `corpus/docs` or `uploads`) |
 | `GET` | `/modules` | List module folders under the deck directory |
 | `POST` | `/modules` | Create an empty module folder |
 | `GET` | `/quizzes` | List loaded quizzes |

@@ -41,8 +41,11 @@ export async function ingestDirectory(
   return res.json();
 }
 
-export async function clearHistory(): Promise<void> {
-  await fetch(`${BASE}/history/clear`, { method: "POST" });
+/** A completed prior turn sent to the backend so it can build per-request
+ *  conversation context. History is client-owned; the server keeps none. */
+export interface ChatTurn {
+  question: string;
+  answer: string;
 }
 
 /** Mode keys whose underlying Ollama model is installed. Empty array if
@@ -121,22 +124,6 @@ export async function ingestQuiz(
   return res.json();
 }
 
-export async function ingestQuizPath(
-  path: string,
-  module: string,
-): Promise<{ status: string; filename: string; module: string; quiz_ids: string[]; total_questions: number }> {
-  const res = await fetch(`${BASE}/quizzes/ingest?module=${encodeURIComponent(module)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error ?? "Ingest failed");
-  }
-  return res.json();
-}
-
 export async function evaluateAnswer(
   question: string,
   userAnswer: string,
@@ -186,6 +173,7 @@ export function streamChat(
   mode: ModelMode,
   nResults: number,
   grounded: boolean,
+  history: ChatTurn[],
   callbacks: {
     onToken: (token: string) => void;
     onDone: () => void;
@@ -206,6 +194,7 @@ export function streamChat(
           mode,
           n_results: nResults,
           grounded,
+          history,
         }),
         signal: controller.signal,
       });
@@ -219,6 +208,11 @@ export function streamChat(
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      // The backend ends a complete answer with a `[DONE]` frame. If the body
+      // closes without it — an nginx 504, a backend crash — the answer is
+      // truncated and must NOT be reported as done, or it persists as a
+      // normal, complete-looking answer.
+      let sawDone = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -233,6 +227,7 @@ export function streamChat(
           if (!trimmed.startsWith("data: ")) continue;
           const payload = trimmed.slice(6);
           if (payload === "[DONE]") {
+            sawDone = true;
             callbacks.onDone();
             return;
           }
@@ -255,7 +250,9 @@ export function streamChat(
         }
       }
 
-      callbacks.onDone();
+      if (!sawDone) {
+        callbacks.onError("Stream ended before the answer completed");
+      }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       callbacks.onError(err instanceof Error ? err.message : "Unknown error");

@@ -94,6 +94,16 @@ export default function Apollo({ mode }: ApolloProps) {
     return quizzes.filter((q) => q.module === selectedModule);
   }, [quizzes, selectedModule]);
 
+  // Missed-question ids for the selected deck. Memoized on the selection so a
+  // parent re-render (the 10s health poll in App) doesn't hand StudyMode a
+  // brand-new Set every 10s — which was making the card memo there reshuffle
+  // the deck under the user. Recomputed only when the module/deck changes.
+  const missedIds = useMemo<Set<string> | undefined>(() => {
+    if (!selectedModule || !selectedId) return undefined;
+    const attempt = getAttempt(selectedModule, selectedId);
+    return attempt ? new Set(attempt.missed.map((m) => m.id)) : undefined;
+  }, [selectedModule, selectedId]);
+
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -189,8 +199,6 @@ export default function Apollo({ mode }: ApolloProps) {
 
   // ---- Study mode ----
   if (view === "study" && allQuestions.length > 0) {
-    const attempt = selectedModule && selectedId ? getAttempt(selectedModule, selectedId) : null;
-    const missedIds = attempt ? new Set(attempt.missed.map((m) => m.id)) : undefined;
     return (
       <StudyMode
         title={quizTitle}
