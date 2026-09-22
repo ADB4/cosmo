@@ -25,9 +25,9 @@ fi
 # Check that the models Cosmo needs are pulled:
 #   - the default chat model (qwen3-coder:30b),
 #   - the short-answer grader (qwen3:4b, or the gemma4:e4b fallback),
-#   - the active embedding model (nomic-embed-text unless COSMO_EMBED_MODEL is set).
+#   - the active embedding model (qwen3-embedding:0.6b unless COSMO_EMBED_MODEL is set).
 # Missing models only produce a warning + the pull commands; the app still starts.
-EMBED_MODEL="${COSMO_EMBED_MODEL:-nomic-embed-text}"
+EMBED_MODEL="${COSMO_EMBED_MODEL:-qwen3-embedding:0.6b}"
 DEFAULT_CHAT="qwen3-coder:30b"
 
 # Approximate download size (GB) for a model tag — bash 3.2 compatible (macOS

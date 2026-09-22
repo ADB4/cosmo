@@ -48,26 +48,33 @@ EMBEDDING_BATCH_SIZE = 50
 # ---------------------------------------------------------------------------
 # Embedding model (Ollama)
 #
-# The default stays nomic-embed-text so the existing chroma_db keeps working
-# without a re-ingest. Opt into a stronger embedder with COSMO_EMBED_MODEL;
-# switching embedding models requires a fresh collection and a full re-ingest
-# (see `python -m backend.cli reindex`) because vector spaces are not
-# comparable across models. The Chroma collection is named after the active
-# embedding model (see DocumentProcessor) so the two never mix.
+# Default is qwen3-embedding:0.6b — the corpus has been reindexed into its
+# collection (docs_qwen3-embedding-0.6b) and its cutoff tuned. The legacy
+# nomic-embed-text collection (react_typescript_docs) is still present and can
+# be selected with COSMO_EMBED_MODEL=nomic-embed-text; mxbai-embed-large is
+# likewise available. Switching embedding models requires a fresh collection
+# and a full re-ingest (see `python -m backend.cli reindex`) because vector
+# spaces are not comparable across models. The Chroma collection is named
+# after the active embedding model (see DocumentProcessor) so they never mix.
 # ---------------------------------------------------------------------------
 
-EMBED_MODEL = os.environ.get("COSMO_EMBED_MODEL", "nomic-embed-text")
+EMBED_MODEL = os.environ.get("COSMO_EMBED_MODEL", "qwen3-embedding:0.6b")
 
 # Per-embedding-model tuning. `max_tokens` is the per-chunk truncation limit
 # (embedders have different context windows), and `retrieval_max_distance` is
 # the cosine-distance relevance cutoff, which must be re-tuned per model
-# (see `python -m backend.cli tune-cutoff`). The nomic values are tuned
-# empirically; the others are PLACEHOLDERS to re-tune after a reindex.
+# (see `python -m backend.cli tune-cutoff`). nomic/qwen3/mxbai are tuned
+# empirically; embeddinggemma is a PLACEHOLDER to re-tune after a reindex.
 EMBED_PROFILES = {
     "nomic-embed-text": {"max_tokens": 500, "retrieval_max_distance": 0.42},
-    "qwen3-embedding:0.6b": {"max_tokens": 2000, "retrieval_max_distance": 0.60},  # PLACEHOLDER — tune
-    "embeddinggemma": {"max_tokens": 2000, "retrieval_max_distance": 0.60},        # PLACEHOLDER — tune
-    "mxbai-embed-large": {"max_tokens": 500, "retrieval_max_distance": 0.60},      # 512-token model; PLACEHOLDER — tune
+    # Tuned via `cli tune-cutoff` against the full corpus/docs (24.6k chunks):
+    # on-topic React/TS/Vitest/RTL clustered at ~0.17-0.23, off-topic at
+    # ~0.59-0.68 — a wide, robust margin (suggested midpoint 0.41).
+    "qwen3-embedding:0.6b": {"max_tokens": 2000, "retrieval_max_distance": 0.41},
+    "embeddinggemma": {"max_tokens": 2000, "retrieval_max_distance": 0.60},        # PLACEHOLDER — tune after reindex
+    # 512-token model. Tuned: on-topic ~0.14-0.21, off-topic ~0.45-0.55
+    # (suggested midpoint 0.33).
+    "mxbai-embed-large": {"max_tokens": 500, "retrieval_max_distance": 0.33},
 }
 
 # Resolve the active profile, falling back to nomic's numbers for an unknown

@@ -56,7 +56,7 @@ cd cosmo
 
 # 2. Pull the required Ollama models (start-dev.sh checks for these and
 #    prints the pull commands + a size estimate if they're missing):
-ollama pull nomic-embed-text     # Required — embedding model (~0.3 GB)
+ollama pull qwen3-embedding:0.6b # Required — default embedding model (~0.6 GB)
 ollama pull qwen3-coder:30b      # Default chat model (~18 GB)
 ollama pull qwen3:4b             # Short-answer grader (~2.5 GB)
 
@@ -81,9 +81,10 @@ yarn install
 cd ..
 
 # Pull the Ollama models
-ollama pull nomic-embed-text      # Required — embedding model (~0.3 GB)
+ollama pull qwen3-embedding:0.6b  # Required — default embedding model (~0.6 GB)
 ollama pull qwen3-coder:30b       # Default chat model (~18 GB)
 ollama pull qwen3:4b              # Short-answer grader (~2.5 GB)
+ollama pull nomic-embed-text      # Optional — legacy embedder / fallback (~0.3 GB)
 ollama pull gemma4:12b            # Optional — fast explanations mode (~8 GB)
 ollama pull gpt-oss:20b           # Optional — reasoning mode (~13 GB)
 ollama pull qwen3.6:27b           # Optional — dense "deep" mode, slow (~17 GB)
@@ -353,10 +354,15 @@ and embedder are picked automatically.
 
 **Embedding** (set via `COSMO_EMBED_MODEL`):
 
-| Role | Model | Notes |
-|------|-------|-------|
-| Embedder (default) | nomic-embed-text | Keeps the existing `chroma_db` working with no re-ingest |
-| Embedder (opt-in) | qwen3-embedding:0.6b | Fallback: `embeddinggemma`; requires a reindex + re-tuned cutoff |
+| Role | Model | Cutoff | Notes |
+|------|-------|--------|-------|
+| Embedder (default) | qwen3-embedding:0.6b | 0.41 | Widest on/off-topic separation; corpus reindexed into `docs_qwen3-embedding-0.6b` |
+| Embedder (alt) | mxbai-embed-large | 0.33 | Reindexed and tuned; 512-token cap |
+| Embedder (legacy) | nomic-embed-text | 0.42 | Original `react_typescript_docs` collection, kept for fallback |
+
+Each embedder has its own Chroma collection (named after the model) and its own
+tuned retrieval cutoff in `EMBED_PROFILES`; switch between them with
+`COSMO_EMBED_MODEL`.
 
 All chat modes use a 16K context (`num_ctx`) with inference options tuned for
 M2 Pro 32GB in `backend/config.py`. Chat streaming, quiz answering, and grading
@@ -381,28 +387,30 @@ keeps the chat model and grader resident between quiz and chat use.
 
 ## Upgrading the embedding model
 
-The default embedder is `nomic-embed-text`, chosen so the existing `chroma_db`
-keeps working untouched. To switch to a stronger embedder you need a **fresh
-collection** (vector spaces are not comparable across models) and a **re-tuned
-retrieval cutoff**. The collection is named after the embedding model, so the
-two never mix.
+The default embedder is `qwen3-embedding:0.6b`, with `mxbai-embed-large` as a
+tuned alternative and `nomic-embed-text` kept as the legacy fallback. Each has
+its own Chroma collection (named after the model, so vector spaces never mix)
+and its own tuned retrieval cutoff in `EMBED_PROFILES`. To adopt a **new**
+embedder you need a **fresh collection** (a full reindex) and a **re-tuned
+cutoff**:
 
 ```bash
 # 1. Reindex your documents into the new model's collection (force=True):
-python -m backend.cli reindex --embed-model qwen3-embedding:0.6b --dir corpus/docs/
+python -m backend.cli reindex --embed-model <model> --dir corpus/docs/
 
-# 2. Re-tune the retrieval cutoff for the new model. This probes the collection
-#    with on-topic (React/TS/Vitest/RTL) and off-topic (cooking/travel/sports)
-#    questions and suggests a cutoff midway between them:
-python -m backend.cli tune-cutoff --embed-model qwen3-embedding:0.6b
+# 2. Re-tune the retrieval cutoff. This probes the collection with on-topic
+#    (React/TS/Vitest/RTL) and off-topic (cooking/travel/sports) questions and
+#    suggests a cutoff midway between them:
+python -m backend.cli tune-cutoff --embed-model <model>
 
 # 3. Put the suggested value in EMBED_PROFILES in backend/config.py (or set
-#    COSMO_RETRIEVAL_MAX_DISTANCE), then run the app with the new embedder:
-COSMO_EMBED_MODEL=qwen3-embedding:0.6b ./scripts/start-dev.sh
+#    COSMO_RETRIEVAL_MAX_DISTANCE), then run the app with that embedder:
+COSMO_EMBED_MODEL=<model> ./scripts/start-dev.sh
 ```
 
-The nomic profile is tuned to `0.42`; the qwen3-embedding / embeddinggemma
-profiles ship with placeholder cutoffs that `tune-cutoff` will correct.
+Tuned cutoffs currently in `EMBED_PROFILES`: `qwen3-embedding:0.6b` → 0.41,
+`mxbai-embed-large` → 0.33, `nomic-embed-text` → 0.42. `embeddinggemma` ships
+with a placeholder cutoff that `tune-cutoff` will correct after a reindex.
 
 ## Sharing the ChromaDB
 
@@ -424,7 +432,7 @@ All backend settings live in `backend/config.py` and can be overridden via envir
 | `COSMO_DECK_DIR` | `./decks` | Quiz deck directory (module subfolders) |
 | `COSMO_CHUNK_SIZE` | `1200` | Markdown chunk size (chars) |
 | `COSMO_CHUNK_OVERLAP` | `200` | Chunk overlap (chars) |
-| `COSMO_EMBED_MODEL` | `nomic-embed-text` | Embedding model (see "Upgrading the embedding model") |
+| `COSMO_EMBED_MODEL` | `qwen3-embedding:0.6b` | Embedding model (see "Upgrading the embedding model") |
 | `COSMO_EMBED_MAX_TOKENS` | from profile (`500` for nomic) | Max tokens per embedding chunk |
 | `COSMO_RETRIEVAL_MAX_DISTANCE` | from profile (`0.42` for nomic) | Docs-only relevance cutoff (cosine distance) |
 
