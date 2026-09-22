@@ -10,8 +10,8 @@ import os
 from typing import Generator, Tuple
 
 from flask import Flask, Response, jsonify, request, stream_with_context
-from flask_cors import CORS
 from pathlib import Path
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 from backend.config import (
@@ -29,6 +29,7 @@ from backend.config import (
     GRADER_FALLBACKS,
     GRADER_MODEL,
     GRADER_OPTIONS,
+    INGEST_ROOTS,
     SERVER_HOST,
     SERVER_PORT,
     UPLOAD_DIR,
@@ -45,14 +46,73 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+
+# No CORS: the frontend is same-origin in both modes (the Vite proxy in dev,
+# nginx in Docker), so the API never needs cross-origin access. A wildcard
+# CORS policy would only re-open the door to drive-by requests from any web
+# page in local mode.
+
+# ---------------------------------------------------------------------------
+# Cloudflare Access JWT verification (optional defense in depth)
+#
+# In deployment Cloudflare Access is the only auth gate. When
+# COSMO_CF_ACCESS_TEAM and COSMO_CF_ACCESS_AUD are set, every /api/* request
+# must carry a valid `Cf-Access-Jwt-Assertion` header (RS256, signed by the
+# team's JWKS, audience == the AUD tag) or it is rejected with 401. This means
+# a request that somehow reaches the backend without passing Access — e.g. a
+# tunnel/network misconfiguration — is still refused. Unset by default (local
+# dev), so the block below is skipped entirely and PyJWT is never imported.
+# ---------------------------------------------------------------------------
+
+CF_ACCESS_TEAM = os.environ.get("COSMO_CF_ACCESS_TEAM", "").strip()
+CF_ACCESS_AUD = os.environ.get("COSMO_CF_ACCESS_AUD", "").strip()
+
+if CF_ACCESS_TEAM and CF_ACCESS_AUD:
+    _CF_ISSUER = f"https://{CF_ACCESS_TEAM}.cloudflareaccess.com"
+    _CF_CERTS_URL = f"{_CF_ISSUER}/cdn-cgi/access/certs"
+    _cf_jwk_client = None  # created lazily so import needs no network
+
+    def _cf_jwks_client():
+        global _cf_jwk_client
+        if _cf_jwk_client is None:
+            import jwt
+            # PyJWKClient fetches and caches the signing keys itself.
+            _cf_jwk_client = jwt.PyJWKClient(_CF_CERTS_URL, cache_keys=True)
+        return _cf_jwk_client
+
+    @app.before_request
+    def _verify_cf_access():
+        if not request.path.startswith("/api/"):
+            return None
+        token = request.headers.get("Cf-Access-Jwt-Assertion", "")
+        if not token:
+            return jsonify({"error": "missing Cloudflare Access token"}), 401
+        try:
+            import jwt
+            signing_key = _cf_jwks_client().get_signing_key_from_jwt(token)
+            jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience=CF_ACCESS_AUD,
+                issuer=_CF_ISSUER,
+            )
+        except Exception:
+            logger.warning("Rejected /api request with invalid Cloudflare Access token")
+            return jsonify({"error": "invalid Cloudflare Access token"}), 401
+        return None
+
+    logger.info("Cloudflare Access JWT verification enabled (aud=%s)", CF_ACCESS_AUD)
 
 # ---------------------------------------------------------------------------
 # Globals — initialised lazily so the server can start even if Ollama is down
 # ---------------------------------------------------------------------------
 
 _processor: DocumentProcessor | None = None
-_history = ChatHistory(max_turns=DEFAULT_HISTORY_TURNS)
+# NB: no process-global ChatHistory. It would be shared by every client — one
+# user's turns leaking into another's prompt, one client's Clear wiping
+# everyone, and format_for_prompt racing add() under the threaded server. Each
+# /api/chat request builds its own ChatHistory from history sent in the body.
 
 UPLOAD_DIR.mkdir(exist_ok=True)
 DECK_DIR.mkdir(exist_ok=True)
@@ -63,6 +123,50 @@ def get_processor() -> DocumentProcessor:
     if _processor is None:
         _processor = DocumentProcessor()
     return _processor
+
+
+# ---------------------------------------------------------------------------
+# Request validation + error handling
+#
+# Unhandled exceptions must never leak a traceback (or, with the Werkzeug
+# debugger, an interactive console) to the client: the API is reachable by
+# every Cloudflare Access user in deployment and by the whole LAN locally.
+# ---------------------------------------------------------------------------
+
+class BadRequest(Exception):
+    """A client error that should be reported as 400 JSON."""
+
+
+def _json_body() -> dict:
+    """The request's JSON object, or {} if there is none / it is not an object."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+def _str_field(data: dict, key: str, default: str = "") -> str:
+    """
+    Return `data[key]` stripped, or `default` when absent. Raises BadRequest
+    (-> 400 JSON) when the value is present but not a string, instead of
+    letting `.strip()` raise AttributeError into a 500.
+    """
+    value = data.get(key, default)
+    if not isinstance(value, str):
+        raise BadRequest(f"{key} must be a string")
+    return value.strip()
+
+
+@app.errorhandler(BadRequest)
+def _handle_bad_request(e: BadRequest):
+    return jsonify({"error": str(e)}), 400
+
+
+@app.errorhandler(Exception)
+def _handle_unexpected(e: Exception):
+    # Let Flask's own 404/405/413 etc. pass through unchanged.
+    if isinstance(e, HTTPException):
+        return e
+    logger.exception("Unhandled error in %s %s", request.method, request.path)
+    return jsonify({"error": "internal error"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +229,27 @@ def resolve_grader_model() -> str:
     )
     _grader_model = default_tag
     return _grader_model
+
+
+# ---------------------------------------------------------------------------
+# Ingest path containment
+#
+# The directory- and (historically) path-based ingest routes must never read
+# outside a small set of allowed roots (see INGEST_ROOTS). A caller-supplied
+# path is resolved and checked against those roots before anything is read.
+# ---------------------------------------------------------------------------
+
+def _ingest_root_for(resolved: Path) -> Path | None:
+    """Return the first INGEST_ROOT that `resolved` sits inside, or None."""
+    for root in INGEST_ROOTS:
+        if resolved == root or resolved.is_relative_to(root):
+            return root
+    return None
+
+
+def _ingest_roots_message() -> str:
+    roots = ", ".join(str(r) for r in INGEST_ROOTS) or "(none configured)"
+    return f"path must be inside an allowed ingest root: {roots}"
 
 
 # ---------------------------------------------------------------------------
@@ -234,13 +359,40 @@ def stats():
 # Chat — streaming via Server-Sent Events
 # ===================================================================
 
+def _history_from_body(raw) -> ChatHistory:
+    """
+    Build a per-request ChatHistory from client-supplied prior turns.
+
+    Accepts at most 10 objects, each {"question": str, "answer": str};
+    anything malformed is skipped, and answers are truncated to 600 chars.
+    The deque's maxlen caps it regardless. Isolating history per request is
+    what keeps one client's conversation out of another's prompt.
+    """
+    hist = ChatHistory(max_turns=DEFAULT_HISTORY_TURNS)
+    if not isinstance(raw, list):
+        return hist
+    for item in raw[:10]:
+        if not isinstance(item, dict):
+            continue
+        q = item.get("question")
+        a = item.get("answer")
+        if not isinstance(q, str) or not isinstance(a, str):
+            continue
+        q = q.strip()
+        if not q:
+            continue
+        hist.add(q, a[:600])
+    return hist
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    data = request.get_json(silent=True) or {}
-    question = data.get("question", "").strip()
+    data = _json_body()
+    question = _str_field(data, "question")
     mode = data.get("mode", DEFAULT_MODE)
     n_results = data.get("n_results", 8)
     grounded = data.get("grounded", True)
+    history = _history_from_body(data.get("history"))
 
     if not question:
         return jsonify({"error": "question is required"}), 400
@@ -251,7 +403,7 @@ def chat():
         try:
             proc = get_processor()
             for token in proc.ask_question(
-                question, mode=mode, n_results=n_results, history=_history,
+                question, mode=mode, n_results=n_results, history=history,
                 grounded=grounded,
             ):
                 if token == proc.NO_RESULTS_SIGNAL:
@@ -272,16 +424,6 @@ def chat():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-# ===================================================================
-# History management
-# ===================================================================
-
-@app.route("/api/history/clear", methods=["POST"])
-def clear_history():
-    _history.clear()
-    return jsonify({"status": "cleared"})
 
 
 # ===================================================================
@@ -331,22 +473,34 @@ def ingest():
 
 @app.route("/api/ingest/directory", methods=["POST"])
 def ingest_directory():
-    data = request.get_json(silent=True) or {}
-    dir_path = data.get("path", "").strip()
+    data = _json_body()
+    dir_path = _str_field(data, "path")
     force = data.get("force", False)
 
     if not dir_path:
         return jsonify({"error": "path is required"}), 400
 
-    p = Path(dir_path)
-    if not p.exists() or not p.is_dir():
+    try:
+        p = Path(dir_path).resolve(strict=True)
+    except (OSError, RuntimeError):
         return jsonify({"error": f"Directory not found: {dir_path}"}), 404
+    if not p.is_dir():
+        return jsonify({"error": f"Directory not found: {dir_path}"}), 404
+
+    # Refuse anything outside the allowed roots so this route can't be turned
+    # into an arbitrary filesystem read.
+    root = _ingest_root_for(p)
+    if root is None:
+        return jsonify({"error": _ingest_roots_message()}), 400
 
     results = []
     try:
         proc = get_processor()
         for ext_glob in ("**/*.pdf", "**/*.md", "**/*.markdown"):
             for filepath in p.glob(ext_glob):
+                # Report paths relative to the matched root, never absolute,
+                # so the response can't be used to map the filesystem.
+                rel = str(filepath.relative_to(root))
                 try:
                     ext = filepath.suffix.lower()
                     count = (
@@ -354,9 +508,9 @@ def ingest_directory():
                         if ext == ".pdf"
                         else proc.ingest_markdown(str(filepath), force=force)
                     )
-                    results.append({"file": filepath.name, "chunks": count})
+                    results.append({"file": rel, "chunks": count})
                 except Exception as e:
-                    results.append({"file": filepath.name, "error": str(e)})
+                    results.append({"file": rel, "error": str(e)})
         return jsonify({"status": "ok", "files": results})
     except OllamaConnectionError as e:
         return jsonify({"error": str(e)}), 503
@@ -398,8 +552,8 @@ def list_modules():
 @app.route("/api/modules", methods=["POST"])
 def create_module():
     """Create an (empty) module folder under DECK_DIR."""
-    data = request.get_json(silent=True) or {}
-    name = data.get("name", "").strip()
+    data = _json_body()
+    name = _str_field(data, "name")
     if not name:
         return jsonify({"error": "name is required"}), 400
 
@@ -476,12 +630,7 @@ def ingest_quiz():
     # Determine target module subdirectory
     module = request.args.get("module", "").strip() or request.form.get("module", "").strip()
     if not module:
-        # Try JSON body for path-based ingest
-        body = request.get_json(silent=True) or {}
-        module = body.get("module", "").strip()
-
-    if not module:
-        return jsonify({"error": "module is required (query param, form field, or JSON body)"}), 400
+        return jsonify({"error": "module is required (query param or form field)"}), 400
 
     # Sanitize module name
     safe_module = secure_filename(module)
@@ -491,72 +640,78 @@ def ingest_quiz():
     module_dir = DECK_DIR / safe_module
     module_dir.mkdir(exist_ok=True)
 
-    # Handle file upload
-    if "file" in request.files:
-        file = request.files["file"]
-        if not file.filename:
-            return jsonify({"error": "Empty filename"}), 400
-        safe_name = secure_filename(file.filename)
-        if not safe_name.endswith(".json"):
-            return jsonify({"error": "Only .json files accepted"}), 400
-        dest = module_dir / safe_name
-        file.save(str(dest))
-    else:
-        # Handle path-based ingest
-        data = request.get_json(silent=True) or {}
-        src = data.get("path", "").strip()
-        if not src:
-            return jsonify({"error": "No file or path provided"}), 400
-        src_path = Path(src)
-        if not src_path.exists():
-            return jsonify({"error": f"File not found: {src}"}), 404
-        safe_name = secure_filename(src_path.name)
-        dest = module_dir / safe_name
-        import shutil
-        shutil.copy2(str(src_path), str(dest))
+    # Only multipart file uploads are accepted. (Path-based ingest was removed:
+    # it let any caller copy an arbitrary readable file into the decks folder.)
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename"}), 400
+    safe_name = secure_filename(file.filename)
+    if not safe_name.endswith(".json"):
+        return jsonify({"error": "Only .json files accepted"}), 400
+    dest = module_dir / safe_name
 
-    # Validate
+    # Write the upload to a temp file in the same directory, validate it there,
+    # and only os.replace() over the real deck once it passes. Saving straight
+    # onto `dest` meant a malformed re-upload (bad JSON, schema failure, or an
+    # id collision) destroyed the existing deck via the unlink on those paths.
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(
+        dir=str(module_dir), suffix=".json.tmp", delete=False
+    )
+    tmp_path = Path(tmp.name)
+    moved = False
     try:
-        with open(dest) as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        dest.unlink(missing_ok=True)
-        return jsonify({"error": f"Invalid JSON: {e}"}), 400
+        file.save(tmp)
+        tmp.close()
 
-    err = _validate_quiz_json(data)
-    if err:
-        dest.unlink(missing_ok=True)
-        return jsonify({"error": err}), 400
-
-    # Reject decks that reuse a quiz id already present in this module —
-    # otherwise the (module, quiz_id) key stops being unique and lookups
-    # would silently return the wrong deck. Existing ids belonging to the
-    # file we just overwrote are excluded from the check.
-    incoming_ids = [q.get("id") for q in data.get("quizzes", []) if q.get("id")]
-    # Ids defined in *other* files in this module are what we clash against;
-    # ids in the file we just wrote (same name = a re-upload) don't count.
-    own_ids: set[str] = set()
-    for other_fp in _iter_module_deck_files(safe_module):
-        if other_fp.resolve() == dest.resolve():
-            continue
+        # Validate
         try:
-            with open(other_fp) as f:
-                other = json.load(f)
-            for q in other.get("quizzes", []):
-                if q.get("id"):
-                    own_ids.add(q["id"])
-        except Exception:
-            continue
-    collisions = sorted({qid for qid in incoming_ids if qid in own_ids})
-    if collisions:
-        dest.unlink(missing_ok=True)
-        return jsonify({
-            "error": (
-                f"Quiz id(s) already exist in module '{safe_module}': "
-                f"{', '.join(collisions)}. Rename the quiz id(s) or choose a "
-                f"different module."
-            )
-        }), 409
+            with open(tmp_path) as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"Invalid JSON: {e}"}), 400
+
+        err = _validate_quiz_json(data)
+        if err:
+            return jsonify({"error": err}), 400
+
+        # Reject decks that reuse a quiz id already present in this module —
+        # otherwise the (module, quiz_id) key stops being unique and lookups
+        # would silently return the wrong deck.
+        incoming_ids = [q.get("id") for q in data.get("quizzes", []) if q.get("id")]
+        # Ids defined in *other* files in this module are what we clash against;
+        # ids in the deck we're about to replace (same name = a re-upload) don't
+        # count — compare against the final `dest`, not the temp file.
+        own_ids: set[str] = set()
+        for other_fp in _iter_module_deck_files(safe_module):
+            if other_fp.resolve() == dest.resolve():
+                continue
+            try:
+                with open(other_fp) as f:
+                    other = json.load(f)
+                for q in other.get("quizzes", []):
+                    if q.get("id"):
+                        own_ids.add(q["id"])
+            except Exception:
+                continue
+        collisions = sorted({qid for qid in incoming_ids if qid in own_ids})
+        if collisions:
+            return jsonify({
+                "error": (
+                    f"Quiz id(s) already exist in module '{safe_module}': "
+                    f"{', '.join(collisions)}. Rename the quiz id(s) or choose a "
+                    f"different module."
+                )
+            }), 409
+
+        # Passed every check — atomically put it in place.
+        os.replace(str(tmp_path), str(dest))
+        moved = True
+    finally:
+        if not moved:
+            tmp_path.unlink(missing_ok=True)
 
     quiz_ids = [q.get("id", "?") for q in data.get("quizzes", [])]
     total_q = sum(
@@ -576,7 +731,7 @@ def ingest_quiz():
 
 @app.route("/api/quizzes/evaluate", methods=["POST"])
 def evaluate_answer():
-    data = request.get_json(silent=True) or {}
+    data = _json_body()
     question = data.get("question", "")
     user_answer = data.get("user_answer", "")
     model_answer = data.get("model_answer", "")
@@ -673,7 +828,7 @@ def delete_questions(module: str, quiz_id: str):
     Removes matching questions from their sections without renumbering.
     Updates section counts. Writes the file back to disk.
     """
-    data = request.get_json(silent=True) or {}
+    data = _json_body()
     question_ids = data.get("question_ids", [])
 
     if not question_ids or not isinstance(question_ids, list):
@@ -754,6 +909,9 @@ def delete_questions(module: str, quiz_id: str):
 
 if __name__ == "__main__":
     port = SERVER_PORT
-    print(f"\n  Cosmo API server starting on http://localhost:{port}")
+    # The Werkzeug debugger (interactive tracebacks + console) is opt-in only;
+    # it must never be on by default because this server is network-reachable.
+    debug = os.environ.get("COSMO_DEBUG") == "1"
+    print(f"\n  Cosmo API server starting on http://{SERVER_HOST}:{port}")
     print(f"  Uploads directory: {UPLOAD_DIR.resolve()}\n")
-    app.run(host=SERVER_HOST, port=port, debug=True)
+    app.run(host=SERVER_HOST, port=port, debug=debug)

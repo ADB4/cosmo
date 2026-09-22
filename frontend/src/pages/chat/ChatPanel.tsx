@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage, ModelMode, HealthResponse } from "../../lib/types";
 import { MODE_INFO } from "../../lib/types";
-import { streamChat, clearHistory } from "../../lib/api";
+import { streamChat, type ChatTurn } from "../../lib/api";
 import MessageBubble from "./MessageBubble";
 import KnowledgeBase from "./KnowledgeBase";
 import ShortcutsOverlay, { type Shortcut } from "../../components/ShortcutsOverlay";
@@ -31,10 +31,39 @@ function loadStoredMessages(): ChatMessage[] {
     const raw = localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Drop interrupted assistant turns: empty content with no terminal state
+    // (error / no-result / truncated). These are phantoms from a stream that
+    // never finished; keeping them would reload as blank "complete" answers.
+    return (parsed as ChatMessage[]).filter(
+      (m) =>
+        m.role !== "assistant" ||
+        m.content.length > 0 ||
+        !!m.error ||
+        !!m.noResults ||
+        !!m.truncated,
+    );
   } catch {
     return [];
   }
+}
+
+/** The last 10 completed assistant turns, as {question, answer} pairs, to send
+ *  to the backend as per-request context. Skips errored / no-result / empty
+ *  turns so partial or failed answers never poison the next prompt. */
+function buildHistory(messages: ChatMessage[]): ChatTurn[] {
+  return messages
+    .filter(
+      (m) =>
+        m.role === "assistant" &&
+        !!m.question &&
+        !m.error &&
+        !m.noResults &&
+        !m.truncated &&
+        m.content.length > 0,
+    )
+    .slice(-10)
+    .map((m) => ({ question: m.question!, answer: m.content }));
 }
 
 export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelProps) {
@@ -47,6 +76,15 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Always-current view of `messages` so runQuery can build the history to
+  // send without depending on `messages` (which changes on every token).
+  const messagesRef = useRef<ChatMessage[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  // Id of the assistant message currently streaming, so Stop/unmount can mark
+  // it interrupted rather than leaving a partial answer that looks complete.
+  const streamingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,16 +94,24 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
     inputRef.current?.focus();
   }, []);
 
-  // Persist the visible message list (capped) so a reload keeps it.
-  // Server-side history is unaffected (still managed via /history/clear).
+  // Abort any in-flight stream when the panel unmounts (e.g. switching to the
+  // Apollo tab). Without this the fetch keeps running, onToken updates a dead
+  // component, and the partial answer could persist as if complete.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Persist the visible transcript (capped) only when NOT streaming. Writing on
+  // every token would save a partial answer that reloads as a finished one;
+  // persisting on terminal states (done / error / no-result / stop) instead
+  // means an unmount mid-stream leaves the last completed transcript intact.
   useEffect(() => {
+    if (streaming) return;
     try {
       const capped = messages.slice(-HISTORY_CAP);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(capped));
     } catch {
       // ignore storage failures (private mode, quota)
     }
-  }, [messages]);
+  }, [messages, streaming]);
 
   // Core send routine. `showUserMsg` is false when re-issuing an existing
   // question (Ask broadly / Retry) so we don't duplicate the user's turn.
@@ -96,8 +142,13 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
       setStreaming(true);
 
       const assistantId = assistantMsg.id;
+      streamingIdRef.current = assistantId;
 
-      abortRef.current = streamChat(q, mode, 8, groundedFlag, {
+      // Prior completed turns (before this new question) become the server's
+      // per-request context. Read from the ref so this stays off runQuery's deps.
+      const history = buildHistory(messagesRef.current);
+
+      abortRef.current = streamChat(q, mode, 8, groundedFlag, history, {
         onToken: (token) => {
           setMessages((prev) =>
             prev.map((m) =>
@@ -106,10 +157,12 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
           );
         },
         onDone: () => {
+          streamingIdRef.current = null;
           setStreaming(false);
           inputRef.current?.focus();
         },
         onError: (err) => {
+          streamingIdRef.current = null;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId ? { ...m, error: err } : m,
@@ -118,6 +171,7 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
           setStreaming(false);
         },
         onNoResults: () => {
+          streamingIdRef.current = null;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId ? { ...m, noResults: true } : m,
@@ -166,13 +220,23 @@ export default function ChatPanel({ mode, health, onHealthRefresh }: ChatPanelPr
 
   const handleStop = () => {
     abortRef.current?.abort();
+    // Mark the in-flight assistant message interrupted so its partial content
+    // is never persisted or reused as a complete answer.
+    const id = streamingIdRef.current;
+    if (id) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id && !m.error && !m.noResults ? { ...m, truncated: true } : m,
+        ),
+      );
+      streamingIdRef.current = null;
+    }
     setStreaming(false);
   };
 
-  const handleClear = async () => {
+  const handleClear = () => {
     if (streaming) handleStop();
     setMessages([]);
-    await clearHistory();
   };
 
   const hasConversation = messages.length > 0;

@@ -28,12 +28,27 @@ DECK_DIR = Path(os.environ.get("COSMO_DECK_DIR", str(PROJECT_ROOT / "decks")))
 # (see `reindex --dir corpus/docs/`).
 DOCS_DIR = PROJECT_ROOT / "corpus" / "docs"
 
+# Directories the HTTP ingest routes are allowed to read from. A requested
+# directory or quiz-file path must resolve to somewhere inside one of these
+# roots, so the API can never be pointed at arbitrary parts of the filesystem
+# (locally by any web page that can POST, in deployment by any Access user).
+# Override with COSMO_INGEST_ROOTS (colon-separated absolute paths).
+INGEST_ROOTS = [
+    Path(p).resolve()
+    for p in os.environ.get(
+        "COSMO_INGEST_ROOTS", f"{DOCS_DIR}:{UPLOAD_DIR}"
+    ).split(":")
+    if p.strip()
+]
+
 # ---------------------------------------------------------------------------
 # Server
 # ---------------------------------------------------------------------------
 
 SERVER_PORT = int(os.environ.get("COSMO_PORT", 5174))
-SERVER_HOST = os.environ.get("COSMO_HOST", "0.0.0.0")
+# Bind to loopback by default so the API is not exposed to the LAN. Docker
+# sets COSMO_HOST=0.0.0.0 so nginx can reach it across the compose network.
+SERVER_HOST = os.environ.get("COSMO_HOST", "127.0.0.1")
 
 # ---------------------------------------------------------------------------
 # Document processing

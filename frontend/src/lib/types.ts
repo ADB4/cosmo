@@ -14,6 +14,9 @@ export interface ChatMessage {
   noResults?: boolean;
   /** Stream failed; render an error block with a Retry button instead of an answer */
   error?: string;
+  /** Stream was stopped/interrupted before completing; render a note + Retry and
+   *  never treat the partial content as a finished answer. */
+  truncated?: boolean;
 }
 
 /** Stats returned by /api/stats */

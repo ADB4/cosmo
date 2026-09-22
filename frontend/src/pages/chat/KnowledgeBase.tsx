@@ -167,7 +167,7 @@ export default function KnowledgeBase({ onIngested, defaultOpen = false }: Props
               className="kb-dir-input"
               type="text"
               value={dirPath}
-              placeholder="Or ingest a directory path, e.g. /path/to/docs"
+              placeholder="Ingest a directory under corpus/docs or uploads"
               onChange={(e) => setDirPath(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleDirIngest(); }}
               disabled={ingesting}
